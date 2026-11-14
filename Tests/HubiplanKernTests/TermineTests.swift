@@ -5,7 +5,7 @@ final class TermineTests: XCTestCase {
     private let server = "https://verein.example.de"
 
     func testTermineLesen() async throws {
-        let net = FakeTransport([FakeTransport.json(200, #"{"items":[{"key":"12:2026-11-20","event_id":12,"title":"Zugversammlung","starts_at":"2026-11-20T19:00:00+01:00","ends_at":"2026-11-20T21:00:00+01:00","location":"Vereinsheim","category":{"name":"Versammlung","color":"#336699"},"owner":"Zug 1","rsvp_enabled":true,"my_response":null,"neu":true},{"key":"13","event_id":13,"title":"Schützenfest","starts_at":"2026-08-28T00:00:00+02:00","ends_at":"2026-08-31T23:59:59.999+02:00","all_day":true,"is_cancelled":true,"rsvp_enabled":true,"my_response":"yes"}]}"#)])
+        let net = FakeTransport([FakeTransport.json(200, #"{"items":[{"key":"12:2026-11-20","event_id":12,"title":"Zugversammlung","starts_at":"2026-11-20T19:00:00+01:00","ends_at":"2026-11-20T21:00:00+01:00","location":"Vereinsheim","category":{"name":"Versammlung","color":"blau"},"owner":"Zug 1","rsvp_enabled":true,"my_response":null,"neu":true},{"key":"13","event_id":13,"title":"Schützenfest","starts_at":"2026-08-28T00:00:00+02:00","ends_at":"2026-08-31T23:59:59.999+02:00","all_day":true,"is_cancelled":true,"rsvp_enabled":true,"my_response":"yes"}]}"#)])
         let events = try await Api(server: server, transport: net, tokens: FakeTokens("hpd_a")).events(accessId: 3, from: "2026-11-01", to: "2027-05-01")
         XCTAssertEqual(net.seen.first?.url, "https://verein.example.de/api/portal/3/events/?from=2026-11-01&to=2027-05-01")
         XCTAssertEqual(events.map(\.id), ["12:2026-11-20", "13"])
