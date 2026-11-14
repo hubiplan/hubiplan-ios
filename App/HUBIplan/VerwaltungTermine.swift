@@ -493,7 +493,7 @@ private struct NeuerTerminBlatt: View {
                             if withDeadline {
                                 DatePicker(tr("Anmelden bis"), selection: $deadline, displayedComponents: .date)
                             }
-                            Toggle(tr("Eingeladene per E-Mail einladen"), isOn: $draft.notify)
+                            Toggle(tr("Per E-Mail einladen"), isOn: $draft.notify)
                         }
                     }
                 }

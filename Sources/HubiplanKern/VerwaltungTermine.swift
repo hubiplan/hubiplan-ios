@@ -62,10 +62,10 @@ public struct AdminOccurrence: Decodable, Equatable, Sendable {
     /// Bei Serien der gewählte Einzeltermin, sonst nil (die Absage gilt dem ganzen Termin).
     public var occurrenceStart: String? { isSeries ? (originalStart ?? startsAt) : nil }
 
-    /// Zweite Zeile der Liste: Ort, Einheit, Zu-/Absagen, Serie.
+    /// Zweite Zeile der Liste: Ort, Einheit, Rückmeldung, Serie.
     public var detail: String {
         var parts = [location, owner].filter { !$0.isEmpty }
-        if rsvpEnabled { parts.append(tr("Zu-/Absagen")) }
+        if rsvpEnabled { parts.append(tr("mit Rückmeldung")) }
         if isSeries { parts.append(tr("Serie")) }
         return parts.joined(separator: " · ")
     }

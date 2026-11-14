@@ -39,7 +39,7 @@ final class VerwaltungTermineTests: XCTestCase {
         XCTAssertEqual(net.seen.first?.url, "https://verein.example.de/api/app/v1/admin/u/4/events/?from=2026-11-14&to=2027-05-16")
         XCTAssertTrue(list.canManage)
         XCTAssertTrue(list.rsvpAllowed)
-        XCTAssertEqual(list.items[0].detail, "Vereinsheim · 1. Zug · Zu-/Absagen · Serie")
+        XCTAssertEqual(list.items[0].detail, "Vereinsheim · 1. Zug · mit Rückmeldung · Serie")
         XCTAssertEqual(list.items[0].occurrenceStart, "2026-12-01T18:00:00Z")
         XCTAssertEqual(list.items[0].rowKey, "7:2026-12-01")
         XCTAssertNil(list.items[1].occurrenceStart)

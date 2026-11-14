@@ -228,7 +228,7 @@ private struct VerwaltungStart: View {
                     NavigationLink {
                         TermineVerwaltungView(unit: unit)
                     } label: {
-                        Bereich(symbol: "calendar", title: tr("Termine"), hint: tr("Absagen, Zu- und Absagen eintragen, neuer Termin"))
+                        Bereich(symbol: "calendar", title: tr("Termine"), hint: tr("Absagen, Rückmeldungen eintragen, neuer Termin"))
                     }
                 }
                 if unit.sections.contains(.occasions) {
@@ -334,7 +334,9 @@ struct OffenePunkteView: View {
                                 }
                             }
                         } footer: {
-                            Text(tr("Punkte ohne Pfeil bearbeitest du zurzeit im Browser."))
+                            if tasks.contains(where: { $0.target == nil }) {
+                                Text(tr("Punkte ohne Pfeil bearbeitest du zurzeit im Browser."))
+                            }
                         }
                     }
                 } else if model.adminError == nil {

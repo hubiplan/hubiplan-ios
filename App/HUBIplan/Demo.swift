@@ -106,8 +106,8 @@ struct DemoTransport: Transport {
             return termine(path, request.method, english: english)
         } else if path.hasSuffix("/tasks/") {
             let t = english
-                ? ["Data change", "New address and phone number", "Photo", "New photo for the membership card", "Event", "Christmas party", "12 replies, 3 open"]
-                : ["Datenänderung", "Neue Anschrift und Telefonnummer", "Foto", "Neues Foto für den Ausweis", "Termin", "Weihnachtsfeier", "12 Rückmeldungen, 3 offen"]
+                ? ["Data change", "New address and phone number", "Photo", "New photo for the membership card", "Event", "Christmas party", "4 replies, 2 open"]
+                : ["Datenänderung", "Neue Anschrift und Telefonnummer", "Foto", "Neues Foto für den Ausweis", "Termin", "Weihnachtsfeier", "4 Rückmeldungen, 2 offen"]
             body = """
             {"items":[
             {"kind":"change_request","kind_label":"\(t[0])","title":"Max Mustermann","detail":"\(t[1])","ref":1},
