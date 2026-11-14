@@ -103,8 +103,8 @@ struct DemoTransport: Transport {
             """
         } else {
             let t = english
-                ? ["Report the new board to the register of associations", "Board", "Tax return for the tax office", "Treasurer", "Check the fire extinguishers", "Clubhouse warden", "Update the transparency register", "Notary appointment is booked.", "Handed in on time."]
-                : ["Neuen Vorstand beim Vereinsregister anmelden", "Vorstand", "Steuererklärung beim Finanzamt", "Kassierer", "Feuerlöscher prüfen lassen", "Hauswart", "Transparenzregister aktualisieren", "Notartermin ist vereinbart.", "Fristgerecht abgegeben."]
+                ? ["Report the new board to the register of associations", "Board", "Tax return for the tax office", "Treasurer", "Check the fire extinguishers", "Clubhouse warden", "Update the transparency register", "The documents are with the tax adviser.", "Handed in on time."]
+                : ["Neuen Vorstand beim Vereinsregister anmelden", "Vorstand", "Steuererklärung beim Finanzamt", "Kassierer", "Feuerlöscher prüfen lassen", "Hauswart", "Transparenzregister aktualisieren", "Die Unterlagen liegen beim Steuerberater.", "Fristgerecht abgegeben."]
             body = """
             {"items":[
             {"id":2,"title":"\(t[4])","due_date":"\(day(45, "00:00").prefix(10))","status":"planned","role_name":"\(t[5])","interval_months":24},

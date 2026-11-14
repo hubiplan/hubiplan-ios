@@ -123,7 +123,7 @@ private struct GeschaeftspartnerAkte: View {
                 Section(tr("Notizen")) { Text(partner.notes) }
             }
         }
-        .navigationTitle(tr("Geschäftspartner"))
+        .navigationTitle(tr("Partnerakte"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
@@ -258,7 +258,7 @@ private struct FristSeite: View {
                 }
             }
         }
-        .navigationTitle(tr("Frist"))
+        .navigationTitle(tr("Pflicht"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }
