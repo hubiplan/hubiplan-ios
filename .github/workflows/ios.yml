@@ -76,6 +76,7 @@ jobs:
             foto kasse "$SPRACHE" -demo 1 -reiter ausweis -abschnitt kasse
             foto buchung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt buchung
             foto neuebuchung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt neuebuchung
+            foto entwuerfe "$SPRACHE" -demo 1 -reiter ausweis -abschnitt entwuerfe
             foto quittung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt quittung
             foto vrechnungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vrechnungen
             foto vrechnung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vrechnung

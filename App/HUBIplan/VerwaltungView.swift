@@ -162,7 +162,7 @@ private struct VerwaltungStart: View {
     @State private var showTasks = Demo.active && ["offen", "meldungen"].contains(Demo.section)
     @State private var showOccasions = Demo.active && Demo.section == "anlaesse"
     @State private var showEvents = Demo.active && ["vtermine", "vtermin", "neuertermin"].contains(Demo.section)
-    @State private var showFinance = Demo.active && ["kasse", "buchung", "neuebuchung", "quittung"].contains(Demo.section)
+    @State private var showFinance = Demo.active && ["kasse", "buchung", "neuebuchung", "quittung", "entwuerfe"].contains(Demo.section)
     @State private var showTodos = Demo.active && ["vaufgaben", "vaufgabe", "neueaufgabe"].contains(Demo.section)
     @State private var showPartners = Demo.active && Demo.section == "partner"
     @State private var showQualifications = Demo.active && Demo.section == "qualifikationen"

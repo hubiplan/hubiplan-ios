@@ -9,17 +9,63 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `akte`, `ehrung`, `zusatzfelder`, `bank`, `aufnahme`, `dubletten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `akte`, `ehrung`, `zusatzfelder`, `bank`, `aufnahme`, `dubletten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `entwuerfe`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
     /// Abschnitte, die eine Mitgliedsakte öffnen, und solche für „Neues Mitglied“
     static let akteAbschnitte = ["mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank"]
     static let aufnahmeAbschnitte = ["aufnahme", "dubletten"]
+    /// Ablage für Buchungsentwürfe im Vorführmodus (nur im Speicher)
+    static let box = DraftBox(files: DemoDateien(), secrets: DemoStore())
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
     static let accounts = AccountList(accounts: [
         AccountEntry(id: "", server: "https://verein.example.de", display: "Erika Musterfrau", email: "erika@example.org"),
         AccountEntry(id: "kapelle", server: "https://kapelle.example.org", display: "Erika Musterfrau", email: "erika@example.org"),
     ])
+}
+
+/// Entwürfe im Vorführmodus: nur im Speicher.
+final class DemoDateien: DraftFiles, @unchecked Sendable {
+    private let lock = NSLock()
+    private var order: [String] = []
+    private var data: [String: Data] = [:]
+
+    func names() -> [String] { lock.withLock { order } }
+    func read(_ name: String) -> Data? { lock.withLock { data[name] } }
+    func write(_ name: String, _ value: Data) -> Bool {
+        lock.withLock {
+            if data[name] == nil { order.append(name) }
+            data[name] = value
+            return true
+        }
+    }
+    func delete(_ name: String) {
+        lock.withLock {
+            data[name] = nil
+            order.removeAll { $0 == name }
+        }
+    }
+}
+
+extension Demo {
+    /// Zwei Entwürfe für das Bildschirmfoto: einer wartet auf Verbindung, einen hat der Server abgelehnt.
+    static func fillDrafts(_ box: DraftBox, unit: AdminUnit) {
+        let english = Texte.language == "en"
+        let rows: [(String, String, String?)] = english
+            ? [("Drinks for the platoon meeting", "23,40", nil), ("Flowers for the anniversary", "18,00", "The financial year is closed.")]
+            : [("Getränke Zugversammlung", "23,40", nil), ("Blumen zum Jubiläum", "18,00", "Das Buchungsjahr ist abgeschlossen.")]
+        for (index, row) in rows.enumerated() {
+            var draft = BookingDraft(key: "demo-\(index)")
+            draft.text = row.0
+            draft.amount = row.1
+            draft.date = Zeit.day(Date())
+            draft.account = 1
+            guard var stored = StoredBooking(draft, unit: unit, accounts: [], categories: [], jpeg: Data([0xFF, 0xD8, 0xFF, 0xD9])) else { continue }
+            stored.accountName = english ? "Cash box" : "Barkasse"
+            stored.error = row.2
+            _ = box.save(stored)
+        }
+    }
 }
 
 final class DemoStore: SecretStore, @unchecked Sendable {

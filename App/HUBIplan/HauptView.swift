@@ -142,6 +142,8 @@ struct TerminZeile: View {
 /// „Mein Konto“: Konten, Trennen, Gerätekalender. Erreichbar über den Knopf im Reiter „Ich“.
 struct KontoView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var unsent = 0
+    @State private var confirmDisconnect = false
 
     var body: some View {
             ScrollViewReader { scroll in
@@ -183,7 +185,20 @@ struct KontoView: View {
                     Text(tr("Für mehrere Vereine mit eigener HUBIplan-Instanz. Tippe ein Konto an, um es zu zeigen."))
                 }
                 Section {
-                    Button(tr("Verbindung trennen"), role: .destructive) { Task { await model.disconnect() } }
+                    Button(tr("Verbindung trennen"), role: .destructive) {
+                        // Nicht gesendete Buchungen gingen verloren: vorher fragen
+                        unsent = model.draftBox?.count ?? 0
+                        if unsent > 0, !Demo.active { confirmDisconnect = true } else { Task { await model.disconnect() } }
+                    }
+                    .confirmationDialog(tr("Verbindung trennen?"), isPresented: $confirmDisconnect, titleVisibility: .visible) {
+                        Button(tr("Trennen und Entwürfe löschen"), role: .destructive) { Task { await model.disconnect() } }
+                    } message: {
+                        Text(trn(
+                            "Auf diesem iPhone liegt noch 1 nicht gesendete Buchung. Beim Trennen geht sie verloren.",
+                            "Auf diesem iPhone liegen noch {n} nicht gesendete Buchungen. Beim Trennen gehen sie verloren.",
+                            unsent
+                        ))
+                    }
                 } footer: {
                     Text(tr("Die App vergisst dieses Konto. Im Browser bleibt alles, wie es ist."))
                 }

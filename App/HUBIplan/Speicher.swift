@@ -102,3 +102,47 @@ enum Konten {
         KeychainStore(service: id.isEmpty ? "de.hubiplan.app.konto" : "de.hubiplan.app.konto.\(id)")
     }
 }
+
+/// Ordner eines Kontos für verschlüsselte Buchungsentwürfe: im App-Speicher, ohne Sicherung,
+/// nur bei entsperrtem iPhone lesbar. Den Inhalt verschlüsselt `DraftBox` zusätzlich selbst.
+final class EntwurfsOrdner: DraftFiles, @unchecked Sendable {
+    private let dir: URL
+
+    init(account: String) {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let safe = account.filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }
+        dir = base.appendingPathComponent("entwuerfe", isDirectory: true)
+            .appendingPathComponent(safe.isEmpty ? "konto" : "konto-\(safe)", isDirectory: true)
+    }
+
+    func names() -> [String] {
+        let keys: [URLResourceKey] = [.contentModificationDateKey]
+        let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: keys)) ?? []
+        return files
+            .map { ($0.lastPathComponent, (try? $0.resourceValues(forKeys: Set(keys)))?.contentModificationDate ?? .distantPast) }
+            .sorted { $0.1 == $1.1 ? $0.0 < $1.0 : $0.1 < $1.1 }
+            .map(\.0)
+    }
+
+    func read(_ name: String) -> Data? {
+        try? Data(contentsOf: dir.appendingPathComponent(name))
+    }
+
+    func write(_ name: String, _ data: Data) -> Bool {
+        do {
+            try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+            var folder = dir
+            var values = URLResourceValues()
+            values.isExcludedFromBackup = true
+            try? folder.setResourceValues(values)
+            try data.write(to: dir.appendingPathComponent(name), options: [.atomic, .completeFileProtection])
+            return true
+        } catch {
+            return false
+        }
+    }
+
+    func delete(_ name: String) {
+        try? FileManager.default.removeItem(at: dir.appendingPathComponent(name))
+    }
+}
