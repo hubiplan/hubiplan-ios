@@ -58,6 +58,7 @@ struct AusweisView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     switch CardAnzeige.from(stored: model.card, offline: model.cardOffline) {
@@ -94,12 +95,17 @@ struct AusweisView: View {
                         MeineDaten(profile: profile)
                     }
                     if let invoices = model.invoices {
-                        MeineRechnungen(list: invoices)
+                        MeineRechnungen(list: invoices).id("rechnungen")
                     }
                 }
                 .frame(maxWidth: 520, alignment: .leading)
                 .frame(maxWidth: .infinity)
                 .padding()
+            }
+            .onChange(of: model.invoices) {
+                // Vorführmodus: für das Bildschirmfoto gleich zu den Rechnungen
+                if Demo.active && Demo.section == "rechnungen" { proxy.scrollTo("rechnungen", anchor: .bottom) }
+            }
             }
             .navigationTitle(tr("Ich"))
             .refreshable { await model.refreshIch() }
@@ -240,7 +246,7 @@ struct IchAbschnitt<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color(.secondarySystemGroupedBackground))
+        .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.top, 8)
     }

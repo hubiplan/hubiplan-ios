@@ -8,6 +8,9 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`).
+    static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
+
     static let account = Account(server: "https://verein.example.de", display: "Erika Musterfrau", email: "erika@example.org")
 }
 
@@ -46,10 +49,11 @@ struct DemoTransport: Transport {
                 ? ["Platoon meeting", "Shooting practice", "Christmas party", "General assembly"]
                 : ["Zugversammlung", "Übungsschießen", "Weihnachtsfeier", "Jahreshauptversammlung"]
             let place = english ? "Clubhouse" : "Vereinsheim"
+            let group = english ? "Platoon 1" : "Zug 1"
             let range = english ? "Shooting range" : "Schießstand"
             body = """
             {"items":[
-            {"key":"1","event_id":1,"title":"\(titles[0])","starts_at":"\(day(3, "19:30"))","ends_at":"\(day(3, "21:30"))","location":"\(place)","owner":"Zug 1","rsvp_enabled":true,"my_response":null},
+            {"key":"1","event_id":1,"title":"\(titles[0])","starts_at":"\(day(3, "19:30"))","ends_at":"\(day(3, "21:30"))","location":"\(place)","owner":"\(group)","rsvp_enabled":true,"my_response":null},
             {"key":"2","event_id":2,"title":"\(titles[1])","starts_at":"\(day(6, "18:00"))","ends_at":"\(day(6, "20:00"))","location":"\(range)","owner":"Schützenverein Musterstadt","rsvp_enabled":true,"my_response":"yes"},
             {"key":"3","event_id":3,"title":"\(titles[2])","starts_at":"\(day(28, "18:00"))","ends_at":"\(day(28, "23:00"))","location":"\(place)","owner":"Schützenverein Musterstadt","rsvp_enabled":true,"my_response":"no"},
             {"key":"4","event_id":4,"title":"\(titles[3])","starts_at":"\(day(63, "00:00"))","ends_at":"\(day(63, "23:59"))","all_day":true,"owner":"Schützenverein Musterstadt"}
@@ -57,7 +61,7 @@ struct DemoTransport: Transport {
             """
         } else if path.hasSuffix("/circulars/") {
             body = english
-                ? #"[{"id":2,"subject":"Fall in tonight","sender":"Zug 1","kind_label":"Short message","sent_at":"\#(day(0, "09:00"))","body":"Tonight at **6 pm** at the tent – please be on time.\n\n- Uniform\n- Good mood","channel":"app"},{"id":1,"subject":"Invitation to the general assembly","sender":"Schützenverein Musterstadt","kind_label":"Circular","sent_at":"\#(day(-9, "10:00"))","body":"Dear members,\n\nwe cordially invite you to the general assembly. The agenda is in the members' area.","attachments":[{"id":1,"name":"Agenda.pdf","size":48213}],"channel":"mail"}]"#
+                ? #"[{"id":2,"subject":"Fall in tonight","sender":"Platoon 1","kind_label":"Short message","sent_at":"\#(day(0, "09:00"))","body":"Tonight at **6 pm** at the tent – please be on time.\n\n- Uniform\n- Good mood","channel":"app"},{"id":1,"subject":"Invitation to the general assembly","sender":"Schützenverein Musterstadt","kind_label":"Circular","sent_at":"\#(day(-9, "10:00"))","body":"Dear members,\n\nwe cordially invite you to the general assembly. The agenda is in the members' area.","attachments":[{"id":1,"name":"Agenda.pdf","size":48213}],"channel":"mail"}]"#
                 : #"[{"id":2,"subject":"Antreten heute Abend","sender":"Zug 1","kind_label":"Kurzmitteilung","sent_at":"\#(day(0, "09:00"))","body":"Heute um **18 Uhr** am Zelt – bitte pünktlich.\n\n- Uniform\n- Gute Laune","channel":"app"},{"id":1,"subject":"Einladung zur Jahreshauptversammlung","sender":"Schützenverein Musterstadt","kind_label":"Rundschreiben","sent_at":"\#(day(-9, "10:00"))","body":"Liebe Mitglieder,\n\nwir laden herzlich zur Jahreshauptversammlung ein. Die Tagesordnung steht im Mitgliederbereich.","attachments":[{"id":1,"name":"Tagesordnung.pdf","size":48213}],"channel":"mail"}]"#
         } else if path.hasSuffix("/card/") {
             let labels = english
@@ -81,7 +85,7 @@ struct DemoTransport: Transport {
             let type = english ? "Full member" : "Vollmitglied"
             body = """
             {"first_name":"Erika","last_name":"Musterfrau","birth_date":"1984-03-07","club_number":"0042","member_type":"\(type)",
-            "entry_date":"2010-01-01","departments":["Zug 1"],"status":"active",
+            "entry_date":"2010-01-01","departments":["\(english ? "Platoon 1" : "Zug 1")"],"status":"active",
             "contact":{"email":"erika@example.org","phone":"02131 000000","street":"Musterweg 1","postal_code":"41468","city":"Musterstadt"}}
             """
         } else {

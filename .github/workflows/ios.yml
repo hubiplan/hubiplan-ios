@@ -50,6 +50,7 @@ jobs:
             foto termine "$SPRACHE" -demo 1 -reiter termine
             foto neues "$SPRACHE" -demo 1 -reiter mitteilungen
             foto ausweis "$SPRACHE" -demo 1 -reiter ausweis
+            foto rechnungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt rechnungen
             foto konto "$SPRACHE" -demo 1 -reiter konto
           done
           xcrun simctl shutdown booted
