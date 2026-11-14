@@ -163,6 +163,7 @@ private struct VerwaltungStart: View {
     @State private var showOccasions = Demo.active && Demo.section == "anlaesse"
     @State private var showEvents = Demo.active && ["vtermine", "vtermin", "neuertermin"].contains(Demo.section)
     @State private var showFinance = Demo.active && ["kasse", "buchung", "neuebuchung", "quittung"].contains(Demo.section)
+    @State private var showBilling = Demo.active && ["vrechnungen", "vrechnung"].contains(Demo.section)
     @State private var scanning = false
     @State private var check: Geprueft?
 
@@ -239,6 +240,13 @@ private struct VerwaltungStart: View {
                         Bereich(symbol: "eurosign.circle", title: tr("Kassenbuch"), hint: tr("Kontostände, Buchungen, Beleg fotografieren"))
                     }
                 }
+                if unit.sections.contains(.billing) {
+                    NavigationLink {
+                        RechnungenView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "doc.text", title: tr("Rechnungen"), hint: tr("Offene und bezahlte Rechnungen, bar kassieren"))
+                    }
+                }
                 if unit.sections.contains(.occasions) {
                     NavigationLink {
                         AnlaesseView(unit: unit)
@@ -249,7 +257,7 @@ private struct VerwaltungStart: View {
             } header: {
                 Text(tr("Was möchtest du tun?"))
             } footer: {
-                Text(tr("Rechnungen und alles Weitere verwaltest du zurzeit im Browser."))
+                Text(tr("Alles Weitere verwaltest du zurzeit im Browser."))
             }
             Section {
                 Button(tr("Verwaltung auf diesem iPhone sperren"), role: .destructive) { confirmLock = true }
@@ -266,6 +274,7 @@ private struct VerwaltungStart: View {
         .navigationDestination(isPresented: $showOccasions) { AnlaesseView(unit: unit) }
         .navigationDestination(isPresented: $showEvents) { TermineVerwaltungView(unit: unit) }
         .navigationDestination(isPresented: $showFinance) { KassenbuchView(unit: unit) }
+        .navigationDestination(isPresented: $showBilling) { RechnungenView(unit: unit) }
         .sheet(isPresented: $scanning) {
             AusweisScan(unit: unit) { result in
                 scanning = false
