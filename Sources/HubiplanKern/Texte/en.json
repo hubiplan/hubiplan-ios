@@ -251,5 +251,6 @@
  "weiblich": "female",
  "Änderung von {name} abgelehnt": "Change by {name} rejected",
  "Änderung von {name} übernommen": "Change by {name} applied",
- "Übernehmen": "Apply"
+ "Übernehmen": "Apply",
+ "„{text}“": "“{text}”"
 }

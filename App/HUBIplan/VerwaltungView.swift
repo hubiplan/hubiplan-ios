@@ -326,6 +326,7 @@ struct OffenePunkteView: View {
             .navigationDestination(isPresented: $showRequests) { AenderungenView(unit: unit) }
         }
         .navigationTitle(tr("Zu erledigen"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func zeile(_ task: AdminTask) -> some View {
@@ -404,6 +405,7 @@ struct MitgliederView: View {
             .navigationDestination(item: $shown) { MitgliedView(unit: unit, id: $0) }
         }
         .navigationTitle(tr("Mitglieder"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func load(reset: Bool) async {
@@ -604,7 +606,7 @@ struct AenderungenView: View {
                                 }
                                 ForEach(request.lines, id: \.key) { Text($0.text) }
                                 if !request.message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    Text("„\(request.message)“").font(.footnote).foregroundStyle(Color.secondary)
+                                    Text(tr("„{text}“", ["text": request.message])).font(.footnote).foregroundStyle(Color.secondary)
                                 }
                             }
                             HStack(spacing: 12) {
@@ -631,6 +633,7 @@ struct AenderungenView: View {
             }
         }
         .navigationTitle(tr("Datenänderungen"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func load() async {
