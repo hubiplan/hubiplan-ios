@@ -26,10 +26,15 @@ jobs:
         run: xcodegen generate --spec App/project.yml
       - name: App für den Simulator bauen
         run: |
-          set -o pipefail
-          xcodebuild -project App/HUBIplan.xcodeproj -scheme HUBIplan \
+          # Bei einem Fehlschlag die Meldungen des Übersetzers zeigen (sie stehen weit oben)
+          if ! xcodebuild -project App/HUBIplan.xcodeproj -scheme HUBIplan \
             -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -n 60
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build > bau.log 2>&1; then
+            grep -E "error:" bau.log | sort -u | head -n 40
+            tail -n 15 bau.log
+            exit 1
+          fi
+          tail -n 5 bau.log
       - name: Im Simulator starten und Bildschirmfotos machen
         run: |
           set -euo pipefail
