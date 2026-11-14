@@ -12,7 +12,7 @@ permissions:
 jobs:
   bauen:
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Werkzeuge
@@ -47,7 +47,7 @@ jobs:
           foto() {  # Name, Sprache, weitere Startargumente
             xcrun simctl terminate booted de.hubiplan.app || true
             xcrun simctl launch booted de.hubiplan.app -AppleLanguages "($2)" "${@:3}"
-            sleep 6
+            sleep 4
             xcrun simctl io booted screenshot "bilder/$1-$2.png"
           }
           for SPRACHE in de en; do
