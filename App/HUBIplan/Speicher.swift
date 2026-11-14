@@ -118,10 +118,16 @@ final class EntwurfsOrdner: DraftFiles, @unchecked Sendable {
     func names() -> [String] {
         let keys: [URLResourceKey] = [.contentModificationDateKey]
         let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: keys)) ?? []
-        return files
-            .map { ($0.lastPathComponent, (try? $0.resourceValues(forKeys: Set(keys)))?.contentModificationDate ?? .distantPast) }
-            .sorted { $0.1 == $1.1 ? $0.0 < $1.0 : $0.1 < $1.1 }
-            .map(\.0)
+        var dated: [(name: String, date: Date)] = []
+        for file in files {
+            let date: Date = (try? file.resourceValues(forKeys: [.contentModificationDateKey]))?.contentModificationDate ?? .distantPast
+            dated.append((name: file.lastPathComponent, date: date))
+        }
+        dated.sort { (a: (name: String, date: Date), b: (name: String, date: Date)) -> Bool in
+            if a.date == b.date { return a.name < b.name }
+            return a.date < b.date
+        }
+        return dated.map { $0.name }
     }
 
     func read(_ name: String) -> Data? {
