@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `mitglieder`, `mitglied`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `ausweispruefung`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -53,7 +53,7 @@ struct DemoTransport: Transport {
             let unlocked = Demo.section != "freischalten"
             let zug = english ? "Platoon 1" : "Zug 1"
             body = """
-            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","events.view"],"stufen":true}],
+            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view"],"stufen":true}],
             "departments":[{"id":9,"name":"\(zug)","permissions":["members.view"],"stufen":true}],
             "two_factor":true,"unlocked":\(unlocked),"until":"\(day(21, "10:00"))"}
             """
@@ -63,11 +63,31 @@ struct DemoTransport: Transport {
                 : ["Datenänderung", "Neue Anschrift und Telefonnummer", "Foto", "Neues Foto für den Ausweis", "Termin", "Weihnachtsfeier", "12 Rückmeldungen, 3 offen"]
             body = """
             {"items":[
-            {"kind":"change_request","kind_label":"\(t[0])","title":"Max Mustermann","detail":"\(t[1])"},
-            {"kind":"photo","kind_label":"\(t[2])","title":"Erika Musterfrau","detail":"\(t[3])"},
+            {"kind":"change_request","kind_label":"\(t[0])","title":"Max Mustermann","detail":"\(t[1])","ref":1},
+            {"kind":"photo","kind_label":"\(t[2])","title":"Erika Musterfrau","detail":"\(t[3])","membership":1},
             {"kind":"event","kind_label":"\(t[4])","title":"\(t[5])","detail":"\(t[6])"}
             ]}
             """
+        } else if path.hasSuffix("/change-requests/") {
+            let note = english ? "We have moved." : "Wir sind umgezogen."
+            body = """
+            [{"id":1,"member_id":2,"member_name":"Max Mustermann","created_at":"\(day(-2, "18:40"))","message":"\(note)",
+            "data":{"street":"Beispielallee 12","phone":"02131 111111"},"previous":{"street":"Musterweg 3","phone":"02131 000001"}},
+            {"id":2,"member_id":4,"member_name":"Lena Beispiel","created_at":"\(day(-1, "09:15"))",
+            "data":{"email":"lena.beispiel@example.org"},"previous":{"email":"lena@example.org"}}]
+            """
+        } else if path.hasSuffix("/decide/") || path.hasSuffix("/photo/approve/") {
+            return HttpResponse(status: 200, body: Data("{}".utf8), headers: ["X-Change-Set": "demo", "X-Change-Undoable": "1"])
+        } else if path.hasSuffix("/undo/") {
+            body = "{}"
+        } else if path.hasSuffix("/cards/check/") {
+            let t = english ? ["Valid", "Full member", "Platoon 1"] : ["Gültig", "Vollmitglied", "Zug 1"]
+            body = """
+            {"status":"active","status_label":"\(t[0])","first_name":"Erika","last_name":"Musterfrau","member_type":"\(t[1])",
+            "club":"Schützenverein Musterstadt","departments":["\(t[2])"],"photo_url":"/api/public/cards/demo/photo/","membership":1}
+            """
+        } else if path.contains("/photo/") {
+            return HttpResponse(status: 200, body: DemoBild.png(neu: path.contains("pending")))
         } else if path.hasSuffix("/members/") {
             let t = english ? ["Full member", "Platoon 1", "Platoon 2", "Supporting member", "Youth"] : ["Vollmitglied", "Zug 1", "Zug 2", "Fördermitglied", "Jugend"]
             body = """
@@ -83,6 +103,7 @@ struct DemoTransport: Transport {
             let t = english ? ["Full member", "Platoon 1"] : ["Vollmitglied", "Zug 1"]
             body = """
             {"id":1,"kind":"person","first_name":"Erika","last_name":"Musterfrau","birth_date":"1984-03-07","club_number":"0042","status":"active",
+            "photo":{"approved":{"url":"/api/orgs/1/members/1/photo/"},"pending":{"url":"/api/orgs/1/members/1/photo/pending/"}},
             "current_type":{"member_type":1,"member_type_name":"\(t[0])"},"periods":[{"id":1,"entry_date":"2010-01-01"}],
             "departments":[{"id":1,"department":1,"department_name":"\(t[1])","valid_from":"2010-01-01"}],
             "contact":{"email":"erika@example.org","phone":"02131 000000","street":"Musterweg 1","postal_code":"41468","city":"Musterstadt"}}
@@ -198,6 +219,20 @@ struct DemoTransport: Transport {
             body = "{}"
         }
         return HttpResponse(status: 200, body: Data(body.utf8))
+    }
+}
+
+/// Erfundenes Ausweisfoto für den Vorführmodus: Fläche mit Personensymbol, kein Mensch.
+enum DemoBild {
+    static func png(neu: Bool) -> Data {
+        let size = CGSize(width: 280, height: 360)
+        let image = UIGraphicsImageRenderer(size: size).image { context in
+            (neu ? UIColor.systemTeal : UIColor.systemGray3).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            let symbol = UIImage(systemName: "person.fill")?.withTintColor(.white, renderingMode: .alwaysOriginal)
+            symbol?.draw(in: CGRect(x: 50, y: 90, width: 180, height: 180))
+        }
+        return image.pngData() ?? Data()
     }
 }
 

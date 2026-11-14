@@ -20,7 +20,7 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 | I3 | Push über Apple (APNs) als verschlüsseltes Wecksignal | in Arbeit (Kern: Anmelden und Entschlüsseln; App-Teil braucht das Apple-Entwicklerkonto) |
 | I4 | „Ich“: Ausweis, Daten, Rechnungen, Versammlungen, Dokumente, Foto | in Arbeit (Ausweis mit QR-Code, auch ohne Netz; eigene Daten, Rechnungen; Versammlungen mit Anträgen und Protokollen; Dokumente) |
 | I5 | Kalender, Aufgaben, Helferdienste, Noten | in Arbeit (Gerätekalender, Aufgaben, Helferdienste, Noten mit Suche und Notenpult; noch ohne Ablage auf dem Gerät, Vorgabe der Leitung und Hörbeispiele) |
-| I6 | Verwaltung | in Arbeit (Freischalten mit Passwort und Zwei-Faktor-Code, Vorstandsschlüssel im Schlüsselbund hinter Face ID, Touch ID oder Gerätecode, offene Punkte und Mitglieder zum Nachschlagen; noch ohne Ändern, Termine, Kasse, Rechnungen, Ausweisprüfung und Wettbewerbe) |
+| I6 | Verwaltung | in Arbeit (Freischalten mit Passwort und Zwei-Faktor-Code, Vorstandsschlüssel im Schlüsselbund hinter Face ID, Touch ID oder Gerätecode, offene Punkte, Mitglieder zum Nachschlagen, Änderungsmeldungen und Fotos entscheiden mit „Rückgängig“, Ausweis prüfen; noch ohne Stammdaten ändern, Aufgaben verteilen, Termine, Kasse, Rechnungen und Wettbewerbe) |
 | I7 | TestFlight und App Store | offen |
 
 ## Technik

@@ -65,6 +65,9 @@ jobs:
             foto dokumente "$SPRACHE" -demo 1 -reiter ausweis -abschnitt dokumente
             foto verwaltung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt verwaltung
             foto freischalten "$SPRACHE" -demo 1 -reiter ausweis -abschnitt freischalten
+            foto offen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt offen
+            foto meldungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt meldungen
+            foto ausweispruefung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt ausweispruefung
             foto mitglieder "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglieder
             foto mitglied "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglied
             foto konto "$SPRACHE" -demo 1 -reiter konto

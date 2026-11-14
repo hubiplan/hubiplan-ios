@@ -51,6 +51,14 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
         return permissions.contains { $0.hasPrefix("dept.members.") }
     }
 
+    /// Fotos freigeben oder ablehnen: „bearbeiten“ im Bereich Fotos (früher photos.manage).
+    public var canEditPhotos: Bool {
+        permissions.contains("photos.edit") || permissions.contains("photos.manage")
+    }
+
+    /// Ausweise am Einlass prüfen: wer in der Einheit Mitglieder sieht.
+    public var canCheckCards: Bool { !isDepartment && showsMembers }
+
     /// Bereiche dieser Fassung. Untereinheiten haben keine gemeinsame Liste offener Punkte.
     public var sections: [AdminSection] {
         var list: [AdminSection] = []
@@ -137,9 +145,13 @@ public struct AdminTask: Decodable, Equatable, Sendable {
     public var title: String
     public var detail: String
     public var createdAt: String?
+    /// Änderungsmeldung, Aufgabe oder Termin, auf den der Punkt zeigt
+    public var ref: Int?
+    /// Mitglied, um das es geht (z. B. bei einem neuen Foto)
+    public var membership: Int?
 
     enum CodingKeys: String, CodingKey {
-        case kind, title, detail
+        case kind, title, detail, ref, membership
         case kindLabel = "kind_label"
         case createdAt = "created_at"
     }
@@ -151,7 +163,21 @@ public struct AdminTask: Decodable, Equatable, Sendable {
         title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
         detail = try c.decodeIfPresent(String.self, forKey: .detail) ?? ""
         createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
+        ref = try? c.decodeIfPresent(Int.self, forKey: .ref)
+        membership = try? c.decodeIfPresent(Int.self, forKey: .membership)
     }
+
+    /// Wohin der Punkt in der App führt; nil: nur im Browser.
+    public var target: AdminTarget? {
+        if kind == "change_request" { return .changeRequests }
+        if kind == "photo", let membership { return .member(membership) }
+        return nil
+    }
+}
+
+public enum AdminTarget: Equatable, Sendable {
+    case changeRequests
+    case member(Int)
 }
 
 struct AdminTasks: Decodable {
@@ -270,10 +296,13 @@ public struct MemberDetail: Decodable, Equatable, Sendable {
     public var contact: Contact?
     public var departments: [MemberDepartment]
     public var entryDate: String
+    /// Freigegebenes Foto und ein neues, das auf Freigabe wartet (Pfade wie im Browser)
+    public var photo: String?
+    public var pendingPhoto: String?
     var suffix: String
 
     enum CodingKeys: String, CodingKey {
-        case id, kind, title, status, contact, departments, periods, organization
+        case id, kind, title, status, contact, departments, periods, organization, photo
         case lastName = "last_name"
         case firstName = "first_name"
         case birthDate = "birth_date"
@@ -293,6 +322,15 @@ public struct MemberDetail: Decodable, Equatable, Sendable {
         var name_suffix: String?
     }
 
+    private struct Photos: Decodable {
+        struct Version: Decodable {
+            var url: String?
+        }
+
+        var approved: Version?
+        var pending: Version?
+    }
+
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(Int.self, forKey: .id)
@@ -310,6 +348,9 @@ public struct MemberDetail: Decodable, Equatable, Sendable {
         // Erster Eintritt: frühester Zeitraum
         entryDate = periods.compactMap(\.entry_date).filter { !$0.isEmpty }.min() ?? ""
         suffix = try c.decodeIfPresent(Organization.self, forKey: .organization)?.name_suffix ?? ""
+        let photos = try? c.decodeIfPresent(Photos.self, forKey: .photo)
+        photo = photos?.approved?.url.flatMap { $0.isEmpty ? nil : $0 }
+        pendingPhoto = photos?.pending?.url.flatMap { $0.isEmpty ? nil : $0 }
     }
 
     public var isOrganization: Bool { kind == "organization" }
@@ -466,4 +507,220 @@ public struct AdminClient: Sendable {
     public func member(_ id: Int) async throws -> MemberDetail {
         try await api.expect("GET", base + "members/\(id)/")
     }
+
+    /// Offene Änderungsmeldungen der Mitglieder.
+    public func changeRequests() async throws -> [AdminChangeRequest] {
+        try await api.expect("GET", base + "change-requests/")
+    }
+
+    /// Änderungsmeldung entscheiden. 409: seit der Meldung im Verein geändert (`overwrite`).
+    public func decide(_ id: Int, accept: Bool, overwrite: Bool = false) async throws -> AdminChange {
+        try await change("POST", "change-requests/\(id)/decide/", ["accept": accept, "response": "", "overwrite": overwrite])
+    }
+
+    /// Neues Foto eines Mitglieds freigeben oder ablehnen.
+    public func decidePhoto(member id: Int, approve: Bool) async throws -> AdminChange {
+        try await change("POST", "members/\(id)/photo/approve/", ["decision": approve ? "approve" : "reject"])
+    }
+
+    /// Änderung zurücknehmen (Kennung aus `AdminChange.changeSet`).
+    public func undo(_ changeSet: String) async throws {
+        guard !changeSet.isEmpty, changeSet.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }) else {
+            throw ApiError(status: 0, code: "format")
+        }
+        _ = try await change("POST", "changes/\(changeSet)/undo/", [:])
+    }
+
+    /// Ausweis am Einlass prüfen; `code`: Inhalt des QR-Codes.
+    public func checkCard(code: String) async throws -> CardCheck {
+        try await api.expect("POST", base + "cards/check/", json: ["code": code])
+    }
+
+    /// Bildpfad aus einer Antwort (`/api/orgs/<Einheit>/…`) auf den Verwaltungspfad umstellen;
+    /// nil, wenn der Pfad nicht zu dieser Einheit gehört.
+    public func imagePath(_ path: String) -> String? {
+        let prefix = "/api/orgs/\(unit.id)/"
+        if path.hasPrefix(prefix) { return base + String(path.dropFirst(prefix.count)) }
+        return path.hasPrefix(base) ? path : nil
+    }
+
+    /// Foto aus der Akte; nil, wenn es nicht zu laden ist.
+    public func image(_ path: String) async -> Data? {
+        guard let target = imagePath(path) else { return nil }
+        return await api.image(target)
+    }
+
+    private func change(_ method: String, _ path: String, _ json: [String: Any]) async throws -> AdminChange {
+        let response = try await api.raw(method, base + path, json: json)
+        guard (200...299).contains(response.status) else {
+            let fields = Api.errorFields(response.body)
+            throw ApiError(status: response.status, code: fields.code, message: fields.message)
+        }
+        return AdminChange(response)
+    }
+}
+
+/// Ergebnis einer Änderung: Paket für „Rückgängig“, soweit der Server es anbietet.
+public struct AdminChange: Equatable, Sendable {
+    public var changeSet: String?
+    public var label: String
+
+    init(_ response: HttpResponse) {
+        let undoable = response.header("X-Change-Undoable") == "1"
+        changeSet = undoable ? response.header("X-Change-Set").flatMap { $0.isEmpty ? nil : $0 } : nil
+        label = response.header("X-Change-Label").flatMap { $0.replacingOccurrences(of: "+", with: " ").removingPercentEncoding } ?? ""
+    }
+}
+
+/// Änderungsmeldung eines Mitglieds (eigene Daten im Mitgliederbereich geändert).
+public struct AdminChangeRequest: Decodable, Equatable, Sendable, Identifiable {
+    public struct Line: Equatable, Sendable {
+        public var key: String
+        public var old: String
+        public var new: String
+
+        /// „Telefon: alt → neu“, leere Werte als „–“.
+        public var text: String { "\(ChangeField.label(key)): \(ChangeField.display(key, old)) → \(ChangeField.display(key, new))" }
+    }
+
+    public var id: Int
+    public var memberId: Int
+    public var memberName: String
+    public var message: String
+    public var createdAt: String?
+    public var lines: [Line]
+
+    enum CodingKeys: String, CodingKey {
+        case id, data, previous, message
+        case memberId = "member_id"
+        case memberName = "member_name"
+        case createdAt = "created_at"
+    }
+
+    /// Wert einer Meldung: Text, Zahl, Wahrheitswert oder nichts.
+    private struct Wert: Decodable {
+        var text: String
+
+        init(from decoder: Decoder) throws {
+            let c = try decoder.singleValueContainer()
+            if c.decodeNil() {
+                text = ""
+            } else if let value = try? c.decode(String.self) {
+                text = value
+            } else if let value = try? c.decode(Int.self) {
+                text = String(value)
+            } else if let value = try? c.decode(Double.self) {
+                text = String(value)
+            } else if let value = try? c.decode(Bool.self) {
+                text = value ? "true" : "false"
+            } else {
+                text = ""
+            }
+        }
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        memberId = try c.decode(Int.self, forKey: .memberId)
+        memberName = try c.decodeIfPresent(String.self, forKey: .memberName) ?? ""
+        message = try c.decodeIfPresent(String.self, forKey: .message) ?? ""
+        createdAt = try c.decodeIfPresent(String.self, forKey: .createdAt)
+        let data = try c.decodeIfPresent([String: Wert].self, forKey: .data) ?? [:]
+        let previous = (try? c.decodeIfPresent([String: Wert].self, forKey: .previous)) ?? [:]
+        // Feste Reihenfolge: bekannte Felder wie im Formular, unbekannte danach nach Namen
+        lines = data.keys.sorted { ChangeField.rank($0) < ChangeField.rank($1) }.map {
+            Line(key: $0, old: previous[$0]?.text ?? "", new: data[$0]?.text ?? "")
+        }
+    }
+}
+
+/// Felder der Stammdaten, wie Mitglieder sie melden.
+public enum ChangeField {
+    static let order = [
+        "title", "first_name", "last_name", "birth_date", "gender", "club_number",
+        "email", "phone", "street", "postal_code", "city", "country",
+    ]
+
+    static func rank(_ key: String) -> String {
+        if let index = order.firstIndex(of: key) { return String(format: "0%02d", index) }
+        return "1" + key
+    }
+
+    public static func label(_ key: String) -> String {
+        switch key {
+        case "first_name": return tr("Vorname")
+        case "last_name": return tr("Nachname")
+        case "birth_date": return tr("Geburtsdatum")
+        case "gender": return tr("Geschlecht")
+        case "title": return tr("Titel")
+        case "club_number": return tr("Mitgliedsnummer")
+        case "email": return tr("E-Mail")
+        case "phone": return tr("Telefon")
+        case "street": return tr("Straße")
+        case "postal_code": return tr("PLZ")
+        case "city": return tr("Ort")
+        case "country": return tr("Land")
+        default: return key
+        }
+    }
+
+    public static func display(_ key: String, _ value: String) -> String {
+        if value.trimmingCharacters(in: .whitespaces).isEmpty { return "–" }
+        if key == "birth_date" {
+            let date = Zeit.plainDate(value)
+            return date.isEmpty ? value : date
+        }
+        if key == "gender" {
+            switch value {
+            case "männlich": return tr("männlich")
+            case "weiblich": return tr("weiblich")
+            case "divers": return tr("divers")
+            default: return value
+            }
+        }
+        return value
+    }
+}
+
+/// Ergebnis der Ausweisprüfung am Einlass.
+public struct CardCheck: Decodable, Equatable, Sendable {
+    public var kind: String
+    public var status: String
+    public var statusLabel: String
+    public var firstName: String
+    public var lastName: String
+    public var memberType: String
+    public var club: String
+    public var departments: [String]
+    public var photoUrl: String?
+    public var membership: Int?
+
+    enum CodingKeys: String, CodingKey {
+        case kind, status, club, departments, membership
+        case statusLabel = "status_label"
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case memberType = "member_type"
+        case photoUrl = "photo_url"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? "person"
+        status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
+        statusLabel = try c.decodeIfPresent(String.self, forKey: .statusLabel) ?? ""
+        firstName = try c.decodeIfPresent(String.self, forKey: .firstName) ?? ""
+        lastName = try c.decodeIfPresent(String.self, forKey: .lastName) ?? ""
+        memberType = try c.decodeIfPresent(String.self, forKey: .memberType) ?? ""
+        club = try c.decodeIfPresent(String.self, forKey: .club) ?? ""
+        departments = try c.decodeIfPresent([String].self, forKey: .departments) ?? []
+        photoUrl = try c.decodeIfPresent(String.self, forKey: .photoUrl)
+        membership = try c.decodeIfPresent(Int.self, forKey: .membership)
+    }
+
+    public var valid: Bool { status == "active" }
+    public var isOrganization: Bool { kind == "organization" }
+    public var name: String { [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ") }
+    public var detail: String { [memberType, club].filter { !$0.isEmpty }.joined(separator: " · ") }
 }

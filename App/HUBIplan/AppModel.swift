@@ -3,6 +3,12 @@ import HubiplanKern
 import SwiftUI
 import UIKit
 
+/// Änderung der Verwaltung, die sich noch zurücknehmen lässt.
+struct AdminUndo: Equatable {
+    let unit: AdminUnit
+    let changeSet: String
+}
+
 @MainActor
 final class AppModel: ObservableObject {
     @Published private(set) var accounts = AccountList()
@@ -37,6 +43,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var adminOpen = false
     @Published private(set) var adminBusy = false
     @Published var adminError: String?
+    /// Hinweis nach einer Änderung in der Verwaltung und das Paket für „Rückgängig“
+    @Published var adminNotice: String?
+    @Published private(set) var adminUndo: AdminUndo?
     @Published var loading = false
     @Published var error: String?
     /// Link, den die App zum Verbinden bekommen hat und der noch bestätigt werden muss
@@ -111,6 +120,8 @@ final class AppModel: ObservableObject {
         adminOpen = false
         adminBusy = false
         adminError = nil
+        adminNotice = nil
+        adminUndo = nil
         adminAccess = nil
         todos = []
         helpers = nil
@@ -377,9 +388,36 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Nach einer Änderung: Hinweis zeigen und „Rückgängig“ anbieten, soweit möglich.
+    func adminChanged(_ unit: AdminUnit, text: String, change: AdminChange) {
+        adminNotice = text
+        adminUndo = change.changeSet.map { AdminUndo(unit: unit, changeSet: $0) }
+    }
+
+    /// Letzte Änderung zurücknehmen; true, wenn es geklappt hat.
+    func undoAdmin() async -> Bool {
+        guard let undo = adminUndo else { return false }
+        let done: Bool? = await verwaltung(undo.unit) { client in
+            try await client.undo(undo.changeSet)
+            return true
+        }
+        guard done == true else { return false }
+        adminUndo = nil
+        adminNotice = tr("Rückgängig gemacht")
+        return true
+    }
+
+    /// Bild ohne Anmeldung laden (Foto auf der Prüfseite eines Ausweises).
+    func publicImage(_ path: String) async -> Data? {
+        guard let server = account?.server else { return nil }
+        return await Api(server: server, transport: transport, language: Texte.language).image(path)
+    }
+
     /// Schlüssel aus dem Arbeitsspeicher nehmen (neu entsperren); der Tresor bleibt.
     func lockAdminNow() {
         adminAccess = nil
+        adminNotice = nil
+        adminUndo = nil
         if adminOpen { adminOpen = false }
     }
 
