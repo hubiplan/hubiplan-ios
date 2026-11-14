@@ -1,4 +1,5 @@
-# Baut die App für den iPhone-Simulator und prüft den Kern unter macOS (CryptoKit).
+# Baut die App für den iPhone-Simulator, prüft den Kern unter macOS (CryptoKit) und legt
+# Bildschirmfotos aus dem Simulator ab.
 # Nur von Hand starten; es gibt keine automatischen Auslöser.
 name: iOS bauen
 
@@ -29,3 +30,24 @@ jobs:
           xcodebuild -project App/HUBIplan.xcodeproj -scheme HUBIplan \
             -destination 'generic/platform=iOS Simulator' \
             -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -n 60
+      - name: Im Simulator starten und Bildschirmfotos machen
+        run: |
+          set -euo pipefail
+          mkdir -p bilder
+          GERAET=$(xcrun simctl list devices available | grep -m1 -oE 'iPhone [0-9]+ \(' | sed 's/ ($//')
+          echo "Simulator: $GERAET"
+          xcrun simctl boot "$GERAET"
+          xcrun simctl bootstatus "$GERAET" -b
+          xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/HUBIplan.app
+          for SPRACHE in de en; do
+            xcrun simctl terminate booted de.hubiplan.app || true
+            xcrun simctl launch booted de.hubiplan.app -AppleLanguages "($SPRACHE)"
+            sleep 6
+            xcrun simctl io booted screenshot "bilder/verbinden-$SPRACHE.png"
+          done
+          xcrun simctl shutdown booted
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bildschirmfotos
+          path: bilder/
+          retention-days: 7
