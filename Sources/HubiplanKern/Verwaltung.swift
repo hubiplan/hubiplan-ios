@@ -912,10 +912,12 @@ public enum MasterData {
         return all.filter { wanted.contains($0.key) }
     }
 
-    /// `TT.MM.JJJJ` (auch einstellig) oder `JJJJ-MM-TT` → `JJJJ-MM-TT`; nil, wenn es kein Datum ist.
+    /// `TT.MM.JJJJ` oder `TT/MM/JJJJ` (auch einstellig) oder `JJJJ-MM-TT` → `JJJJ-MM-TT`; nil,
+    /// wenn es kein Datum ist.
     public static func parseDate(_ text: String) -> String? {
         let t = text.trimmingCharacters(in: .whitespaces)
         var parts = t.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        if parts.count != 3 { parts = t.split(separator: "/", omittingEmptySubsequences: false).map(String.init) }
         if parts.count == 3 {
             parts.reverse()
         } else {

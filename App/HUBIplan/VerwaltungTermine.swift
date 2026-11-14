@@ -8,7 +8,7 @@ func terminZeit(_ from: String, _ to: String, allDay: Bool) -> String {
     guard allDay else { return zeitraum(from, to) }
     guard let start = Zeit.parse(from) else { return from }
     var style = Date.FormatStyle.dateTime.weekday(.abbreviated).day().month(.abbreviated).year()
-        .locale(Locale(identifier: Texte.language))
+        .locale(Texte.locale)
     if let berlin = TimeZone(identifier: "Europe/Berlin") { style.timeZone = berlin }
     return start.formatted(style) + " · " + tr("Ganztägig")
 }
@@ -498,7 +498,7 @@ private struct NeuerTerminBlatt: View {
                     }
                 }
             }
-            .environment(\.locale, Locale(identifier: Texte.language))
+            .environment(\.locale, Texte.locale)
             .disabled(saving)
             .navigationTitle(tr("Neuer Termin"))
             .navigationBarTitleDisplayMode(.inline)

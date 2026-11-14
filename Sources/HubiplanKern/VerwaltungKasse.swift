@@ -255,12 +255,19 @@ public struct BookingDraft: Equatable, Sendable {
 
 extension Geld {
     /// „23,40“, „23.4“ oder „1.234,50“ → „23.40“ (positiv, höchstens zwei Nachkommastellen,
-    /// höchstens 99.999.999,99); sonst nil.
+    /// höchstens 99.999.999,99); sonst nil. Englisch: „€1,234.50“; ein einzelnes Komma vor
+    /// ein oder zwei Ziffern („23,40“) gilt auch dort als Dezimalkomma.
     public static func parseInput(_ text: String) -> String? {
         var t = text.trimmingCharacters(in: .whitespaces)
         if t.hasSuffix("€") { t = String(t.dropLast()).trimmingCharacters(in: .whitespaces) }
+        if t.hasPrefix("€") { t = String(t.dropFirst()).trimmingCharacters(in: .whitespaces) }
         t = t.replacingOccurrences(of: " ", with: "").replacingOccurrences(of: "\u{00A0}", with: "")
-        if t.contains(",") {
+        if Texte.language == "en", t.contains(",") {
+            let commas = t.filter { $0 == "," }.count
+            let tail = t.split(separator: ",", omittingEmptySubsequences: false).last ?? ""
+            let decimalComma = !t.contains(".") && commas == 1 && (1...2).contains(tail.count)
+            t = decimalComma ? t.replacingOccurrences(of: ",", with: ".") : t.replacingOccurrences(of: ",", with: "")
+        } else if t.contains(",") {
             t = t.replacingOccurrences(of: ".", with: "").replacingOccurrences(of: ",", with: ".")
         }
         guard !t.hasPrefix("-"), let value = cents(t), value > 0, value <= 9_999_999_999 else { return nil }

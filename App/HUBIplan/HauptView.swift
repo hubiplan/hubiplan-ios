@@ -91,8 +91,8 @@ struct TerminZeile: View {
         guard let start = event.start else { return event.startsAt }
         // Ganztägige Termine zählen als Kalendertag in deutscher Zeit
         if event.allDay { return terminZeit(event.startsAt, event.endsAt, allDay: true) }
-        let day = start.formatted(.dateTime.weekday(.abbreviated).day().month().year().locale(Locale(identifier: Texte.language)))
-        return day + " · " + start.formatted(.dateTime.hour().minute().locale(Locale(identifier: Texte.language)))
+        let day = start.formatted(.dateTime.weekday(.abbreviated).day().month().year().locale(Texte.locale))
+        return day + " · " + start.formatted(.dateTime.hour().minute().locale(Texte.locale))
     }
 
     private var status: String? {

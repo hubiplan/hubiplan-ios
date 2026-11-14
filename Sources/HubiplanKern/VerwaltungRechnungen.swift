@@ -239,10 +239,10 @@ public struct CashDraft: Equatable, Sendable {
 }
 
 extension Geld {
-    /// „60.00“ → „60,00“ für ein Eingabefeld; leer, wenn der Text kein Betrag ist.
+    /// „60.00“ → „60,00“ (Englisch „60.00“) für ein Eingabefeld; leer, wenn der Text kein Betrag ist.
     public static func inputText(_ amount: String) -> String {
         guard let value = cents(amount), value >= 0 else { return "" }
-        return "\(value / 100)," + String(format: "%02d", value % 100)
+        return "\(value / 100)" + (Texte.language == "en" ? "." : ",") + String(format: "%02d", value % 100)
     }
 }
 

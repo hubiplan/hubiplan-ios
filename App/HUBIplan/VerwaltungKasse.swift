@@ -549,7 +549,7 @@ private struct NeueBuchungBlatt: View {
                     }
                 }
             }
-            .environment(\.locale, Locale(identifier: Texte.language))
+            .environment(\.locale, Texte.locale)
             .disabled(saving)
             .navigationTitle(tr("Neue Buchung"))
             .navigationBarTitleDisplayMode(.inline)

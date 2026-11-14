@@ -213,7 +213,7 @@ private struct NeueAufgabeBlatt: View {
                     if hasDate, hasTime { Text(tr("Zeitzone: {zone}", ["zone": TodoDraft.timezone])) }
                 }
             }
-            .environment(\.locale, Locale(identifier: Texte.language))
+            .environment(\.locale, Texte.locale)
             .environment(\.timeZone, Self.zone)
             .disabled(saving)
             .navigationTitle(tr("Neue Aufgabe"))
