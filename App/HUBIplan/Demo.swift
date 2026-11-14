@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -79,6 +79,51 @@ struct DemoTransport: Transport {
         return HttpResponse(status: 200, body: Data(body.utf8))
     }
 
+    /// Rechnungen der Verwaltung: Liste, eine Rechnung mit Zahlung, „Bar kassiert“.
+    private func rechnungen(_ path: String, _ method: String, english: Bool) -> HttpResponse {
+        let t = english
+            ? ["open", "paid", "Annual fee 2026", "Platoon 1", "Platoon 2", "Membership fee", "Adults", "Shooting insurance", "Cash", "Cash box", "Current account", "Christmas party", "Sponsorship banner"]
+            : ["offen", "bezahlt", "Jahresbeitrag 2026", "Zug 1", "Zug 2", "Mitgliedsbeitrag", "Erwachsene", "Schießversicherung", "Bar", "Barkasse", "Girokonto", "Weihnachtsfeier", "Werbebanner"]
+        func eine(_ outstanding: String, _ paid: String, zahlungen: String) -> String {
+            """
+            {"id":7,"number":"RE-2026-0042","status":"open","status_label":"\(t[0])","recipient_name":"Erika Musterfrau","department_name":"\(t[3])","subject":"\(t[2])",
+            "date":"\(day(-20, "00:00").prefix(10))","due_date":"\(day(-6, "00:00").prefix(10))","total":"72.00","paid":"\(paid)","outstanding":"\(outstanding)","overdue":true,
+            "lines":[{"text":"\(t[5])","detail":"\(t[6])","amount":"60.00"},{"text":"\(t[7])","detail":"","amount":"12.00"}],
+            "payments":[\(zahlungen)]}
+            """
+        }
+        let erste = """
+        {"id":3,"date":"\(day(-8, "00:00").prefix(10))","amount":"20.00","method":"cash","method_label":"\(t[8])","account_name":"\(t[9])","booking_number":"2026-0027"}
+        """
+        let body: String
+        if path.hasSuffix("/receipt/") {
+            return HttpResponse(status: 404, body: Data("{}".utf8))
+        } else if method != "GET" {
+            let zweite = """
+            {"id":4,"date":"\(day(0, "00:00").prefix(10))","amount":"52.00","method":"cash","method_label":"\(t[8])","account_name":"\(t[9])","booking_number":"2026-0032"}
+            """
+            var bezahlt = eine("0.00", "72.00", zahlungen: erste + "," + zweite)
+            bezahlt = bezahlt.replacingOccurrences(of: #""status":"open","status_label":"\#(t[0])""#, with: #""status":"paid","status_label":"\#(t[1])""#)
+            return HttpResponse(
+                status: 201, body: Data(#"{"invoice":\#(bezahlt),"payment":4}"#.utf8), headers: ["X-Change-Set": "demo", "X-Change-Undoable": "1"]
+            )
+        } else if path.hasSuffix("/settings/") {
+            body = """
+            {"accounts":[{"id":1,"name":"\(t[10])","kind":"bank"},{"id":2,"name":"\(t[9])","kind":"cash"}],"can_edit":true}
+            """
+        } else if path.hasSuffix("/invoices/") {
+            body = """
+            {"count":3,"results":[\(eine("52.00", "20.00", zahlungen: erste)),
+            {"id":6,"number":"RE-2026-0041","status":"open","status_label":"\(t[0])","recipient_name":"Max Mustermann","department_name":"\(t[4])","subject":"\(t[11])","date":"\(day(-3, "00:00").prefix(10))","due_date":"\(day(11, "00:00").prefix(10))","total":"35.00","paid":"0.00","outstanding":"35.00"},
+            {"id":5,"number":"RE-2026-0040","status":"open","status_label":"\(t[0])","recipient_name":"Musterbau GmbH","subject":"\(t[12])","date":"\(day(-5, "00:00").prefix(10))","due_date":"\(day(9, "00:00").prefix(10))","total":"250.00","paid":"0.00","outstanding":"250.00"}
+            ]}
+            """
+        } else {
+            body = eine("52.00", "20.00", zahlungen: erste)
+        }
+        return HttpResponse(status: 200, body: Data(body.utf8))
+    }
+
     /// Termine der Verwaltung: Liste, ein Termin mit Rückmeldungen, Änderungen mit „Rückgängig“.
     private func termine(_ path: String, _ method: String, english: Bool) -> HttpResponse {
         let t = english
@@ -134,7 +179,7 @@ struct DemoTransport: Transport {
             let unlocked = Demo.section != "freischalten"
             let zug = english ? "Platoon 1" : "Zug 1"
             body = """
-            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit","finance.view","finance.edit"],"stufen":true}],
+            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit","finance.view","finance.edit","billing.view","billing.edit"],"stufen":true}],
             "departments":[{"id":9,"name":"\(zug)","permissions":["members.view"],"stufen":true}],
             "two_factor":true,"unlocked":\(unlocked),"until":"\(day(21, "10:00"))"}
             """
@@ -144,6 +189,8 @@ struct DemoTransport: Transport {
             body = #"{"signature":{"w":300,"h":100,"s":[[15,60,40,25,60,70,85,30,110,65,150,50,200,58,280,40]]}}"#
         } else if path.contains("/admin/"), path.contains("/finance/") {
             return kasse(path, request.method, english: english)
+        } else if path.contains("/admin/"), path.contains("/billing/") {
+            return rechnungen(path, request.method, english: english)
         } else if path.hasSuffix("/tasks/") {
             let t = english
                 ? ["Data change", "New address and phone number", "Photo", "New photo for the membership card", "Event", "Christmas party", "4 replies, 2 open"]

@@ -605,6 +605,26 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Quittung einer Barzahlung aus der Verwaltung laden und zum Ansehen öffnen (dort auch teilen).
+    func openCashReceipt(_ unit: AdminUnit, payment: Int, name: String) async {
+        guard !previewBusy else { return }
+        previewBusy = true
+        defer { previewBusy = false }
+        guard let loaded = await verwaltung(unit, { await $0.cashReceipt(payment: payment) }) else { return }
+        guard let data = loaded else {
+            adminError = tr("Die Quittung ließ sich nicht laden.")
+            return
+        }
+        Self.clearViews()
+        try? FileManager.default.createDirectory(at: Self.viewDir, withIntermediateDirectories: true)
+        let file = Self.viewDir.appendingPathComponent(Ansicht.safeName(name))
+        guard (try? data.write(to: file, options: [.atomic, .completeFileProtection])) != nil else {
+            adminError = tr("Die Quittung ließ sich nicht laden.")
+            return
+        }
+        preview = file
+    }
+
     func openMinutes(_ meeting: PastMeeting) async {
         guard let access else { return }
         await view(name: "protokoll-\(meeting.id).pdf") { api in

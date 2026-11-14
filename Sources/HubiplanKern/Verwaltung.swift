@@ -66,6 +66,7 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
         if showsMembers { list.append(.members) }
         if showsEvents { list.append(.events) }
         if showsFinance { list.append(.finance) }
+        if showsBilling { list.append(.billing) }
         if !isDepartment, showsMembers { list.append(.occasions) }
         return list
     }
@@ -78,7 +79,7 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
 }
 
 public enum AdminSection: String, Sendable, CaseIterable {
-    case tasks, members, events, finance, occasions
+    case tasks, members, events, finance, billing, occasions
 }
 
 /// Untereinheit mit Rollen nur dort (z. B. Zugführung).
