@@ -144,6 +144,116 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertTrue(detail.isFormer)
     }
 
+    override func setUp() {
+        Texte.language = "de"
+    }
+
+    private func verwaltung(_ net: FakeTransport, unit: AdminUnit = AdminUnit(id: 4, name: "Verein")) -> AdminClient {
+        AdminClient(api: Api(server: server, transport: net, tokens: FakeTokens("hpd_a")).verwaltung(AdminAccess(token: "hpa_erfunden", key: nil)), unit: unit)
+    }
+
+    func testOffenePunkteFuehrenInDieApp() throws {
+        let tasks: [AdminTask] = try decode(#"[{"kind":"change_request","ref":3},{"kind":"photo","membership":5},{"kind":"photo"},{"kind":"event","ref":"x"}]"#)
+        XCTAssertEqual(tasks.map(\.target), [.changeRequests, .member(5), nil, nil])
+    }
+
+    func testAenderungsmeldungenInFesterReihenfolge() async throws {
+        let net = FakeTransport([FakeTransport.json(200, #"[{"id":3,"member_id":5,"member_name":"Erika Musterfrau","data":{"phone":"01234 99999","zusatz":7,"birth_date":"1984-03-08","gender":"weiblich","city":null},"previous":{"phone":"01234 56789","birth_date":"1984-03-07","city":"Musterstadt"},"message":"Neue Nummer","created_at":"2026-11-10T09:00:00+01:00"}]"#)])
+        let list = try await verwaltung(net).changeRequests()
+        XCTAssertEqual(net.seen.first?.url, "https://verein.example.de/api/app/v1/admin/u/4/change-requests/")
+        XCTAssertEqual(list.first?.memberName, "Erika Musterfrau")
+        XCTAssertEqual(list.first?.lines.map(\.key), ["birth_date", "gender", "phone", "city", "zusatz"])
+        XCTAssertEqual(list.first?.lines.map(\.text), [
+            "Geburtsdatum: 07.03.1984 → 08.03.1984", "Geschlecht: – → weiblich", "Telefon: 01234 56789 → 01234 99999",
+            "Ort: Musterstadt → –", "zusatz: – → 7",
+        ])
+        let ohne: AdminChangeRequest = try decode(#"{"id":1,"member_id":2}"#)
+        XCTAssertTrue(ohne.lines.isEmpty)
+    }
+
+    func testEntscheidenMitRueckgaengigUndKonflikt() async throws {
+        let net = FakeTransport([
+            .success(HttpResponse(status: 200, body: Data("{}".utf8), headers: ["X-Change-Set": "ab12-cd", "X-Change-Undoable": "1", "X-Change-Label": "Stammdaten%20ge%C3%A4ndert"])),
+            FakeTransport.json(409, #"{"detail":"Die Anschrift wurde inzwischen geändert."}"#),
+            .success(HttpResponse(status: 200, body: Data("{}".utf8), headers: ["X-Change-Set": "ef34"])),
+            .success(HttpResponse(status: 204, body: Data())),
+        ])
+        let client = verwaltung(net)
+        let change = try await client.decide(3, accept: true)
+        XCTAssertEqual(change.changeSet, "ab12-cd")
+        XCTAssertEqual(change.label, "Stammdaten geändert")
+        let first = net.seen[0]
+        XCTAssertEqual(first.method, "POST")
+        XCTAssertEqual(first.url, "https://verein.example.de/api/app/v1/admin/u/4/change-requests/3/decide/")
+        let body = try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(first.body)) as? [String: Any])
+        XCTAssertEqual(body["accept"] as? Bool, true)
+        XCTAssertEqual(body["overwrite"] as? Bool, false)
+        XCTAssertEqual(body["response"] as? String, "")
+        do {
+            _ = try await client.decide(3, accept: true)
+            XCTFail("Fehler erwartet")
+        } catch let error as ApiError {
+            XCTAssertEqual(error.status, 409)
+            XCTAssertEqual(error.message, "Die Anschrift wurde inzwischen geändert.")
+        }
+        // Ohne Ankündigung „rückgängig möglich“ kein Paket
+        let photo = try await client.decidePhoto(member: 5, approve: false)
+        XCTAssertNil(photo.changeSet)
+        XCTAssertEqual(net.seen[2].url, "https://verein.example.de/api/app/v1/admin/u/4/members/5/photo/approve/")
+        XCTAssertEqual(try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(net.seen[2].body)) as? [String: String]), ["decision": "reject"])
+        try await client.undo("ab12-cd")
+        XCTAssertEqual(net.seen[3].url, "https://verein.example.de/api/app/v1/admin/u/4/changes/ab12-cd/undo/")
+        do {
+            try await client.undo("../x")
+            XCTFail("Fehler erwartet")
+        } catch let error as ApiError {
+            XCTAssertEqual(error.code, "format")
+        }
+        XCTAssertEqual(net.seen.count, 4)
+    }
+
+    func testAusweisPruefen() async throws {
+        let net = FakeTransport([FakeTransport.json(200, #"{"status":"active","status_label":"Gültig","first_name":"Erika","last_name":"Musterfrau","member_type":"Vollmitglied","club":"Schützenverein Musterstadt","departments":["1. Zug"],"photo_url":"/api/public/cards/abc/photo/","membership":5}"#)])
+        let check = try await verwaltung(net).checkCard(code: "https://verein.example.de/ausweis/pruefen/abc")
+        XCTAssertEqual(net.seen.first?.url, "https://verein.example.de/api/app/v1/admin/u/4/cards/check/")
+        XCTAssertEqual(try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(net.seen.first?.body)) as? [String: String]), ["code": "https://verein.example.de/ausweis/pruefen/abc"])
+        XCTAssertTrue(check.valid)
+        XCTAssertEqual(check.name, "Erika Musterfrau")
+        XCTAssertEqual(check.detail, "Vollmitglied · Schützenverein Musterstadt")
+        XCTAssertEqual(check.membership, 5)
+        let gesperrt: CardCheck = try decode(#"{"status":"revoked","status_label":"Gesperrt","kind":"organization"}"#)
+        XCTAssertFalse(gesperrt.valid)
+        XCTAssertTrue(gesperrt.isOrganization)
+        XCTAssertEqual(gesperrt.name, "")
+    }
+
+    func testFotosUndBildpfade() async throws {
+        let detail: MemberDetail = try decode(#"{"id":5,"photo":{"approved":{"url":"/api/orgs/4/members/5/photo/"},"pending":{"url":"/api/orgs/4/members/5/photo/pending/"}}}"#)
+        XCTAssertEqual(detail.photo, "/api/orgs/4/members/5/photo/")
+        XCTAssertEqual(detail.pendingPhoto, "/api/orgs/4/members/5/photo/pending/")
+        let ohne: MemberDetail = try decode(#"{"id":5,"photo":{"approved":null}}"#)
+        XCTAssertNil(ohne.photo)
+        let net = FakeTransport([.success(HttpResponse(status: 200, body: Data([1, 2])))])
+        let client = verwaltung(net)
+        XCTAssertEqual(client.imagePath("/api/orgs/4/members/5/photo/"), "/api/app/v1/admin/u/4/members/5/photo/")
+        XCTAssertNil(client.imagePath("/api/orgs/9/members/5/photo/"))
+        XCTAssertNil(client.imagePath("https://fremd.example.org/bild"))
+        let data = await client.image("/api/orgs/4/members/5/photo/")
+        XCTAssertEqual(data, Data([1, 2]))
+        XCTAssertEqual(net.seen.first?.headers["Authorization"], "Bearer hpa_erfunden")
+        let fremd = await client.image("/api/orgs/9/members/5/photo/")
+        XCTAssertNil(fremd)
+        XCTAssertEqual(net.seen.count, 1)
+    }
+
+    func testRechteFuerFotosUndAusweise() {
+        XCTAssertTrue(AdminUnit(id: 1, name: "A", permissions: ["photos.manage"]).canEditPhotos)
+        XCTAssertTrue(AdminUnit(id: 1, name: "A", permissions: ["photos.edit"]).canEditPhotos)
+        XCTAssertFalse(AdminUnit(id: 1, name: "A", permissions: ["members.view"]).canEditPhotos)
+        XCTAssertTrue(AdminUnit(id: 1, name: "A", permissions: ["members.view"]).canCheckCards)
+        XCTAssertFalse(AdminUnit(id: 1, name: "Zug", permissions: ["members.view"], scope: "d", stufen: true).canCheckCards)
+    }
+
     func testSchluesselAblage() throws {
         let key = P256.Signing.PrivateKey()
         let stored = AdminAccess(token: "hpa_erfunden", key: key).stored
