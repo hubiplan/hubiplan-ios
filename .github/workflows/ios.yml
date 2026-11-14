@@ -86,6 +86,8 @@ jobs:
             foto qualifikationen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt qualifikationen
             foto fristen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt fristen
             foto frist "$SPRACHE" -demo 1 -reiter ausweis -abschnitt frist
+            foto wettbewerbe "$SPRACHE" -demo 1 -reiter ausweis -abschnitt wettbewerbe
+            foto standcode "$SPRACHE" -demo 1 -reiter ausweis -abschnitt standcode
             foto mitglieder "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglieder
             foto mitglied "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglied
             foto konto "$SPRACHE" -demo 1 -reiter konto

@@ -167,6 +167,7 @@ private struct VerwaltungStart: View {
     @State private var showPartners = Demo.active && Demo.section == "partner"
     @State private var showQualifications = Demo.active && Demo.section == "qualifikationen"
     @State private var showObligations = Demo.active && ["fristen", "frist"].contains(Demo.section)
+    @State private var showCompetitions = Demo.active && ["wettbewerbe", "standcode"].contains(Demo.section)
     @State private var showBilling = Demo.active && ["vrechnungen", "vrechnung"].contains(Demo.section)
     @State private var scanning = false
     @State private var check: Geprueft?
@@ -265,6 +266,13 @@ private struct VerwaltungStart: View {
                         Bereich(symbol: "gift", title: tr("Jubiläen und Geburtstage"), hint: tr("Geburtstage und Jubiläen der nächsten Wochen"))
                     }
                 }
+                if unit.sections.contains(.competitions) {
+                    NavigationLink {
+                        WettbewerbeView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "scope", title: tr("Wettbewerbe"), hint: tr("Schießen im Standmodus erfassen, auch ohne Empfang"))
+                    }
+                }
                 if unit.sections.contains(.partners) {
                     NavigationLink {
                         GeschaeftspartnerView(unit: unit)
@@ -308,6 +316,7 @@ private struct VerwaltungStart: View {
         .navigationDestination(isPresented: $showFinance) { KassenbuchView(unit: unit) }
         .navigationDestination(isPresented: $showBilling) { RechnungenView(unit: unit) }
         .navigationDestination(isPresented: $showTodos) { AufgabenVerwaltungView(unit: unit) }
+        .navigationDestination(isPresented: $showCompetitions) { WettbewerbeView(unit: unit) }
         .navigationDestination(isPresented: $showPartners) { GeschaeftspartnerView(unit: unit) }
         .navigationDestination(isPresented: $showQualifications) { QualifikationenView(unit: unit) }
         .navigationDestination(isPresented: $showObligations) { FristenView(unit: unit) }

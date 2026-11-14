@@ -89,6 +89,11 @@ final class AppModel: ObservableObject {
 
     /// Das gezeigte Konto
     var account: AccountEntry? { accounts.active }
+    /// Standzugänge, die dieses iPhone für das gezeigte Konto angelegt hat (im Vorführmodus keine Ablage)
+    var standStore: StandStore? {
+        guard !Demo.active, let account else { return nil }
+        return StandStore(store: Konten.secrets(account.id))
+    }
 
     private func makeSession(server: String, id: String) -> DeviceSession {
         let store: SecretStore = Demo.active ? DemoStore() : Konten.secrets(id)
@@ -206,6 +211,7 @@ final class AppModel: ObservableObject {
         guard let account else { return }
         await session?.forget()
         if !Demo.active { VerwaltungTresor(account: account.id).clear() }
+        if !Demo.active { StandStore(store: Konten.secrets(account.id)).clear() }
         cards.clear()
         Self.clearViews()
         preview = nil
