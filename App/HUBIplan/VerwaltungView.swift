@@ -163,6 +163,7 @@ private struct VerwaltungStart: View {
     @State private var showOccasions = Demo.active && Demo.section == "anlaesse"
     @State private var showEvents = Demo.active && ["vtermine", "vtermin", "neuertermin"].contains(Demo.section)
     @State private var showFinance = Demo.active && ["kasse", "buchung", "neuebuchung", "quittung"].contains(Demo.section)
+    @State private var showTodos = Demo.active && ["vaufgaben", "vaufgabe", "neueaufgabe"].contains(Demo.section)
     @State private var showBilling = Demo.active && ["vrechnungen", "vrechnung"].contains(Demo.section)
     @State private var scanning = false
     @State private var check: Geprueft?
@@ -217,6 +218,13 @@ private struct VerwaltungStart: View {
                             title: open.map { tr("Zu erledigen ({count})", ["count": $0]) } ?? tr("Zu erledigen"),
                             hint: tr("Datenänderungen, Fotos und Termine, die auf dich warten")
                         )
+                    }
+                }
+                if unit.sections.contains(.todos) {
+                    NavigationLink {
+                        AufgabenVerwaltungView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "checklist", title: tr("Aufgaben verteilen"), hint: tr("Aufgaben anlegen, erledigen und wieder öffnen"))
                     }
                 }
                 if unit.sections.contains(.members) {
@@ -275,6 +283,7 @@ private struct VerwaltungStart: View {
         .navigationDestination(isPresented: $showEvents) { TermineVerwaltungView(unit: unit) }
         .navigationDestination(isPresented: $showFinance) { KassenbuchView(unit: unit) }
         .navigationDestination(isPresented: $showBilling) { RechnungenView(unit: unit) }
+        .navigationDestination(isPresented: $showTodos) { AufgabenVerwaltungView(unit: unit) }
         .sheet(isPresented: $scanning) {
             AusweisScan(unit: unit) { result in
                 scanning = false
