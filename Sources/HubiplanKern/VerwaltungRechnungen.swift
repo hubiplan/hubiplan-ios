@@ -135,9 +135,9 @@ public struct InvoiceItem: Decodable, Equatable, Sendable, Identifiable {
         [number ?? "", subject].map { $0.trimmingCharacters(in: .whitespaces) }.filter { !$0.isEmpty }.joined(separator: " · ")
     }
 
-    /// „vom 01.11.2026 · fällig 15.11.2026 · offen“
+    /// „vom 01.11.2026 · fällig 15.11.2026 · offen“ (oder „überfällig“)
     public var dates: String {
-        tr("vom {datum} · fällig {faellig} · {stand}", ["datum": Zeit.plainDate(date), "faellig": Zeit.plainDate(dueDate), "stand": statusLabel])
+        tr("vom {datum} · fällig {faellig} · {stand}", ["datum": Zeit.plainDate(date), "faellig": Zeit.plainDate(dueDate), "stand": listStatus])
     }
 
     /// Dateiname der Quittung: nur Buchstaben, Ziffern und Bindestriche.

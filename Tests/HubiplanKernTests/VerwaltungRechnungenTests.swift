@@ -36,7 +36,7 @@ final class VerwaltungRechnungenTests: XCTestCase {
         XCTAssertEqual(invoice.headline, "RE-2026-0042 · Jahresbeitrag 2026")
         XCTAssertEqual(invoice.listAmount, "40,00\u{00A0}€")
         XCTAssertEqual(invoice.listStatus, "überfällig")
-        XCTAssertEqual(invoice.dates, "vom 01.11.2026 · fällig 15.11.2026 · offen")
+        XCTAssertEqual(invoice.dates, "vom 01.11.2026 · fällig 15.11.2026 · überfällig")
         XCTAssertTrue(invoice.hasPaid)
         XCTAssertTrue(invoice.canPayCash)
         XCTAssertEqual(invoice.lines.first?.detail, "Erwachsene")
@@ -48,6 +48,7 @@ final class VerwaltungRechnungenTests: XCTestCase {
         XCTAssertEqual(bezahlt.listAmount, "120,00\u{00A0}€")
         XCTAssertEqual(bezahlt.listStatus, "bezahlt")
         XCTAssertFalse(bezahlt.canPayCash)
+        XCTAssertEqual(bezahlt.dates, "vom  · fällig  · bezahlt")
         XCTAssertEqual(bezahlt.listDetail, "RE 2026/41")
         XCTAssertEqual(bezahlt.receiptName(payment: 5), "Quittung-RE-2026-41-5.pdf")
 
