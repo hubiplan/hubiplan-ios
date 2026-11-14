@@ -15,8 +15,8 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 
 | Stufe | Inhalt | Stand |
 |---|---|---|
-| I1 | Kern `HubiplanKern`: Schnittstelle, Verbinden, Formate, Push-Entschlüsselung | in Arbeit |
-| I2 | Oberfläche: Verbinden, Termine, Mitteilungen, mehrere Konten | offen |
+| I1 | Kern `HubiplanKern`: Schnittstelle, Verbinden, Formate, Push-Entschlüsselung | fertig |
+| I2 | Oberfläche: Verbinden, Termine, Mitteilungen, mehrere Konten | in Arbeit |
 | I3 | Push über Apple (APNs) als verschlüsseltes Wecksignal | offen |
 | I4 | „Ich“: Ausweis, Daten, Rechnungen, Versammlungen, Foto | offen |
 | I5 | Kalender, Aufgaben, Helferdienste, Noten | offen |
@@ -43,7 +43,16 @@ Voraussetzungen: Swift-Werkzeug ab 5.9 (Linux, WSL oder macOS; auch im offiziell
 scripts/test.sh
 ```
 
-Die Oberfläche lässt sich nur unter macOS mit Xcode bauen. Es gibt keine automatische CI.
+Die Oberfläche (`App/`) lässt sich nur unter macOS mit Xcode bauen. Das Xcode-Projekt wird mit
+[XcodeGen](https://github.com/yonaskolb/XcodeGen) erzeugt und nicht eingecheckt:
+
+```bash
+xcodegen generate --spec App/project.yml
+open App/HUBIplan.xcodeproj
+```
+
+Ohne Mac baut der Lauf „iOS bauen“ auf GitHub Actions die App für den Simulator. Er startet
+nur von Hand (`workflow_dispatch`); automatische Auslöser gibt es nicht.
 
 ## Sicherheit
 

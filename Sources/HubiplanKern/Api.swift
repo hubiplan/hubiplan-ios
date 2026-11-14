@@ -116,6 +116,8 @@ public struct Api: Sendable {
             let fields = Api.errorFields(response.body)
             throw ApiError(status: response.status, code: fields.code, message: fields.message)
         }
+        // Antworten ohne Inhalt (204) oder mit Inhalt, den die App nicht braucht
+        if let ignored = Ignored() as? T { return ignored }
         do {
             return try JSONDecoder().decode(T.self, from: response.body)
         } catch {

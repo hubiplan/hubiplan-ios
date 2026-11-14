@@ -18,7 +18,8 @@ let package = Package(
             name: "HubiplanKern",
             dependencies: [
                 .product(name: "Crypto", package: "swift-crypto", condition: .when(platforms: [.linux])),
-            ]
+            ],
+            resources: [.process("Texte")]
         ),
         .testTarget(name: "HubiplanKernTests", dependencies: ["HubiplanKern"]),
     ]

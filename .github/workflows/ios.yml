@@ -1,0 +1,31 @@
+# Baut die App für den iPhone-Simulator und prüft den Kern unter macOS (CryptoKit).
+# Nur von Hand starten; es gibt keine automatischen Auslöser.
+name: iOS bauen
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  bauen:
+    runs-on: macos-15
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Werkzeuge
+        run: |
+          xcodebuild -version
+          swift --version
+          brew install xcodegen
+      - name: Kern testen
+        run: swift test
+      - name: Projekt erzeugen
+        run: xcodegen generate --spec App/project.yml
+      - name: App für den Simulator bauen
+        run: |
+          set -o pipefail
+          xcodebuild -project App/HUBIplan.xcodeproj -scheme HUBIplan \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tail -n 60
