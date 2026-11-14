@@ -26,10 +26,18 @@ public struct HttpRequest: Equatable, Sendable {
 public struct HttpResponse: Sendable {
     public var status: Int
     public var body: Data
+    /// Kopfzeilen der Antwort (Namen wie gesendet; `header` vergleicht ohne Groß/Klein)
+    public var headers: [String: String]
 
-    public init(status: Int, body: Data) {
+    public init(status: Int, body: Data, headers: [String: String] = [:]) {
         self.status = status
         self.body = body
+        self.headers = headers
+    }
+
+    public func header(_ name: String) -> String? {
+        let wanted = name.lowercased()
+        return headers.first { $0.key.lowercased() == wanted }?.value
     }
 }
 
@@ -59,6 +67,8 @@ public struct Api: Sendable {
     let transport: Transport
     let tokens: TokenStore?
     let language: String
+    /// Gesetzt für Anfragen der Verwaltung (Vorstandsschlüssel), siehe `Verwaltung.swift`
+    var admin: AdminAccess?
 
     /// `server`: Ergebnis von `normalizeServer` (nur `https://Host[:Port]`).
     public init(server: String, transport: Transport, tokens: TokenStore? = nil, language: String = "de") {
@@ -90,6 +100,13 @@ public struct Api: Sendable {
             body = try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])
             headers["Content-Type"] = "application/json"
         }
+        if let admin {
+            // Vorstandsschlüssel nur zusammen mit dem Geräteschlüssel desselben Geräts (H3)
+            guard let used else { throw ApiError(status: 401, code: "device_not_authenticated") }
+            headers["Authorization"] = "Bearer " + admin.token
+            headers[Api.deviceHeader] = used
+            try admin.sign(&headers, server: server, method: method, path: path, body: body ?? Data())
+        }
         let response: HttpResponse
         do {
             response = try await transport.send(HttpRequest(method: method, url: url, headers: headers, body: body))
@@ -99,6 +116,7 @@ public struct Api: Sendable {
             throw ApiError(status: 0, code: "offline")
         }
         if response.body.count > limit { throw ApiError(status: 0, code: "too_large") }
+        if response.header(SignedFormat.formatHeader) == "2" { SignedFormat.servers.note(server) }
         // Erneuern und Nachmelden selbst nie erneut erneuern (das wäre eine Schleife).
         // Ohne Erneuerung nie 401 nach oben geben (das hieße „Gerät abgemeldet“).
         if response.status == 401, Api.errorFields(response.body).code == "device_renew",

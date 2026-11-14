@@ -3,6 +3,7 @@ import SwiftUI
 
 struct HauptView: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.scenePhase) private var phase
     /// „Mein Konto“ liegt im Reiter „Ich“ (das iPhone zeigt höchstens fünf Reiter)
     @State private var tab = Demo.tab == "konto" ? "ausweis" : Demo.tab
 
@@ -30,6 +31,8 @@ struct HauptView: View {
         }
         .task { await model.refresh() }
         .onChange(of: model.showEvents) { _, _ in tab = "termine" }
+        // Verwaltung: nach mehr als einer Minute im Hintergrund neu entsperren
+        .onChange(of: phase) { _, now in model.sceneChanged(active: now == .active) }
         // Link zum Verbinden kam von außen (hubiplan://…), während schon ein Konto verbunden ist
         .verbindenFrage(aktiv: !model.adding)
         .alert(

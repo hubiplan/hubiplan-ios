@@ -11,6 +11,9 @@ public enum SignedFormat {
     public static let idempotencyHeader = "Idempotency-Key"
     public static let formatHeader = "X-Hubiplan-Signature-Format"
 
+    /// Instanzen, die Format 2 angekündigt haben (Kopfzeile in jeder App-Antwort).
+    static let servers = FormatMemory()
+
     /// 16 zufällige Byte, base64url (22 Zeichen).
     public static func newNonce() -> String {
         var generator = SystemRandomNumberGenerator()
@@ -48,4 +51,13 @@ public enum SignedFormat {
     public static func sign(_ message: Data, with key: P256.Signing.PrivateKey) throws -> String {
         Base64Url.encode(try key.signature(for: message).derRepresentation)
     }
+}
+
+/// Merkt sich je Instanz, dass sie Unterschriftsformat 2 versteht.
+final class FormatMemory: @unchecked Sendable {
+    private let lock = NSLock()
+    private var known: Set<String> = []
+
+    func note(_ server: String) { lock.withLock { _ = known.insert(server) } }
+    func knows(_ server: String) -> Bool { lock.withLock { known.contains(server) } }
 }

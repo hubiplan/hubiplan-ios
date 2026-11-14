@@ -31,6 +31,12 @@ final class AppModel: ObservableObject {
     @Published var taskNotice: String?
     /// Notenmappen des gewählten Zugangs (nur mit Musikerprofil)
     @Published var scores: ScoreFolders?
+    /// Verwaltung: Einheiten mit Rechten, Schlüssel im Tresor, Schlüssel gerade offen
+    @Published private(set) var adminOverview: AdminOverview?
+    @Published private(set) var adminSealed = false
+    @Published private(set) var adminOpen = false
+    @Published private(set) var adminBusy = false
+    @Published var adminError: String?
     @Published var loading = false
     @Published var error: String?
     /// Link, den die App zum Verbinden bekommen hat und der noch bestätigt werden muss
@@ -52,6 +58,10 @@ final class AppModel: ObservableObject {
     private var calendarSynced: [String: Date] = [:]
     /// Geladene Notenblätter, nur im Arbeitsspeicher (Schlüssel: Datei und Fassung)
     private var sheetCache: [String: Data] = [:]
+    /// Vorstandsschlüssel, nur im Arbeitsspeicher und höchstens fünf Minuten ohne Bedienung
+    private var adminAccess: AdminAccess?
+    private var adminUsed = ContinuousClock.now
+    private var backgroundSince: ContinuousClock.Instant?
 
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
@@ -96,6 +106,12 @@ final class AppModel: ObservableObject {
         documents = nil
         scores = nil
         sheetCache = [:]
+        adminOverview = nil
+        adminSealed = false
+        adminOpen = false
+        adminBusy = false
+        adminError = nil
+        adminAccess = nil
         todos = []
         helpers = nil
         taskNotice = nil
@@ -157,6 +173,7 @@ final class AppModel: ObservableObject {
     private func forget(_ entry: AccountEntry) async {
         guard !Demo.active else { return }
         await makeSession(server: entry.server, id: entry.id).forget()
+        VerwaltungTresor(account: entry.id).clear()
         FileCardStore(account: entry.id).clear()
     }
 
@@ -172,6 +189,7 @@ final class AppModel: ObservableObject {
     func disconnect() async {
         guard let account else { return }
         await session?.forget()
+        if !Demo.active { VerwaltungTresor(account: account.id).clear() }
         cards.clear()
         Self.clearViews()
         preview = nil
@@ -257,6 +275,187 @@ final class AppModel: ObservableObject {
         self.invoices = invoices ?? self.invoices
         self.meetings = access.hasMeetings ? (meetings ?? self.meetings) : nil
         self.documents = access.hasDocs ? (documents ?? self.documents) : nil
+        await loadAdmin()
+    }
+
+    // MARK: Verwaltung
+
+    private var tresor: VerwaltungTresor? {
+        guard !Demo.active, let account else { return nil }
+        return VerwaltungTresor(account: account.id)
+    }
+
+    /// Einheiten mit Verwaltungsrechten und ob dieses Gerät freigeschaltet ist.
+    func loadAdmin() async {
+        guard let session else { return }
+        let epoch = self.epoch
+        let overview = try? await session.api().adminOverview()
+        guard epoch == self.epoch else { return }
+        if Demo.active {
+            adminOverview = overview
+            adminSealed = overview?.unlocked == true
+            if adminSealed, adminAccess == nil {
+                adminAccess = AdminAccess(token: "hpa_demo", key: nil)
+                adminUsed = .now
+                adminOpen = true
+            }
+            return
+        }
+        guard let overview else { return }
+        adminOverview = overview
+        let filled = tresor?.filled == true
+        // Im Browser gesperrt oder abgelaufen: der Schlüssel im Tresor ist wertlos
+        if !overview.unlocked, filled { tresor?.clear() }
+        adminSealed = overview.unlocked && filled
+        if !adminSealed { lockAdminNow() }
+    }
+
+    /// Freischalten mit Passwort und Zwei-Faktor-Code; der neue Schlüssel kommt in den Tresor.
+    func unlockAdmin(password: String, code: String) async {
+        guard let session, let tresor, !adminBusy else { return }
+        let epoch = self.epoch
+        adminBusy = true
+        adminError = nil
+        defer { adminBusy = false }
+        let api = session.api()
+        // Härtung H7: neues Vorstands-Schlüsselpaar, liegt nur im Tresor
+        let key = P256.Signing.PrivateKey()
+        do {
+            let result = try await api.unlockAdmin(
+                password: password, code: code.trimmingCharacters(in: .whitespaces),
+                adminKey: SignedFormat.publicKey(key.publicKey)
+            )
+            let access = AdminAccess(token: result.token, key: result.signed ? key : nil)
+            guard epoch == self.epoch else {
+                // Inzwischen anderes Konto: den neuen Schlüssel gleich wieder sperren
+                try? await api.lockAdmin()
+                return
+            }
+            guard tresor.save(access.stored) else {
+                try? await api.lockAdmin()
+                adminError = tr("Für die Verwaltung braucht das iPhone einen Gerätecode. Bitte in den Einstellungen einrichten.")
+                return
+            }
+            adminAccess = access
+            adminUsed = .now
+            adminOpen = true
+            adminSealed = true
+            await loadAdmin()
+        } catch let failure as ApiError {
+            if epoch == self.epoch { adminError = failure.text }
+        } catch {
+            if epoch == self.epoch { adminError = ApiError(status: 0, code: "offline").text }
+        }
+    }
+
+    /// Schlüssel nach Face ID, Touch ID oder Gerätecode aus dem Tresor holen.
+    func openAdmin() async {
+        guard let tresor, adminSealed, !adminOpen, !adminBusy else { return }
+        let epoch = self.epoch
+        adminBusy = true
+        defer { adminBusy = false }
+        let result = await tresor.open(reason: tr("Verwaltung öffnen"))
+        guard epoch == self.epoch else { return }
+        switch result {
+        case let .offen(stored):
+            guard let access = AdminAccess(stored: stored) else {
+                tresor.clear()
+                adminSealed = false
+                adminError = tr("Bitte die Verwaltung neu freischalten.")
+                return
+            }
+            adminAccess = access
+            adminUsed = .now
+            adminOpen = true
+            adminError = nil
+        case .abgebrochen:
+            adminError = tr("Bitte mit Face ID, Touch ID oder Gerätecode entsperren.")
+        case .weg:
+            tresor.clear()
+            adminSealed = false
+            adminError = tr("Bitte die Verwaltung neu freischalten.")
+        }
+    }
+
+    /// Schlüssel aus dem Arbeitsspeicher nehmen (neu entsperren); der Tresor bleibt.
+    func lockAdminNow() {
+        adminAccess = nil
+        if adminOpen { adminOpen = false }
+    }
+
+    /// Nach mehr als fünf Minuten ohne Bedienung neu entsperren.
+    func checkAdminIdle() {
+        guard adminAccess != nil, !Demo.active else { return }
+        if AdminPause.locked(sinceUse: seconds(since: adminUsed)) { lockAdminNow() }
+    }
+
+    /// Echte Bedienung verlängert die fünf Minuten.
+    func adminTouched() {
+        checkAdminIdle()
+        if adminAccess != nil { adminUsed = .now }
+    }
+
+    private func seconds(since start: ContinuousClock.Instant) -> Double {
+        let passed = ContinuousClock.now - start
+        return Double(passed.components.seconds)
+    }
+
+    /// App im Hintergrund: nach mehr als einer Minute ist die Verwaltung gesperrt.
+    func sceneChanged(active: Bool) {
+        if !active {
+            if backgroundSince == nil { backgroundSince = .now }
+            return
+        }
+        if let since = backgroundSince, !Demo.active, AdminPause.lockedAfterBackground(seconds(since: since)) {
+            lockAdminNow()
+        }
+        backgroundSince = nil
+        checkAdminIdle()
+    }
+
+    /// Verwaltung auf diesem Gerät sperren (das Gerät bleibt angemeldet).
+    func lockAdmin() async {
+        guard let session else { return }
+        let epoch = self.epoch
+        let tresor = self.tresor
+        try? await session.api().lockAdmin()
+        tresor?.clear()
+        guard epoch == self.epoch else { return }
+        lockAdminNow()
+        adminSealed = false
+        await loadAdmin()
+    }
+
+    /// Eine Anfrage der Verwaltung; nil mit Meldung in `adminError`, wenn sie nicht ging.
+    func verwaltung<T>(_ unit: AdminUnit, _ work: @MainActor (AdminClient) async throws -> T) async -> T? {
+        checkAdminIdle()
+        guard let session, let access = adminAccess else { return nil }
+        let epoch = self.epoch
+        adminUsed = .now
+        do {
+            let value = try await work(AdminClient(api: session.api().verwaltung(access), unit: unit))
+            guard epoch == self.epoch else { return nil }
+            adminError = nil
+            return value
+        } catch let failure as ApiError {
+            guard epoch == self.epoch else { return nil }
+            if failure.mustReconnect {
+                await disconnect()
+                linkError = failure.text
+            } else if failure.status == 401 {
+                // Abgelaufen oder im Browser gesperrt: neu freischalten
+                tresor?.clear()
+                lockAdminNow()
+                adminSealed = false
+                adminError = tr("Bitte die Verwaltung neu freischalten.")
+                await loadAdmin()
+            } else {
+                adminError = failure.text
+            }
+        } catch {
+            if epoch == self.epoch { adminError = ApiError(status: 0, code: "offline").text }
+        }
+        return nil
     }
 
     // MARK: Versammlungen und Dokumente
