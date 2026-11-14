@@ -5,7 +5,7 @@ import HubiplanKern
 /// Die App spricht dann mit keinem Server; alle Daten sind erfunden (Demoverein).
 enum Demo {
     static var active: Bool { UserDefaults.standard.bool(forKey: "demo") }
-    /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`).
+    /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
     static let account = Account(server: "https://verein.example.de", display: "Erika Musterfrau", email: "erika@example.org")
@@ -19,6 +19,16 @@ final class DemoStore: SecretStore, @unchecked Sendable {
     func write(_ key: String, _ value: String?) { lock.withLock { values[key] = value } }
 }
 
+final class DemoCards: CardStore, @unchecked Sendable {
+    private let lock = NSLock()
+    private var cards: [Int: StoredCard] = [:]
+
+    func load(accessId: Int) -> StoredCard? { lock.withLock { cards[accessId] } }
+    func save(accessId: Int, card: StoredCard) { lock.withLock { cards[accessId] = card } }
+    func delete(accessId: Int) { lock.withLock { cards[accessId] = nil } }
+    func clear() { lock.withLock { cards = [:] } }
+}
+
 struct DemoTransport: Transport {
     private func day(_ offset: Int, _ time: String) -> String {
         let date = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
@@ -30,16 +40,17 @@ struct DemoTransport: Transport {
         let english = Texte.language == "en"
         let body: String
         if path.hasSuffix("/me/") {
-            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars"]}]}"#
+            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card"]}]}"#
         } else if path.hasSuffix("/events/") {
             let titles = english
                 ? ["Platoon meeting", "Shooting practice", "Christmas party", "General assembly"]
                 : ["Zugversammlung", "Übungsschießen", "Weihnachtsfeier", "Jahreshauptversammlung"]
             let place = english ? "Clubhouse" : "Vereinsheim"
+            let range = english ? "Shooting range" : "Schießstand"
             body = """
             {"items":[
             {"key":"1","event_id":1,"title":"\(titles[0])","starts_at":"\(day(3, "19:30"))","ends_at":"\(day(3, "21:30"))","location":"\(place)","owner":"Zug 1","rsvp_enabled":true,"my_response":null},
-            {"key":"2","event_id":2,"title":"\(titles[1])","starts_at":"\(day(6, "18:00"))","ends_at":"\(day(6, "20:00"))","location":"Schießstand","owner":"Schützenverein Musterstadt","rsvp_enabled":true,"my_response":"yes"},
+            {"key":"2","event_id":2,"title":"\(titles[1])","starts_at":"\(day(6, "18:00"))","ends_at":"\(day(6, "20:00"))","location":"\(range)","owner":"Schützenverein Musterstadt","rsvp_enabled":true,"my_response":"yes"},
             {"key":"3","event_id":3,"title":"\(titles[2])","starts_at":"\(day(28, "18:00"))","ends_at":"\(day(28, "23:00"))","location":"\(place)","owner":"Schützenverein Musterstadt","rsvp_enabled":true,"my_response":"no"},
             {"key":"4","event_id":4,"title":"\(titles[3])","starts_at":"\(day(63, "00:00"))","ends_at":"\(day(63, "23:59"))","all_day":true,"owner":"Schützenverein Musterstadt"}
             ]}
@@ -48,6 +59,16 @@ struct DemoTransport: Transport {
             body = english
                 ? #"[{"id":2,"subject":"Fall in tonight","sender":"Zug 1","kind_label":"Short message","sent_at":"\#(day(0, "09:00"))","body":"Tonight at **6 pm** at the tent – please be on time.\n\n- Uniform\n- Good mood","channel":"app"},{"id":1,"subject":"Invitation to the general assembly","sender":"Schützenverein Musterstadt","kind_label":"Circular","sent_at":"\#(day(-9, "10:00"))","body":"Dear members,\n\nwe cordially invite you to the general assembly. The agenda is in the members' area.","attachments":[{"id":1,"name":"Agenda.pdf","size":48213}],"channel":"mail"}]"#
                 : #"[{"id":2,"subject":"Antreten heute Abend","sender":"Zug 1","kind_label":"Kurzmitteilung","sent_at":"\#(day(0, "09:00"))","body":"Heute um **18 Uhr** am Zelt – bitte pünktlich.\n\n- Uniform\n- Gute Laune","channel":"app"},{"id":1,"subject":"Einladung zur Jahreshauptversammlung","sender":"Schützenverein Musterstadt","kind_label":"Rundschreiben","sent_at":"\#(day(-9, "10:00"))","body":"Liebe Mitglieder,\n\nwir laden herzlich zur Jahreshauptversammlung ein. Die Tagesordnung steht im Mitgliederbereich.","attachments":[{"id":1,"name":"Tagesordnung.pdf","size":48213}],"channel":"mail"}]"#
+        } else if path.hasSuffix("/card/") {
+            let labels = english
+                ? ["Active member", "Full member", "Platoon", "Platoon 1, Band"]
+                : ["Aktives Mitglied", "Vollmitglied", "Zug", "Zug 1, Kapelle"]
+            body = """
+            {"state":"active","url":"https://verein.example.de/ausweis/pruefen/demo-0042",
+            "display":{"first_name":"Erika","last_name":"Musterfrau","status":"active","status_label":"\(labels[0])",
+            "member_type":"\(labels[1])","club":"Schützenverein Musterstadt","department_label":"\(labels[2])",
+            "departments":["\(labels[3])"],"club_number":"0042","theme":{"primary":"0E7C66","on_primary":"FFFFFF"}}}
+            """
         } else {
             body = "{}"
         }

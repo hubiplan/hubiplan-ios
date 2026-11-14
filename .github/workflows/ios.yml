@@ -5,11 +5,6 @@ name: iOS bauen
 
 on:
   workflow_dispatch:
-    inputs:
-      vorschau:
-        description: Kleines Vorschaubild (Name ohne Endung, z. B. termine-de) ins Protokoll schreiben
-        required: false
-        default: ""
 
 permissions:
   contents: read
@@ -54,17 +49,10 @@ jobs:
             foto verbinden "$SPRACHE"
             foto termine "$SPRACHE" -demo 1 -reiter termine
             foto neues "$SPRACHE" -demo 1 -reiter mitteilungen
+            foto ausweis "$SPRACHE" -demo 1 -reiter ausweis
             foto konto "$SPRACHE" -demo 1 -reiter konto
           done
           xcrun simctl shutdown booted
-      - name: Vorschaubild ins Protokoll
-        if: ${{ inputs.vorschau != '' }}
-        run: |
-          sips -Z 520 -s format jpeg -s formatOptions 35 "bilder/${{ inputs.vorschau }}.png" --out vorschau.jpg > /dev/null
-          echo "VORSCHAU-ANFANG"
-          base64 -i vorschau.jpg | tr -d '\n' | fold -w 4000
-          echo
-          echo "VORSCHAU-ENDE"
       - uses: actions/upload-artifact@v4
         with:
           name: bildschirmfotos

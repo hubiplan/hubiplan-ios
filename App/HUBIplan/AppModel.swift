@@ -10,6 +10,10 @@ final class AppModel: ObservableObject {
     @Published var accessId: Int?
     @Published var events: [Occurrence] = []
     @Published var circulars: [CircularItem] = []
+    /// Ausweis des gewählten Zugangs, wie er zuletzt kam (auch ohne Netz)
+    @Published var card: StoredCard?
+    /// Der Ausweis ließ sich zuletzt nicht abrufen
+    @Published var cardOffline = false
     @Published var loading = false
     @Published var error: String?
     /// Link, den die App zum Verbinden bekommen hat und der noch bestätigt werden muss
@@ -18,6 +22,7 @@ final class AppModel: ObservableObject {
 
     private let transport: Transport = Demo.active ? DemoTransport() : UrlSessionTransport()
     private var session: DeviceSession?
+    private let cards: CardStore = Demo.active ? DemoCards() : FileCardStore()
 
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
@@ -83,6 +88,9 @@ final class AppModel: ObservableObject {
         accessId = nil
         events = []
         circulars = []
+        cards.clear()
+        card = nil
+        cardOffline = false
         error = nil
     }
 
@@ -122,11 +130,35 @@ final class AppModel: ObservableObject {
             self.events = try await api.events(accessId: access.id, from: Zeit.day(now), to: Zeit.day(end))
             self.circulars = try await api.circulars(accessId: access.id)
         }
+        await refreshCard()
     }
 
     func choose(access id: Int) async {
         accessId = id
+        card = nil
         await refresh()
+    }
+
+    /// Ausweis des gewählten Zugangs: erst aus der Ablage zeigen, dann frisch holen.
+    func refreshCard() async {
+        guard let session, let access else { return }
+        let id = access.id
+        if card == nil { card = cards.load(accessId: id) }
+        do {
+            let fresh = try await session.api().refreshCard(accessId: id, store: cards)
+            guard self.access?.id == id else { return }
+            card = fresh
+            cardOffline = false
+        } catch let failure as ApiError {
+            if failure.mustReconnect {
+                await disconnect()
+                linkError = failure.text
+            } else {
+                cardOffline = true
+            }
+        } catch {
+            cardOffline = true
+        }
     }
 
     func respond(_ event: Occurrence, status: String) async {

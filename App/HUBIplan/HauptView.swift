@@ -13,6 +13,9 @@ struct HauptView: View {
             MitteilungenView()
                 .tabItem { Label(tr("Neues"), systemImage: "envelope") }
                 .tag("mitteilungen")
+            AusweisView()
+                .tabItem { Label(tr("Ausweis"), systemImage: "person.text.rectangle") }
+                .tag("ausweis")
             KontoView()
                 .tabItem { Label(tr("Mein Konto"), systemImage: "person.crop.circle") }
                 .tag("konto")

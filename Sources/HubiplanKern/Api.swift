@@ -77,11 +77,12 @@ public struct Api: Sendable {
         return (code, message)
     }
 
-    func raw(_ method: String, _ path: String, json: [String: Any]? = nil, retry: Bool = true) async throws -> HttpResponse {
+    func raw(_ method: String, _ path: String, json: [String: Any]? = nil, retry: Bool = true, accept: Bool = true) async throws -> HttpResponse {
         guard let url = serverLink(server: server, path: path) else {
             throw ApiError(status: 0, code: "address")
         }
-        var headers = ["Accept": "application/json", "Accept-Language": language]
+        var headers = ["Accept-Language": language]
+        if accept { headers["Accept"] = "application/json" }
         let used = await tokens?.token()
         if let used { headers["Authorization"] = "Bearer " + used }
         var body: Data?
@@ -105,7 +106,7 @@ public struct Api: Sendable {
             guard retry, await tokens.renew(used: used) != nil else {
                 throw ApiError(status: 0, code: "renew_failed")
             }
-            return try await raw(method, path, json: json, retry: false)
+            return try await raw(method, path, json: json, retry: false, accept: accept)
         }
         return response
     }
