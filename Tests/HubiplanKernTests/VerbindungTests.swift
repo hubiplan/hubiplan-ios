@@ -60,4 +60,27 @@ final class VerbindungTests: XCTestCase {
         XCTAssertNil(serverLink(server: "http://verein.example.de", path: "/x"))
         XCTAssertEqual(serverLink(server: "https://test.example:8443/", path: "/x?q=1"), "https://test.example:8443/x?q=1")
     }
+
+    // Passkey auf dem iPhone: Anmelden im eingebetteten Browser (docs/app.md in hubiplan)
+    func testPasskeyAnmeldeseite() {
+        XCTAssertEqual(BrowserLogin.url(server: "verein.example.de")?.absoluteString, "https://verein.example.de/app/anmelden")
+        XCTAssertEqual(BrowserLogin.url(server: "https://Test.Example:8443/")?.absoluteString, "https://test.example:8443/app/anmelden")
+        XCTAssertNil(BrowserLogin.url(server: "http://verein.example.de"))
+        XCTAssertNil(BrowserLogin.url(server: " "))
+    }
+
+    func testPasskeyRueckrufNurVonDerselbenInstanz() {
+        let ok = URL(string: "hubiplan://verbinden?server=https%3A%2F%2Fverein.example.de&code=Ab-_9")!
+        XCTAssertEqual(BrowserLogin.pairing(callback: ok, server: "verein.example.de"), PairingLink(server: "https://verein.example.de", code: "Ab-_9"))
+        // Ein Code einer anderen Adresse wird nicht übernommen
+        XCTAssertNil(BrowserLogin.pairing(callback: ok, server: "anderer.example.de"))
+        XCTAssertNil(BrowserLogin.pairing(callback: URL(string: "hubiplan://termin?id=1")!, server: "verein.example.de"))
+    }
+
+    func testInstanzNenntPasskeyWege() throws {
+        let mit = try JSONDecoder().decode(Instance.self, from: Data(#"{"product":"HUBIplan","api_version":1,"passkey":["android","browser"]}"#.utf8))
+        XCTAssertEqual(mit.passkey, ["android", "browser"])
+        let ohne = try JSONDecoder().decode(Instance.self, from: Data(#"{"product":"HUBIplan","api_version":1}"#.utf8))
+        XCTAssertEqual(ohne.passkey, [])
+    }
 }

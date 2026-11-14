@@ -1,3 +1,4 @@
+import AuthenticationServices
 import HubiplanKern
 import SwiftUI
 
@@ -6,6 +7,8 @@ struct VerbindenView: View {
     @EnvironmentObject private var model: AppModel
     @State private var link = ""
     @State private var scanning = false
+    @State private var server = ""
+    @Environment(\.webAuthenticationSession) private var webAuthentication
 
     var body: some View {
         NavigationStack {
@@ -36,6 +39,24 @@ struct VerbindenView: View {
                         .disabled(link.trimmingCharacters(in: .whitespaces).isEmpty || model.loading)
                         .accessibilityIdentifier("verbinden")
                 }
+                // Passkey: Anmeldung im eingebetteten Browser der Instanz (docs/app.md in hubiplan)
+                Section {
+                    TextField(tr("Adresse von HUBIplan"), text: $server, prompt: Text("verein.example.de"))
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled()
+                        .keyboardType(.URL)
+                        .textContentType(.URL)
+                        .accessibilityIdentifier("server")
+                    Button {
+                        Task { await passkey() }
+                    } label: {
+                        Label(tr("Mit Passkey anmelden"), systemImage: "person.badge.key")
+                    }
+                    .disabled(server.trimmingCharacters(in: .whitespaces).isEmpty || model.loading)
+                    .accessibilityIdentifier("passkey")
+                } footer: {
+                    Text(tr("Öffnet die Anmeldeseite deines Vereins. Melde dich dort mit deinem Passkey an und tippe auf „Verbinden“."))
+                }
                 Section {
                     Text(tr("Version {version}", ["version": AppModel.version]))
                         .font(.footnote)
@@ -61,8 +82,34 @@ struct VerbindenView: View {
             .verbindenFrage(aktiv: true)
         }
     }
-}
 
+    /// Anmeldeseite der Instanz öffnen; mit dem zurückgegebenen Einmalcode gleich verbinden.
+    private func passkey() async {
+        guard let url = BrowserLogin.url(server: server) else {
+            model.linkError = tr("Bitte die Adresse von HUBIplan angeben, z. B. verein.example.de.")
+            return
+        }
+        do {
+            // Ohne gemeinsame Cookies mit Safari: es bleibt keine Browser-Sitzung zurück
+            let callback = try await webAuthentication.authenticate(
+                using: url,
+                callbackURLScheme: PairingLink.scheme,
+                preferredBrowserSession: .ephemeral
+            )
+            guard let link = BrowserLogin.pairing(callback: callback, server: server) else {
+                model.linkError = tr("Die Anmeldung kam nicht von dieser Adresse zurück. Bitte erneut versuchen.")
+                return
+            }
+            // Selbst angestoßen und an die eingegebene Adresse gebunden: ohne weitere Rückfrage
+            model.offer(link: callback.absoluteString)
+            if model.pending == link { await model.connect() }
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            // Abgebrochen: nichts tun
+        } catch {
+            model.linkError = tr("Die Anmeldeseite ließ sich nicht öffnen. Bitte erneut versuchen.")
+        }
+    }
+}
 
 /// Vor dem Verbinden die Adresse der Instanz zeigen und nachfragen.
 private struct VerbindenFrage: ViewModifier {

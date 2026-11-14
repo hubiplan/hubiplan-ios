@@ -30,9 +30,11 @@ public struct Instance: Decodable, Equatable, Sendable {
     public var minAppVersion: Int
     public var url: String
     public var push: [PushWay]
+    /// Anmeldewege mit Passkey (`android`, `browser`); iOS nutzt `browser` (docs/app.md).
+    public var passkey: [String]
 
     enum CodingKeys: String, CodingKey {
-        case product, url, push
+        case product, url, push, passkey
         case apiVersion = "api_version"
         case minAppVersion = "min_app_version"
     }
@@ -44,6 +46,7 @@ public struct Instance: Decodable, Equatable, Sendable {
         minAppVersion = try c.decodeIfPresent(Int.self, forKey: .minAppVersion) ?? 1
         url = try c.decodeIfPresent(String.self, forKey: .url) ?? ""
         push = try c.decodeIfPresent([PushWay].self, forKey: .push) ?? []
+        passkey = try c.decodeIfPresent([String].self, forKey: .passkey) ?? []
     }
 }
 

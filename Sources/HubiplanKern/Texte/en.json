@@ -699,5 +699,11 @@
  "Ohne Netz und ohne gespeicherte Auswahl. Bitte einmal mit Netz öffnen.": "Offline and no saved choices. Please open this once with a connection.",
  "Ohne Netz: Die Quittung wird gespeichert und später abgeschlossen.": "Offline: the receipt will be saved and finalised later.",
  "Ohne Verbindung: Quittung gespeichert, wird später abgeschlossen": "No connection: receipt saved, will be finalised later",
- "Quittung verwerfen?": "Discard receipt?"
+ "Quittung verwerfen?": "Discard receipt?",
+ "Adresse von HUBIplan": "HUBIplan address",
+ "Mit Passkey anmelden": "Sign in with passkey",
+ "Öffnet die Anmeldeseite deines Vereins. Melde dich dort mit deinem Passkey an und tippe auf „Verbinden“.": "Opens your club’s sign-in page. Sign in there with your passkey and tap “Connect”.",
+ "Bitte die Adresse von HUBIplan angeben, z. B. verein.example.de.": "Please enter the HUBIplan address, e.g. club.example.org.",
+ "Die Anmeldung kam nicht von dieser Adresse zurück. Bitte erneut versuchen.": "The sign-in did not come back from this address. Please try again.",
+ "Die Anmeldeseite ließ sich nicht öffnen. Bitte erneut versuchen.": "The sign-in page could not be opened. Please try again."
 }
