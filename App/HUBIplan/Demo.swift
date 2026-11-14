@@ -8,7 +8,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -47,7 +47,7 @@ struct DemoTransport: Transport {
         let english = Texte.language == "en"
         let body: String
         if path.hasSuffix("/me/") {
-            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers"]}]}"#
+            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers","meetings","docs"]}]}"#
         } else if path.hasSuffix("/events/") {
             let titles = english
                 ? ["Platoon meeting", "Shooting practice", "Christmas party", "General assembly"]
@@ -85,6 +85,27 @@ struct DemoTransport: Transport {
             {"id":1,"number":"R-2026-0007","status":"paid","status_label":"\(labels[0])","date":"2026-01-15","subject":"\(labels[2])","total":"60.00","outstanding":"0.00","issuer_name":"Schützenverein Musterstadt"}
             ]}
             """
+        } else if path.hasSuffix("/meetings/") {
+            let t = english
+                ? ["General assembly", "Clubhouse", "Welcome", "Report of the board", "Treasurer's report", "Elections", "New flag", "General assembly last year"]
+                : ["Jahreshauptversammlung", "Vereinsheim", "Begrüßung", "Bericht des Vorstands", "Kassenbericht", "Wahlen", "Neue Fahne", "Jahreshauptversammlung im Vorjahr"]
+            body = """
+            {"upcoming":[{"id":1,"title":"\(t[0])","unit":"Schützenverein Musterstadt","starts_at":"\(day(63, "19:30"))","location":"\(t[1])","address":"Musterweg 1, 41468 Musterstadt","motion_until":"\(day(49, "23:59"))",
+            "motions":[{"id":1,"title":"\(t[6])","status":"submitted"}],
+            "agenda":[{"position":1,"title":"\(t[2])","number":"1"},{"position":2,"title":"\(t[3])","number":"2"},{"position":3,"title":"\(t[4])","number":"2.1","level":1},{"position":4,"title":"\(t[5])","number":"3"}]}],
+            "minutes":[{"id":2,"title":"\(t[7])","starts_at":"\(day(-300, "19:30"))"}]}
+            """
+        } else if path.hasSuffix("/documents/") {
+            let t = english
+                ? ["Statutes and rules", "Statutes", "Version 2024", "Shooting rules", "Forms", "Membership application"]
+                : ["Satzung und Ordnungen", "Satzung", "Fassung 2024", "Schießordnung", "Formulare", "Aufnahmeantrag"]
+            body = """
+            {"folders":[{"id":1,"name":"\(t[0])","documents":[
+            {"id":1,"title":"\(t[1])","date":"2024-03-01","note":"\(t[2])","current":{"id":1,"name":"satzung.pdf","url":"/api/portal/1/documents/versions/1/"}},
+            {"id":2,"title":"\(t[3])","date":"2023-05-12","current":{"id":2,"name":"schiessordnung.pdf","url":"/api/portal/1/documents/versions/2/"}}]},
+            {"id":2,"name":"\(t[4])","documents":[
+            {"id":3,"title":"\(t[5])","current":{"id":3,"name":"aufnahmeantrag.pdf","url":"/api/portal/1/documents/versions/3/"}}]}]}
+            """
         } else if path.hasSuffix("/todos/") {
             let t = english
                 ? ["Put up the tent", "Friday from 4 pm at the fairground. Bring gloves.", "by 27 Nov 2026", "Order drinks", "Check the lighting"]
@@ -98,8 +119,8 @@ struct DemoTransport: Transport {
             """
         } else if path.hasSuffix("/helpers/") {
             let t = english
-                ? ["Summer festival", "Bar", "Marquee", "Till", "Entrance", "Erika M.", "Max M."]
-                : ["Sommerfest", "Theke", "Festzelt", "Kasse", "Eingang", "Erika M.", "Max M."]
+                ? ["Christmas market", "Bar", "Marquee", "Till", "Entrance", "Erika M.", "Max M."]
+                : ["Weihnachtsmarkt", "Theke", "Festzelt", "Kasse", "Eingang", "Erika M.", "Max M."]
             body = """
             {"plans":[{"id":1,"title":"\(t[0])","unit":"Schützenverein Musterstadt","signup":"self","max_shifts":2,"duties":[
             {"id":1,"name":"\(t[1])","location":"\(t[2])","min_age":18,"shifts":[

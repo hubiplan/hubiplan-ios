@@ -77,7 +77,7 @@ public struct Api: Sendable {
         return (code, message)
     }
 
-    func raw(_ method: String, _ path: String, json: [String: Any]? = nil, retry: Bool = true, accept: Bool = true) async throws -> HttpResponse {
+    func raw(_ method: String, _ path: String, json: [String: Any]? = nil, retry: Bool = true, accept: Bool = true, limit: Int = Api.maxJsonBytes) async throws -> HttpResponse {
         guard let url = serverLink(server: server, path: path) else {
             throw ApiError(status: 0, code: "address")
         }
@@ -98,7 +98,7 @@ public struct Api: Sendable {
         } catch {
             throw ApiError(status: 0, code: "offline")
         }
-        if response.body.count > Api.maxJsonBytes { throw ApiError(status: 0, code: "too_large") }
+        if response.body.count > limit { throw ApiError(status: 0, code: "too_large") }
         // Erneuern und Nachmelden selbst nie erneut erneuern (das wäre eine Schleife).
         // Ohne Erneuerung nie 401 nach oben geben (das hieße „Gerät abgemeldet“).
         if response.status == 401, Api.errorFields(response.body).code == "device_renew",
@@ -106,7 +106,7 @@ public struct Api: Sendable {
             guard retry, await tokens.renew(used: used) != nil else {
                 throw ApiError(status: 0, code: "renew_failed")
             }
-            return try await raw(method, path, json: json, retry: false, accept: accept)
+            return try await raw(method, path, json: json, retry: false, accept: accept, limit: limit)
         }
         return response
     }
