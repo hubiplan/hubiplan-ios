@@ -162,6 +162,7 @@ private struct VerwaltungStart: View {
     @State private var showTasks = Demo.active && ["offen", "meldungen"].contains(Demo.section)
     @State private var showOccasions = Demo.active && Demo.section == "anlaesse"
     @State private var showEvents = Demo.active && ["vtermine", "vtermin", "neuertermin"].contains(Demo.section)
+    @State private var showFinance = Demo.active && ["kasse", "buchung", "neuebuchung"].contains(Demo.section)
     @State private var scanning = false
     @State private var check: Geprueft?
 
@@ -231,6 +232,13 @@ private struct VerwaltungStart: View {
                         Bereich(symbol: "calendar", title: tr("Termine"), hint: tr("Absagen, Rückmeldungen eintragen, neuer Termin"))
                     }
                 }
+                if unit.sections.contains(.finance) {
+                    NavigationLink {
+                        KassenbuchView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "eurosign.circle", title: tr("Kassenbuch"), hint: tr("Kontostände, Buchungen, Beleg fotografieren"))
+                    }
+                }
                 if unit.sections.contains(.occasions) {
                     NavigationLink {
                         AnlaesseView(unit: unit)
@@ -241,7 +249,7 @@ private struct VerwaltungStart: View {
             } header: {
                 Text(tr("Was möchtest du tun?"))
             } footer: {
-                Text(tr("Kassenbuch, Rechnungen und alles Weitere verwaltest du zurzeit im Browser."))
+                Text(tr("Rechnungen und alles Weitere verwaltest du zurzeit im Browser."))
             }
             Section {
                 Button(tr("Verwaltung auf diesem iPhone sperren"), role: .destructive) { confirmLock = true }
@@ -257,6 +265,7 @@ private struct VerwaltungStart: View {
         .navigationDestination(isPresented: $showTasks) { OffenePunkteView(unit: unit) }
         .navigationDestination(isPresented: $showOccasions) { AnlaesseView(unit: unit) }
         .navigationDestination(isPresented: $showEvents) { TermineVerwaltungView(unit: unit) }
+        .navigationDestination(isPresented: $showFinance) { KassenbuchView(unit: unit) }
         .sheet(isPresented: $scanning) {
             AusweisScan(unit: unit) { result in
                 scanning = false

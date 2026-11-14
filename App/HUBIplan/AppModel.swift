@@ -394,6 +394,12 @@ final class AppModel: ObservableObject {
         adminUndo = change.changeSet.map { AdminUndo(unit: unit, changeSet: $0) }
     }
 
+    /// Erledigt, ohne „Rückgängig“ (z. B. gebucht: Ändern und Storno im Browser).
+    func adminDone(_ text: String) {
+        adminNotice = text
+        adminUndo = nil
+    }
+
     /// Letzte Änderung zurücknehmen; true, wenn es geklappt hat.
     func undoAdmin() async -> Bool {
         guard let undo = adminUndo else { return false }

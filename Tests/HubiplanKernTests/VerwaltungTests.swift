@@ -35,8 +35,8 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertTrue(AdminUnit(id: 2, name: "Zug", permissions: ["dept.members.view"], scope: "d").showsMembers)
         XCTAssertTrue(AdminUnit(id: 2, name: "Zug", permissions: ["members.view"], scope: "d", stufen: true).showsMembers)
         XCTAssertFalse(AdminUnit(id: 2, name: "Zug", permissions: ["dept.members.view"], scope: "d", stufen: true).showsMembers)
-        XCTAssertEqual(AdminUnit(id: 3, name: "B", permissions: ["finance.view"]).sections, [.tasks, .events])
-        XCTAssertEqual(AdminUnit(id: 3, name: "B", permissions: ["finance.view"], stufen: true).sections, [.tasks])
+        XCTAssertEqual(AdminUnit(id: 3, name: "B", permissions: ["finance.view"]).sections, [.tasks, .events, .finance])
+        XCTAssertEqual(AdminUnit(id: 3, name: "B", permissions: ["finance.view"], stufen: true).sections, [.tasks, .finance])
         XCTAssertEqual(AdminUnit(id: 3, name: "B", permissions: ["events.view"], stufen: true).sections, [.tasks, .events])
     }
 
