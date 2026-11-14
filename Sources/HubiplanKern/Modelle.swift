@@ -116,9 +116,11 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
     /// Versammlungen und Dokumente eingeschaltet (nur für Instanzen ohne Modulliste)
     public var meetingsEnabled: Bool
     public var docsEnabled: Bool
+    /// Hat ein Musikerprofil (für den Bereich „Noten“)
+    public var musician: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, modules
+        case id, modules, musician
         case clubName = "club_name"
         case clubId = "club_id"
         case clubDisplayName = "club_display_name"
@@ -147,6 +149,7 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         helpersEnabled = try c.decodeIfPresent(Bool.self, forKey: .helpersEnabled) ?? false
         meetingsEnabled = try c.decodeIfPresent(Bool.self, forKey: .meetingsEnabled) ?? false
         docsEnabled = try c.decodeIfPresent(Bool.self, forKey: .docsEnabled) ?? false
+        musician = try c.decodeIfPresent(Bool.self, forKey: .musician) ?? false
     }
 
     /// Modul eingeschaltet? Ohne Modulliste (ältere Instanz) gilt der einzelne Schalter.
