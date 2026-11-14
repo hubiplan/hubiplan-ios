@@ -14,6 +14,9 @@ final class AppModel: ObservableObject {
     @Published var card: StoredCard?
     /// Der Ausweis ließ sich zuletzt nicht abrufen
     @Published var cardOffline = false
+    /// Eigene Daten und Rechnungen des gewählten Zugangs
+    @Published var profile: Profile?
+    @Published var invoices: MyInvoices?
     @Published var loading = false
     @Published var error: String?
     /// Link, den die App zum Verbinden bekommen hat und der noch bestätigt werden muss
@@ -90,6 +93,8 @@ final class AppModel: ObservableObject {
         circulars = []
         cards.clear()
         card = nil
+        profile = nil
+        invoices = nil
         cardOffline = false
         error = nil
     }
@@ -130,12 +135,30 @@ final class AppModel: ObservableObject {
             self.events = try await api.events(accessId: access.id, from: Zeit.day(now), to: Zeit.day(end))
             self.circulars = try await api.circulars(accessId: access.id)
         }
+        await refreshIch()
+    }
+
+    /// Reiter „Ich“: Ausweis, eigene Daten und Rechnungen (soweit das Modul eingeschaltet ist).
+    func refreshIch() async {
         await refreshCard()
+        guard let session, let access else { return }
+        let id = access.id
+        let api = session.api()
+        let profile = try? await api.profile(accessId: id)
+        var invoices: MyInvoices?
+        if access.has(module: "billing", fallback: true) {
+            invoices = try? await api.myInvoices(accessId: id)
+        }
+        guard self.access?.id == id else { return }
+        if let profile { self.profile = profile }
+        self.invoices = invoices ?? self.invoices
     }
 
     func choose(access id: Int) async {
         accessId = id
         card = nil
+        profile = nil
+        invoices = nil
         await refresh()
     }
 

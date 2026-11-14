@@ -40,7 +40,7 @@ struct DemoTransport: Transport {
         let english = Texte.language == "en"
         let body: String
         if path.hasSuffix("/me/") {
-            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card"]}]}"#
+            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing"]}]}"#
         } else if path.hasSuffix("/events/") {
             let titles = english
                 ? ["Platoon meeting", "Shooting practice", "Christmas party", "General assembly"]
@@ -68,6 +68,21 @@ struct DemoTransport: Transport {
             "display":{"first_name":"Erika","last_name":"Musterfrau","status":"active","status_label":"\(labels[0])",
             "member_type":"\(labels[1])","club":"Schützenverein Musterstadt","department_label":"\(labels[2])",
             "departments":["\(labels[3])"],"club_number":"0042","theme":{"primary":"0E7C66","on_primary":"FFFFFF"}}}
+            """
+        } else if path.hasSuffix("/invoices/") {
+            let labels = english ? ["Paid", "Open", "Annual fee 2026", "Summer festival tickets"] : ["Bezahlt", "Offen", "Jahresbeitrag 2026", "Karten Sommerfest"]
+            body = """
+            {"invoices":[
+            {"id":2,"number":"R-2026-0031","status":"open","status_label":"\(labels[1])","date":"\(day(-12, "00:00").prefix(10))","due_date":"\(day(9, "00:00").prefix(10))","subject":"\(labels[3])","total":"36.00","outstanding":"36.00","issuer_name":"Schützenverein Musterstadt"},
+            {"id":1,"number":"R-2026-0007","status":"paid","status_label":"\(labels[0])","date":"2026-01-15","subject":"\(labels[2])","total":"60.00","outstanding":"0.00","issuer_name":"Schützenverein Musterstadt"}
+            ]}
+            """
+        } else if path.hasSuffix("/api/portal/1/") {
+            let type = english ? "Full member" : "Vollmitglied"
+            body = """
+            {"first_name":"Erika","last_name":"Musterfrau","birth_date":"1984-03-07","club_number":"0042","member_type":"\(type)",
+            "entry_date":"2010-01-01","departments":["Zug 1"],"status":"active",
+            "contact":{"email":"erika@example.org","phone":"02131 000000","street":"Musterweg 1","postal_code":"41468","city":"Musterstadt"}}
             """
         } else {
             body = "{}"

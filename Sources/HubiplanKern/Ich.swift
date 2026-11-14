@@ -1,0 +1,209 @@
+import Foundation
+
+public struct Contact: Decodable, Equatable, Sendable {
+    public var email: String
+    public var phone: String
+    public var street: String
+    public var postalCode: String
+    public var city: String
+    public var country: String
+
+    enum CodingKeys: String, CodingKey {
+        case email, phone, street, city, country
+        case postalCode = "postal_code"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        email = try c.decodeIfPresent(String.self, forKey: .email) ?? ""
+        phone = try c.decodeIfPresent(String.self, forKey: .phone) ?? ""
+        street = try c.decodeIfPresent(String.self, forKey: .street) ?? ""
+        postalCode = try c.decodeIfPresent(String.self, forKey: .postalCode) ?? ""
+        city = try c.decodeIfPresent(String.self, forKey: .city) ?? ""
+        country = try c.decodeIfPresent(String.self, forKey: .country) ?? ""
+    }
+
+    /// Anschrift in Zeilen, ohne leere Teile.
+    public var addressLines: [String] {
+        [street, "\(postalCode) \(city)".trimmingCharacters(in: .whitespaces), country]
+            .filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+    }
+}
+
+/// Eigene Daten des Mitglieds (`/api/portal/<Zugang>/`).
+public struct Profile: Decodable, Equatable, Sendable {
+    public var kind: String
+    public var displayName: String
+    public var firstName: String
+    public var lastName: String
+    public var birthDate: String?
+    public var clubNumber: String
+    public var memberType: String?
+    public var entryDate: String?
+    public var departments: [String]
+    public var contact: Contact?
+    public var status: String
+
+    enum CodingKeys: String, CodingKey {
+        case kind, departments, contact, status
+        case displayName = "display_name"
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case birthDate = "birth_date"
+        case clubNumber = "club_number"
+        case memberType = "member_type"
+        case entryDate = "entry_date"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? "person"
+        displayName = try c.decodeIfPresent(String.self, forKey: .displayName) ?? ""
+        firstName = try c.decodeIfPresent(String.self, forKey: .firstName) ?? ""
+        lastName = try c.decodeIfPresent(String.self, forKey: .lastName) ?? ""
+        birthDate = try c.decodeIfPresent(String.self, forKey: .birthDate)
+        clubNumber = try c.decodeIfPresent(String.self, forKey: .clubNumber) ?? ""
+        memberType = try c.decodeIfPresent(String.self, forKey: .memberType)
+        entryDate = try c.decodeIfPresent(String.self, forKey: .entryDate)
+        departments = try c.decodeIfPresent([String].self, forKey: .departments) ?? []
+        contact = try c.decodeIfPresent(Contact.self, forKey: .contact)
+        status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
+    }
+
+    public var isOrganization: Bool { kind == "organization" }
+
+    public var name: String {
+        if isOrganization { return displayName.isEmpty ? lastName : displayName }
+        return "\(firstName) \(lastName)".trimmingCharacters(in: .whitespaces)
+    }
+}
+
+public struct MyInvoice: Decodable, Equatable, Identifiable, Sendable {
+    public var id: Int
+    public var number: String
+    public var status: String
+    public var statusLabel: String
+    public var date: String?
+    public var dueDate: String?
+    public var subject: String
+    public var total: String
+    public var outstanding: String
+    public var overdue: Bool
+    public var issuerName: String
+    public var departmentName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id, number, status, date, subject, total, outstanding, overdue
+        case statusLabel = "status_label"
+        case dueDate = "due_date"
+        case issuerName = "issuer_name"
+        case departmentName = "department_name"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        number = try c.decodeIfPresent(String.self, forKey: .number) ?? ""
+        status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
+        statusLabel = try c.decodeIfPresent(String.self, forKey: .statusLabel) ?? ""
+        date = try c.decodeIfPresent(String.self, forKey: .date)
+        dueDate = try c.decodeIfPresent(String.self, forKey: .dueDate)
+        subject = try c.decodeIfPresent(String.self, forKey: .subject) ?? ""
+        total = try c.decodeIfPresent(String.self, forKey: .total) ?? "0"
+        outstanding = try c.decodeIfPresent(String.self, forKey: .outstanding) ?? "0"
+        overdue = try c.decodeIfPresent(Bool.self, forKey: .overdue) ?? false
+        issuerName = try c.decodeIfPresent(String.self, forKey: .issuerName) ?? ""
+        departmentName = try c.decodeIfPresent(String.self, forKey: .departmentName)
+    }
+
+    public var open: Bool { status == "open" }
+
+    /// Nummer, Datum und Aussteller in einer Zeile.
+    public var headline: String {
+        [number, Zeit.plainDate(date), departmentName ?? issuerName].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+
+    /// Zustand in Worten: bei offenen Rechnungen Betrag und Fälligkeit.
+    public var stateText: String {
+        guard open else { return statusLabel }
+        return tr("Offen: {betrag}, fällig am {datum}", ["betrag": Geld.format(outstanding), "datum": Zeit.plainDate(dueDate)])
+    }
+}
+
+public struct MyInvoices: Decodable, Equatable, Sendable {
+    public var invoices: [MyInvoice]
+
+    enum CodingKeys: String, CodingKey { case invoices }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        invoices = try c.decodeIfPresent([MyInvoice].self, forKey: .invoices) ?? []
+    }
+
+    /// Offene zuerst, sonst wie geliefert (neueste oben).
+    public var sorted: [MyInvoice] { invoices.filter(\.open) + invoices.filter { !$0.open } }
+
+    /// Summe der offenen Beträge als Text, nil ohne offene.
+    public var openSum: String? {
+        let amounts = invoices.filter(\.open).compactMap { Geld.cents($0.outstanding) }
+        return amounts.isEmpty ? nil : Geld.format(cents: amounts.reduce(0, +))
+    }
+}
+
+/// Beträge der Schnittstelle („60.00“) für die Anzeige („60,00 €“), ohne Rundungsfehler.
+public enum Geld {
+    /// Betrag in Cent; nil, wenn der Text kein Betrag mit höchstens zwei Nachkommastellen ist.
+    public static func cents(_ amount: String) -> Int? {
+        var text = amount.trimmingCharacters(in: .whitespaces)
+        let negative = text.hasPrefix("-")
+        if negative { text.removeFirst() }
+        let parts = text.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count <= 2, let whole = parts.first, !whole.isEmpty, whole.count <= 12,
+              whole.allSatisfy({ $0.isASCII && $0.isNumber })
+        else { return nil }
+        var fraction = parts.count == 2 ? String(parts[1]) : ""
+        guard fraction.count <= 2, fraction.allSatisfy({ $0.isASCII && $0.isNumber }) else { return nil }
+        while fraction.count < 2 { fraction += "0" }
+        guard let euros = Int(whole), let rest = Int(fraction) else { return nil }
+        let value = euros * 100 + rest
+        return negative ? -value : value
+    }
+
+    public static func format(cents: Int) -> String {
+        let digits = String(abs(cents) / 100)
+        var grouped = ""
+        for (index, digit) in digits.enumerated() {
+            if index > 0 && (digits.count - index) % 3 == 0 { grouped += "." }
+            grouped.append(digit)
+        }
+        return (cents < 0 ? "-" : "") + grouped + "," + String(format: "%02d", abs(cents) % 100) + "\u{00A0}€"
+    }
+
+    /// „1234.5“ → „1.234,50 €“; leer, wenn der Text kein Betrag ist.
+    public static func format(_ amount: String?) -> String {
+        guard let amount, let value = cents(amount) else { return "" }
+        return format(cents: value)
+    }
+}
+
+extension Zeit {
+    /// Datum ohne Uhrzeit („2026-11-20“) als „20.11.2026“; leer, wenn es keines ist.
+    public static func plainDate(_ iso: String?) -> String {
+        guard let iso else { return "" }
+        let parts = iso.prefix(10).split(separator: "-")
+        guard parts.count == 3, parts[0].count == 4, parts[1].count == 2, parts[2].count == 2,
+              parts.allSatisfy({ $0.allSatisfy { $0.isASCII && $0.isNumber } })
+        else { return "" }
+        return "\(parts[2]).\(parts[1]).\(parts[0])"
+    }
+}
+
+extension Api {
+    public func profile(accessId: Int) async throws -> Profile {
+        try await expect("GET", "/api/portal/\(accessId)/")
+    }
+
+    public func myInvoices(accessId: Int) async throws -> MyInvoices {
+        try await expect("GET", "/api/portal/\(accessId)/invoices/")
+    }
+}

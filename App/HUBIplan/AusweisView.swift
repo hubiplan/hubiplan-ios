@@ -49,7 +49,8 @@ private func farbe(_ hex: String?, sonst: Color) -> Color {
     return Color(red: rgb.red, green: rgb.green, blue: rgb.blue)
 }
 
-/// Reiter „Ausweis“: eigener Mitgliedsausweis wie die gedruckte Karte, mit QR-Code zur Prüfung.
+/// Reiter „Ich“: eigener Mitgliedsausweis wie die gedruckte Karte, mit QR-Code zur Prüfung,
+/// darunter die eigenen Daten und Rechnungen.
 /// Die App zeigt ihn auch ohne Netz; die Prüfseite zeigt immer den aktuellen Stand.
 struct AusweisView: View {
     @EnvironmentObject private var model: AppModel
@@ -89,14 +90,20 @@ struct AusweisView: View {
                         Button(tr("QR-Code groß zeigen")) { big = true }
                             .buttonStyle(.bordered)
                     }
+                    if let profile = model.profile {
+                        MeineDaten(profile: profile)
+                    }
+                    if let invoices = model.invoices {
+                        MeineRechnungen(list: invoices)
+                    }
                 }
                 .frame(maxWidth: 520, alignment: .leading)
                 .frame(maxWidth: .infinity)
                 .padding()
             }
-            .navigationTitle(tr("Ausweis"))
-            .refreshable { await model.refreshCard() }
-            .task(id: model.accessId) { await model.refreshCard() }
+            .navigationTitle(tr("Ich"))
+            .refreshable { await model.refreshIch() }
+            .task(id: model.accessId) { await model.refreshIch() }
             .fullScreenCover(isPresented: $big) {
                 if let stored = model.card, let url = stored.card.url, let display = stored.card.display {
                     GrosserQrCode(url: url, name: display.name, club: display.club) { big = false }
@@ -217,6 +224,87 @@ struct GrosserQrCode: View {
         }
         .onDisappear {
             if let before { screen?.brightness = before }
+        }
+    }
+}
+
+/// Abschnitt mit Überschrift auf einer Karte.
+struct IchAbschnitt<Content: View>: View {
+    let title: String
+    @ViewBuilder let content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title).font(.headline).accessibilityAddTraits(.isHeader)
+            content
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(Color(.secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .padding(.top, 8)
+    }
+}
+
+struct MeineDaten: View {
+    let profile: Profile
+
+    @ViewBuilder
+    private func zeile(_ label: String, _ value: String) -> some View {
+        if !value.trimmingCharacters(in: .whitespaces).isEmpty {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(label).font(.caption).foregroundStyle(.secondary)
+                Text(value)
+            }
+        }
+    }
+
+    var body: some View {
+        IchAbschnitt(title: tr("Meine Daten")) {
+            Text(profile.name).font(.body.weight(.semibold))
+            zeile(tr("Mitgliedsnummer"), profile.clubNumber)
+            zeile(tr("Mitgliedsart"), profile.memberType ?? "")
+            if !profile.isOrganization {
+                zeile(tr("Geburtsdatum"), Zeit.plainDate(profile.birthDate))
+            }
+            zeile(tr("Mitglied seit"), Zeit.plainDate(profile.entryDate))
+            if let contact = profile.contact {
+                zeile(tr("Anschrift"), contact.addressLines.joined(separator: "\n"))
+                zeile(tr("E-Mail"), contact.email)
+                zeile(tr("Telefon"), contact.phone)
+            }
+            Text(tr("Stimmt etwas nicht? Ändern kannst du deine Daten im Mitgliederbereich im Browser."))
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+struct MeineRechnungen: View {
+    let list: MyInvoices
+
+    var body: some View {
+        IchAbschnitt(title: tr("Rechnungen")) {
+            if list.invoices.isEmpty {
+                Text(tr("Keine Rechnungen")).foregroundStyle(.secondary)
+            }
+            if let sum = list.openSum {
+                Text(tr("Offen insgesamt: {betrag}", ["betrag": sum])).font(.body.weight(.semibold))
+            }
+            ForEach(list.sorted) { invoice in
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(invoice.subject.isEmpty ? invoice.number : invoice.subject)
+                    Text(invoice.headline).font(.footnote).foregroundStyle(.secondary)
+                    HStack {
+                        Text(invoice.stateText)
+                            .font(.footnote.weight(invoice.open ? .semibold : .regular))
+                            .foregroundStyle(invoice.overdue ? Color.red : invoice.open ? Color.orange : Color.secondary)
+                        Spacer(minLength: 8)
+                        Text(Geld.format(invoice.total)).font(.footnote)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
         }
     }
 }
