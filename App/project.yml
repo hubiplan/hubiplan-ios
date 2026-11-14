@@ -35,6 +35,7 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         ITSAppUsesNonExemptEncryption: false
+        NSCameraUsageDescription: Die Kamera liest den QR-Code, mit dem du die App mit deinem Verein verbindest.
         CFBundleURLTypes:
           - CFBundleURLName: de.hubiplan.app.verbinden
             CFBundleURLSchemes: [hubiplan]
