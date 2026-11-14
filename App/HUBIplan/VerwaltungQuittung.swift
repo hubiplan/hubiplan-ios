@@ -123,6 +123,9 @@ struct QuittungBlatt: View {
     @State private var accounts: [FinanceAccount]?
     @State private var categories: [FinanceCategory] = []
     @State private var stored: SignatureShape?
+    /// Ohne Verbindung: Auswahl vom letzten Mal, die Quittung wird später abgeschlossen
+    @State private var offline = false
+    @State private var noChoices = false
     @State private var signing: String?
     @State private var askDecline = false
     @State private var declineText = ""
@@ -153,6 +156,11 @@ struct QuittungBlatt: View {
                         angaben(accounts)
                         unterschriften
                         abschluss
+                    }
+                } else if noChoices {
+                    Section {
+                        Text(tr("Ohne Netz und ohne gespeicherte Auswahl. Bitte einmal mit Netz öffnen."))
+                        Button(tr("Erneut laden")) { Task { await load() } }
                     }
                 } else if error == nil {
                     ProgressView()
@@ -334,6 +342,8 @@ struct QuittungBlatt: View {
             }
             Button(tr("Quittung abschließen")) { Task { await finish() } }
                 .disabled(!ready)
+        } footer: {
+            if offline { Text(tr("Ohne Netz: Die Quittung wird gespeichert und später abgeschlossen.")) }
         }
     }
 
@@ -346,19 +356,20 @@ struct QuittungBlatt: View {
     }
 
     private func load() async {
-        let result = await model.verwaltung(unit) { client -> ([FinanceAccount], [FinanceCategory], SignatureShape?) in
-            let cash = try await client.accounts().filter { $0.kind == "cash" }
-            let all = try await client.categories()
-            return (cash, all, try await client.storedSignature().signature)
-        }
+        let box = model.draftBox
+        let result = await model.verwaltung(unit) { try await $0.receiptChoices(box: box) }
         guard let result else {
             error = model.adminError
             return
         }
-        accounts = result.0
-        categories = result.1
-        stored = result.2
-        if draft.account == nil, result.0.count == 1 { draft.account = result.0[0].id }
+        error = nil
+        offline = result.offline
+        noChoices = result.choices == nil
+        guard let choices = result.choices else { return }
+        accounts = choices.accounts
+        categories = choices.categories
+        stored = choices.signature
+        if draft.account == nil, choices.accounts.count == 1 { draft.account = choices.accounts[0].id }
         // Vorführmodus: ausgefülltes Blatt für das Bildschirmfoto
         if Demo.active, draft.name.isEmpty {
             draft.name = "Max Mustermann"
@@ -374,18 +385,30 @@ struct QuittungBlatt: View {
 
     private func finish() async {
         error = nil
-        saving = true
-        defer { saving = false }
-        let values = draft
-        let result = await model.verwaltung(unit) { client in
-            try await client.submitReceipt(values) { id in draft.serverId = id }
-        }
-        guard let result else {
-            error = model.adminError
+        let choices = ReceiptChoices(accounts: accounts ?? [], categories: categories, signature: stored)
+        guard let receipt = StoredReceipt(draft, unit: unit, choices: choices) else {
+            error = tr("Bitte Angaben und Unterschriften prüfen.")
             return
         }
-        finished = result
-        model.adminDone(tr("Quittung {nummer} abgeschlossen", ["nummer": result.number]))
-        done()
+        saving = true
+        defer { saving = false }
+        // Erst verschlüsselt sichern, dann senden: ohne Verbindung bleibt die Quittung auf dem iPhone.
+        let box = model.draftBox
+        let outcome = await model.verwaltung(unit) { client -> ReceiptOutcome in
+            if let box { return try await client.submit(receipt, box: box) { id in draft.serverId = id } }
+            return .finished(try await client.submitReceipt(receipt.draft) { id in draft.serverId = id })
+        }
+        switch outcome {
+        case let .finished(item):
+            finished = item
+            model.adminDone(tr("Quittung {nummer} abgeschlossen", ["nummer": item.number]))
+            done()
+        case .kept:
+            model.adminDone(tr("Ohne Verbindung: Quittung gespeichert, wird später abgeschlossen"))
+            done()
+            dismiss()
+        case nil:
+            error = model.adminError
+        }
     }
 }

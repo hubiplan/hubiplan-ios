@@ -109,9 +109,13 @@ struct KassenbuchView: View {
     @State private var accounts: [FinanceAccount]?
     /// Buchungen dieser Einheit, die noch nicht gesendet sind
     @State private var drafts: [StoredBooking] = []
+    /// Unterschriebene Quittungen dieser Einheit, die noch nicht abgeschlossen sind
+    @State private var receipts: [StoredReceipt] = []
     @State private var unreadable = 0
     @State private var fix: StoredBooking?
     @State private var discard: StoredBooking?
+    @State private var fixReceipt: StoredReceipt?
+    @State private var discardReceipt: StoredReceipt?
     @State private var confirmUnreadable = false
     @State private var bookings: [BookingItem] = []
     @State private var count = 0
@@ -206,9 +210,32 @@ struct KassenbuchView: View {
             }
         }
         .sheet(item: $fix) { draft in
-            EntwurfKorrigierenBlatt(unit: unit, draft: draft) {
+            EntwurfKorrigierenBlatt(unit: unit, line: draft.line, problem: draft.error, kind: draft.kind, account: draft.account, category: draft.category, cashOnly: false) { account, category in
+                model.draftBox?.save(draft.fixed(account: account, category: category)) == true
+            } saved: {
                 Task { await load() }
             }
+        }
+        .sheet(item: $fixReceipt) { receipt in
+            EntwurfKorrigierenBlatt(unit: unit, line: receipt.line, problem: receipt.error, kind: receipt.draft.kind, account: receipt.draft.account, category: receipt.draft.category, cashOnly: true) { account, category in
+                guard let category else { return false }
+                return model.draftBox?.save(receipt.fixed(account: account, category: category)) == true
+            } saved: {
+                Task { await load() }
+            }
+        }
+        .confirmationDialog(
+            tr("Quittung verwerfen?"),
+            isPresented: Binding(get: { discardReceipt != nil }, set: { if !$0 { discardReceipt = nil } }),
+            titleVisibility: .visible,
+            presenting: discardReceipt
+        ) { receipt in
+            Button(tr("Verwerfen"), role: .destructive) {
+                model.draftBox?.deleteReceipt(receipt.id)
+                showDrafts()
+            }
+        } message: { _ in
+            Text(tr("Die Quittung und beide Unterschriften werden von diesem iPhone gelöscht. Das lässt sich nicht rückgängig machen."))
         }
         .confirmationDialog(
             tr("Entwurf verwerfen?"),
@@ -241,8 +268,26 @@ struct KassenbuchView: View {
     /// Abschnitt „Noch nicht gesendet“: auch ohne Verbindung sichtbar.
     @ViewBuilder
     private var entwuerfe: some View {
-        if !drafts.isEmpty {
+        if !drafts.isEmpty || !receipts.isEmpty {
             Section {
+                ForEach(receipts) { receipt in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(receipt.line)
+                        Text([receipt.accountName, receipt.categoryName].filter { !$0.isEmpty }.joined(separator: " · "))
+                            .font(.footnote).foregroundStyle(Color.secondary)
+                        if let problem = receipt.error {
+                            Text(problem).font(.footnote).foregroundStyle(.red)
+                        }
+                        if unit.canEditFinance {
+                            HStack(spacing: 16) {
+                                if receipt.error != nil { Button(tr("Korrigieren")) { fixReceipt = receipt } }
+                                Button(tr("Verwerfen …"), role: .destructive) { discardReceipt = receipt }
+                            }
+                            .buttonStyle(.borderless)
+                            .font(.footnote)
+                        }
+                    }
+                }
                 ForEach(drafts) { draft in
                     VStack(alignment: .leading, spacing: 4) {
                         Text(draft.line)
@@ -262,9 +307,9 @@ struct KassenbuchView: View {
                     }
                 }
             } header: {
-                Text(tr("Noch nicht gesendet ({n})", ["n": drafts.count]))
+                Text(tr("Noch nicht gesendet ({n})", ["n": drafts.count + receipts.count]))
             } footer: {
-                Text(tr("Diese Buchungen liegen verschlüsselt auf diesem iPhone. Die App sendet sie, sobald wieder eine Verbindung besteht."))
+                Text(tr("Diese Buchungen und Quittungen liegen verschlüsselt auf diesem iPhone. Die App sendet sie, sobald wieder eine Verbindung besteht."))
             }
         }
         if unreadable > 0 {
@@ -278,6 +323,7 @@ struct KassenbuchView: View {
     private func showDrafts() {
         guard let box = model.draftBox else { return }
         drafts = box.list(unit: unit.id)
+        receipts = box.receipts(unit: unit.id)
         unreadable = box.unreadable
     }
 
@@ -286,8 +332,11 @@ struct KassenbuchView: View {
         guard let box = model.draftBox else { return }
         if Demo.active, Demo.section == "entwuerfe", box.count == 0 { Demo.fillDrafts(box, unit: unit) }
         showDrafts()
-        guard unit.canEditFinance, !drafts.isEmpty, !Demo.active else { return }
-        let sent = await model.verwaltung(unit) { try await $0.send(drafts: box) }
+        guard unit.canEditFinance, !drafts.isEmpty || !receipts.isEmpty, !Demo.active else { return }
+        let sent = await model.verwaltung(unit) { client -> Int in
+            let bookings = try await client.send(drafts: box)
+            return bookings + (try await client.send(receipts: box))
+        }
         if let sent, sent > 0 {
             model.adminDone(trn("1 Entwurf gesendet", "{n} Entwürfe gesendet", sent))
         }
@@ -570,37 +619,48 @@ private struct EntwurfKorrigierenBlatt: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
     let unit: AdminUnit
-    let draft: StoredBooking
+    /// Zeile und Fehler des Entwurfs, Art ("expense"/"income"), bisherige Wahl
+    let line: String
+    let problem: String?
+    let kind: String
+    let account: Int?
+    let category: Int?
+    /// Quittung: nur Barkassen, Kategorie ist Pflicht
+    let cashOnly: Bool
+    /// Speichert die neue Wahl; false, wenn es nicht geklappt hat
+    let store: (FinanceAccount, FinanceCategory?) -> Bool
     let saved: () -> Void
     @State private var accounts: [FinanceAccount] = []
     @State private var categories: [FinanceCategory] = []
-    @State private var account: Int?
-    @State private var category: Int?
+    @State private var chosenAccount: Int?
+    @State private var chosenCategory: Int?
     @State private var error: String?
 
-    private var fitting: [FinanceCategory] { FinanceCategory.matching(categories, kind: draft.kind) }
+    private var fitting: [FinanceCategory] { FinanceCategory.matching(categories, kind: kind) }
 
     var body: some View {
         NavigationStack {
             Form {
                 if let error { Section { Text(error).foregroundStyle(.red) } }
                 Section {
-                    Text(draft.line)
-                    if let problem = draft.error { Text(problem).font(.footnote).foregroundStyle(.red) }
+                    Text(line)
+                    if let problem { Text(problem).font(.footnote).foregroundStyle(.red) }
                 }
                 Section {
-                    Picker(tr("Konto"), selection: $account) {
+                    Picker(tr("Konto"), selection: $chosenAccount) {
                         Text(tr("Bitte wählen")).tag(Int?.none)
                         ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
                     }
                     if !fitting.isEmpty {
-                        Picker(tr("Kategorie"), selection: $category) {
+                        Picker(tr("Kategorie"), selection: $chosenCategory) {
                             Text(tr("Bitte wählen")).tag(Int?.none)
                             ForEach(fitting) { Text($0.name).tag(Optional($0.id)) }
                         }
                     }
                 } footer: {
-                    Text(tr("Betrag, Datum, Text und Beleg bleiben, wie sie sind. Stimmt davon etwas nicht, verwirf den Entwurf und buche neu."))
+                    Text(cashOnly
+                        ? tr("Betrag, Name, Zweck und Unterschriften bleiben, wie sie sind. Stimmt davon etwas nicht, verwirf die Quittung und stelle sie neu aus.")
+                        : tr("Betrag, Datum, Text und Beleg bleiben, wie sie sind. Stimmt davon etwas nicht, verwirf den Entwurf und buche neu."))
                 }
             }
             .navigationTitle(tr("Entwurf korrigieren"))
@@ -621,23 +681,23 @@ private struct EntwurfKorrigierenBlatt: View {
             error = model.adminError
             return
         }
-        accounts = result.0
+        accounts = cashOnly ? result.0.filter { $0.kind == "cash" } : result.0
         categories = result.1
-        account = result.0.contains { $0.id == draft.account } ? draft.account : nil
-        category = fitting.contains { $0.id == draft.category } ? draft.category : nil
+        chosenAccount = accounts.contains { $0.id == account } ? account : nil
+        chosenCategory = fitting.contains { $0.id == category } ? category : nil
     }
 
     private func save() {
-        guard let chosen = accounts.first(where: { $0.id == account }) else {
+        guard let chosen = accounts.first(where: { $0.id == chosenAccount }) else {
             error = tr("Bitte ein Konto wählen.")
             return
         }
-        let kind = fitting.first { $0.id == category }
-        if !fitting.isEmpty, kind == nil {
+        let wanted = fitting.first { $0.id == chosenCategory }
+        if wanted == nil, cashOnly || !fitting.isEmpty {
             error = tr("Bitte eine Kategorie wählen.")
             return
         }
-        guard model.draftBox?.save(draft.fixed(account: chosen, category: kind)) == true else {
+        guard store(chosen, wanted) else {
             error = tr("Der Entwurf ließ sich nicht speichern.")
             return
         }

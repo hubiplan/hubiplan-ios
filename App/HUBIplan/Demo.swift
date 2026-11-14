@@ -65,6 +65,20 @@ extension Demo {
             stored.error = row.2
             _ = box.save(stored)
         }
+        // Dazu eine unterschriebene Quittung, die auf die Verbindung wartet
+        var receipt = ReceiptDraft(key: "demo-quittung", finalizeKey: "demo-abschluss")
+        receipt.name = "Max Mustermann"
+        receipt.amount = "25,00"
+        receipt.purpose = english ? "Expenses for flowers" : "Auslagen Blumen"
+        receipt.account = 1
+        receipt.category = 1
+        let line = [[[20, 70], [50, 30], [70, 75], [95, 35], [120, 70], [160, 55], [210, 60], [270, 45]]]
+        receipt.treasurer = SignatureStrokes(width: 300, height: 100, strokes: line)
+        receipt.counterparty = SignatureStrokes(width: 300, height: 100, strokes: line)
+        if var kept = StoredReceipt(receipt, unit: unit, choices: ReceiptChoices()) {
+            kept.accountName = english ? "Cash box" : "Barkasse"
+            _ = box.save(kept)
+        }
     }
 }
 

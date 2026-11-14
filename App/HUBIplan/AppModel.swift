@@ -43,6 +43,8 @@ final class AppModel: ObservableObject {
     @Published var scores: ScoreFolders?
     /// Verwaltung: Einheiten mit Rechten, Schlüssel im Tresor, Schlüssel gerade offen
     @Published private(set) var adminOverview: AdminOverview?
+    /// Die Übersicht wurde für dieses Konto schon einmal abgefragt (vorher: Ladeanzeige)
+    @Published private(set) var adminLoaded = false
     @Published private(set) var adminSealed = false
     @Published private(set) var adminOpen = false
     @Published private(set) var adminBusy = false
@@ -133,6 +135,7 @@ final class AppModel: ObservableObject {
         scores = nil
         sheetCache = [:]
         adminOverview = nil
+        adminLoaded = false
         adminSealed = false
         adminOpen = false
         adminBusy = false
@@ -320,10 +323,14 @@ final class AppModel: ObservableObject {
 
     /// Einheiten mit Verwaltungsrechten und ob dieses Gerät freigeschaltet ist.
     func loadAdmin() async {
-        guard let session else { return }
+        guard let session else {
+            adminLoaded = true
+            return
+        }
         let epoch = self.epoch
         let overview = try? await session.api().adminOverview()
         guard epoch == self.epoch else { return }
+        adminLoaded = true
         if Demo.active {
             adminOverview = overview
             adminSealed = overview?.unlocked == true

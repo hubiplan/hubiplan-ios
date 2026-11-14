@@ -32,7 +32,7 @@ extension AdminUnit {
     public var canEditFinance: Bool { permissions.contains("finance.edit") }
 }
 
-public struct FinanceAccount: Decodable, Equatable, Sendable, Identifiable {
+public struct FinanceAccount: Codable, Equatable, Sendable, Identifiable {
     public var id: Int
     public var name: String
     /// "cash": Barkasse
@@ -63,7 +63,7 @@ public struct FinanceAccount: Decodable, Equatable, Sendable, Identifiable {
     }
 }
 
-public struct FinanceCategory: Decodable, Equatable, Sendable, Identifiable {
+public struct FinanceCategory: Codable, Equatable, Sendable, Identifiable {
     public var id: Int
     public var name: String
     /// "income", "expense" oder "both"
