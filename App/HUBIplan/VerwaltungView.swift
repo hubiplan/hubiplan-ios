@@ -158,8 +158,9 @@ private struct VerwaltungStart: View {
     @State private var open: Int?
     @State private var confirmLock = false
     /// Vorführmodus: für das Bildschirmfoto gleich in die Mitglieder
-    @State private var showMembers = Demo.active && ["mitglieder", "mitglied"].contains(Demo.section)
+    @State private var showMembers = Demo.active && ["mitglieder", "mitglied", "stammdaten"].contains(Demo.section)
     @State private var showTasks = Demo.active && ["offen", "meldungen"].contains(Demo.section)
+    @State private var showOccasions = Demo.active && Demo.section == "anlaesse"
     @State private var scanning = false
     @State private var check: Geprueft?
 
@@ -222,6 +223,13 @@ private struct VerwaltungStart: View {
                         Bereich(symbol: "person.2", title: tr("Mitglieder"), hint: tr("Suchen, anrufen, Mitgliedsakte öffnen"))
                     }
                 }
+                if unit.sections.contains(.occasions) {
+                    NavigationLink {
+                        AnlaesseView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "gift", title: tr("Jubiläen und Geburtstage"), hint: tr("Geburtstage und Jubiläen der nächsten Wochen"))
+                    }
+                }
             } header: {
                 Text(tr("Was möchtest du tun?"))
             } footer: {
@@ -239,6 +247,7 @@ private struct VerwaltungStart: View {
         }
         .navigationDestination(isPresented: $showMembers) { MitgliederView(unit: unit) }
         .navigationDestination(isPresented: $showTasks) { OffenePunkteView(unit: unit) }
+        .navigationDestination(isPresented: $showOccasions) { AnlaesseView(unit: unit) }
         .sheet(isPresented: $scanning) {
             AusweisScan(unit: unit) { result in
                 scanning = false
@@ -357,17 +366,19 @@ struct MitgliederView: View {
     @State private var page = 1
     @State private var more = false
     /// Vorführmodus: für das Bildschirmfoto gleich in eine Akte
-    @State private var shown: Int? = Demo.active && Demo.section == "mitglied" ? 1 : nil
+    @State private var shown: Int? = Demo.active && ["mitglied", "stammdaten"].contains(Demo.section) ? 1 : nil
 
     var body: some View {
         VerwaltungSchutz {
             List {
-                Picker(tr("Stand"), selection: $former) {
-                    Text(tr("Aktuelle")).tag(false)
-                    Text(tr("Ehemalige")).tag(true)
+                if !unit.isDepartment {
+                    Picker(tr("Stand"), selection: $former) {
+                        Text(tr("Aktuelle")).tag(false)
+                        Text(tr("Ehemalige")).tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                    .listRowSeparator(.hidden)
                 }
-                .pickerStyle(.segmented)
-                .listRowSeparator(.hidden)
                 VerwaltungMeldung { await load(reset: true) }
                 if let rows {
                     Section {
@@ -430,6 +441,7 @@ struct MitgliedView: View {
     @State private var photo: UIImage?
     @State private var pending: UIImage?
     @State private var busy = false
+    @State private var editing = false
 
     var body: some View {
         VerwaltungSchutz {
@@ -468,10 +480,7 @@ struct MitgliedView: View {
                         zeile(tr("Mitgliedsnummer"), member.clubNumber)
                         if !member.isOrganization { zeile(tr("Geburtsdatum"), Zeit.plainDate(member.birthDate)) }
                         zeile(tr("Mitglied seit"), Zeit.plainDate(member.entryDate))
-                        zeile(
-                            tr("Untereinheiten"),
-                            member.currentDepartments(today: Zeit.day(Date())).map(\.name).filter { !$0.isEmpty }.joined(separator: ", ")
-                        )
+                        zeile(tr("Untereinheiten"), member.departmentLabels(today: Zeit.day(Date())).joined(separator: ", "))
                     }
                     if let contact = member.contact {
                         Section(tr("Kontakt")) {
@@ -485,14 +494,26 @@ struct MitgliedView: View {
                         }
                     }
                     Section {
+                        if unit.canEditMembers, !member.isFormer {
+                            Button(unit.isDepartment ? tr("Kontaktdaten bearbeiten") : tr("Stammdaten und Kontakt ändern")) { editing = true }
+                        }
                     } footer: {
-                        Text(tr("Ändern kannst du die Akte zurzeit im Browser."))
+                        Text(tr("Mitgliedsart, Untereinheiten, Austritt und alles Weitere änderst du zurzeit im Browser."))
                     }
                 } else if model.adminError == nil {
                     ProgressView()
                 }
             }
-            .task { await load() }
+            .task {
+                await load()
+                // Vorführmodus: für das Bildschirmfoto gleich das Blatt zum Ändern
+                if Demo.active, Demo.section == "stammdaten", member != nil { editing = true }
+            }
+            .sheet(isPresented: $editing) {
+                if let member {
+                    StammdatenBlatt(unit: unit, member: member) { updated in self.member = updated }
+                }
+            }
         }
         .navigationTitle(tr("Mitgliedsakte"))
         .navigationBarTitleDisplayMode(.inline)
@@ -767,6 +788,166 @@ private struct AusweisErgebnis: View {
             .task {
                 if let path = check.photoUrl, let data = await model.publicImage(path) { photo = UIImage(data: data) }
             }
+        }
+    }
+}
+
+
+/// Blatt „Stammdaten und Kontakt“: gesendet werden nur geänderte Felder.
+private struct StammdatenBlatt: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let unit: AdminUnit
+    let member: MemberDetail
+    let saved: (MemberDetail) -> Void
+    @State private var values: [String: String] = [:]
+    @State private var error: String?
+    @State private var saving = false
+
+    private var before: [String: String] { MasterData.values(member, department: unit.isDepartment) }
+    private var keys: [String] { MasterData.keys(organization: member.isOrganization, department: unit.isDepartment) }
+
+    private func binding(_ key: String) -> Binding<String> {
+        Binding(get: { values[key] ?? "" }, set: { values[key] = $0 })
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let error { Section { Text(error).foregroundStyle(.red) } }
+                Section {
+                    ForEach(keys, id: \.self) { key in
+                        if key == "gender" {
+                            Picker(tr("Geschlecht"), selection: binding(key)) {
+                                Text(tr("keine Angabe")).tag("")
+                                Text(tr("männlich")).tag("männlich")
+                                Text(tr("weiblich")).tag("weiblich")
+                                Text(tr("divers")).tag("divers")
+                            }
+                        } else {
+                            VStack(alignment: .leading, spacing: 0) {
+                                Text(MasterData.label(key, organization: member.isOrganization))
+                                    .font(.caption).foregroundStyle(Color.secondary)
+                                TextField(MasterData.label(key, organization: member.isOrganization), text: binding(key))
+                                    .keyboardType(keyboard(key))
+                                    .textInputAutocapitalization(key == "email" ? .never : .words)
+                                    .autocorrectionDisabled()
+                            }
+                        }
+                    }
+                } footer: {
+                    if member.isOrganization, !unit.isDepartment {
+                        Text(tr("Rechtsform, Zusatz und Ansprechpartner im Browser ändern."))
+                    }
+                }
+            }
+            .disabled(saving)
+            .navigationTitle(unit.isDepartment ? tr("Kontaktdaten bearbeiten") : tr("Stammdaten und Kontakt"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(tr("Speichern")) { Task { await save() } }.disabled(saving)
+                }
+            }
+            .onAppear { if values.isEmpty { values = before } }
+        }
+    }
+
+    private func keyboard(_ key: String) -> UIKeyboardType {
+        switch key {
+        case "email": return .emailAddress
+        case "phone": return .phonePad
+        case "postal_code", "birth_date": return .numbersAndPunctuation
+        default: return .default
+        }
+    }
+
+    private func save() async {
+        error = nil
+        guard let changes = MasterData.changes(before: before, after: values) else {
+            error = tr("Bitte das Geburtsdatum als TT.MM.JJJJ eingeben.")
+            return
+        }
+        if changes.isEmpty {
+            dismiss()
+            return
+        }
+        saving = true
+        defer { saving = false }
+        let id = member.id
+        guard let result = await model.verwaltung(unit, { try await $0.update(member: id, values: changes) }) else {
+            error = model.adminError
+            return
+        }
+        model.adminChanged(unit, text: tr("Gespeichert"), change: result.change)
+        saved(result.member)
+        dismiss()
+    }
+}
+
+/// Geburtstage der nächsten 30 und Jubiläen der nächsten 90 Tage.
+struct AnlaesseView: View {
+    @EnvironmentObject private var model: AppModel
+    let unit: AdminUnit
+    @State private var birthdays: [BirthdayRow]?
+    @State private var jubilees: [JubileeRow]?
+
+    var body: some View {
+        VerwaltungSchutz {
+            List {
+                VerwaltungMeldung { await load() }
+                if let birthdays, let jubilees {
+                    Section(tr("Geburtstage (30 Tage)")) {
+                        if birthdays.isEmpty { Text(tr("Keine.")).foregroundStyle(.secondary) }
+                        ForEach(Array(birthdays.enumerated()), id: \.offset) { _, row in
+                            NavigationLink {
+                                MitgliedView(unit: unit, id: row.memberId)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.name)
+                                    Text(tr("{datum} · wird {alter}", ["datum": Zeit.plainDate(row.date), "alter": row.age]))
+                                        .font(.footnote).foregroundStyle(Color.secondary)
+                                }
+                            }
+                        }
+                    }
+                    Section(tr("Jubiläen (90 Tage)")) {
+                        if jubilees.isEmpty { Text(tr("Keine.")).foregroundStyle(.secondary) }
+                        ForEach(Array(jubilees.enumerated()), id: \.offset) { _, row in
+                            NavigationLink {
+                                MitgliedView(unit: unit, id: row.memberId)
+                            } label: {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(row.name)
+                                    Text(tr("{datum} · {jahre} Jahre {einheit}", ["datum": Zeit.plainDate(row.date), "jahre": row.years, "einheit": row.organization])
+                                        .trimmingCharacters(in: .whitespaces))
+                                        .font(.footnote).foregroundStyle(Color.secondary)
+                                }
+                            }
+                        }
+                    }
+                } else if model.adminError == nil {
+                    ProgressView()
+                }
+            }
+            .refreshable { await load() }
+            .task { await load() }
+        }
+        .navigationTitle(tr("Jubiläen und Geburtstage"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private func load() async {
+        let today = Date()
+        let short = MasterData.upcoming(today: today, days: 30)
+        let long = MasterData.upcoming(today: today, days: 90)
+        let result = await model.verwaltung(unit) { client in
+            (try await client.birthdays(from: short.from, to: short.to), try await client.jubilees(from: long.from, to: long.to))
+        }
+        if let result {
+            birthdays = result.0
+            jubilees = result.1
         }
     }
 }
