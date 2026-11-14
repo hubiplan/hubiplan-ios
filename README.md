@@ -9,7 +9,8 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 
 > **English:** The iOS companion app for [HUBIplan](https://github.com/hubiplan/hubiplan),
 > free membership management for clubs. Work in progress. It talks only to the member's own
-> HUBIplan instance. The developer documentation is in German.
+> HUBIplan instance. The developer documentation is in German. Issues and security reports in
+> English are welcome.
 
 ## Stand
 
@@ -54,13 +55,31 @@ open App/HUBIplan.xcodeproj
 Ohne Mac baut der Lauf „iOS bauen“ auf GitHub Actions die App für den Simulator. Er startet
 nur von Hand (`workflow_dispatch`); automatische Auslöser gibt es nicht.
 
+## Mitwirken
+
+Fehlermeldungen, Ideen und Pull Requests sind willkommen: [CONTRIBUTING.md](CONTRIBUTING.md).
+Bitte nur erfundene Daten in Code, Tests und Bildschirmfotos, und keine Analyse-, Werbe- oder
+anderen Fremddienste.
+
 ## Sicherheit
 
-Sicherheitslücken bitte nicht öffentlich melden, sondern vertraulich über
-**Security › Report a vulnerability** in diesem Repository.
+Sicherheitslücken bitte **nicht** als öffentliches Issue melden, sondern vertraulich über
+[GitHub](https://github.com/hubiplan/hubiplan-ios/security/advisories/new). Einzelheiten:
+[SECURITY.md](SECURITY.md).
 
 ## Lizenz
 
 Copyright © 2026 Ralf Philipsen (Philipsen EDV)
 
-[AGPL-3.0-or-later](LICENSE), wie HUBIplan.
+Die HUBIplan-App ist freie Software: Sie dürfen sie unter den Bedingungen der **GNU Affero
+General Public License**, wie von der Free Software Foundation veröffentlicht, weitergeben
+und/oder ändern, entweder gemäß Version 3 der Lizenz oder (nach Ihrer Wahl) jeder späteren
+Version (`AGPL-3.0-or-later`), wie HUBIplan selbst.
+
+Die App wird in der Hoffnung verbreitet, dass sie nützlich ist, aber **ohne jede
+Gewährleistung**, sogar ohne die implizite Gewährleistung der Marktreife oder der Eignung
+für einen bestimmten Zweck. Einzelheiten stehen in der Lizenz. Den vollständigen
+Lizenztext (englisch, maßgeblich) enthält die Datei [LICENSE](LICENSE).
+
+Einzige Abhängigkeit ist [swift-crypto](https://github.com/apple/swift-crypto) (Apache-2.0),
+und nur unter Linux.
