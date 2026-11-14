@@ -48,8 +48,12 @@ public actor DeviceSession: TokenStore {
         return paired
     }
 
+    func secret(_ key: String) -> String? { store.read(key) }
+    func setSecret(_ key: String, _ value: String?) { store.write(key, value) }
+
     /// Alles vergessen (Verbindung trennen oder Gerät abgemeldet).
     public func forget() {
+        store.write(ApplePush.keysKey, nil)
         store.write(Self.tokenKey, nil)
         store.write(Self.deviceIdKey, nil)
         store.write(Self.deviceKeyKey, nil)
