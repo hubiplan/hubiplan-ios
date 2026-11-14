@@ -9,13 +9,14 @@ final class AppModel: ObservableObject {
     @Published var accesses: [PortalAccess] = []
     @Published var accessId: Int?
     @Published var events: [Occurrence] = []
+    @Published var circulars: [CircularItem] = []
     @Published var loading = false
     @Published var error: String?
     /// Link, den die App zum Verbinden bekommen hat und der noch bestätigt werden muss
     @Published var pending: PairingLink?
     @Published var linkError: String?
 
-    private let transport = UrlSessionTransport()
+    private let transport: Transport = Demo.active ? DemoTransport() : UrlSessionTransport()
     private var session: DeviceSession?
 
     static var version: String {
@@ -24,7 +25,10 @@ final class AppModel: ObservableObject {
 
     init() {
         Texte.language = Texte.pick(preferred: Locale.preferredLanguages)
-        if let saved = Account.load() {
+        if Demo.active {
+            account = Demo.account
+            session = DeviceSession(server: Demo.account.server, store: DemoStore(), transport: transport)
+        } else if let saved = Account.load() {
             account = saved
             session = makeSession(saved.server)
         }
@@ -73,11 +77,12 @@ final class AppModel: ObservableObject {
     func disconnect() async {
         await session?.forget()
         session = nil
-        Account.save(nil)
+        if !Demo.active { Account.save(nil) }
         account = nil
         accesses = []
         accessId = nil
         events = []
+        circulars = []
         error = nil
     }
 
@@ -109,11 +114,13 @@ final class AppModel: ObservableObject {
             if self.access == nil { self.accessId = me.portal.first?.id }
             guard let access = self.access else {
                 self.events = []
+                self.circulars = []
                 return
             }
             let now = Date()
             let end = Calendar.current.date(byAdding: .month, value: 6, to: now) ?? now
             self.events = try await api.events(accessId: access.id, from: Zeit.day(now), to: Zeit.day(end))
+            self.circulars = try await api.circulars(accessId: access.id)
         }
     }
 

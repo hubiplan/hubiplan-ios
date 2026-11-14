@@ -5,12 +5,23 @@ import SwiftUI
 struct VerbindenView: View {
     @EnvironmentObject private var model: AppModel
     @State private var link = ""
+    @State private var scanning = false
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
+                    Text(tr("Mit deinem Verein verbinden")).font(.title2.bold())
                     Text(tr("Öffne HUBIplan im Browser: Mein Konto › App & andere Instanzen › App auf dem Telefon. Scanne den QR-Code mit der Kamera oder füge den Link hier ein."))
+                }
+                if QrScanner.available {
+                    Section {
+                        Button {
+                            scanning = true
+                        } label: {
+                            Label(tr("QR-Code scannen"), systemImage: "qrcode.viewfinder")
+                        }
+                    }
                 }
                 Section {
                     TextField(tr("Link aus dem QR-Code"), text: $link, axis: .vertical)
@@ -31,8 +42,15 @@ struct VerbindenView: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            .navigationTitle(tr("Mit deinem Verein verbinden"))
+            .navigationTitle("HUBIplan")
             .overlay { if model.loading { ProgressView() } }
+            .sheet(isPresented: $scanning) {
+                QrScanner { text in
+                    scanning = false
+                    model.offer(link: text)
+                }
+                .ignoresSafeArea()
+            }
             // Vor dem Verbinden die Adresse der Instanz zeigen und nachfragen
             .alert(
                 tr("Mit {server} verbinden?", ["server": model.pending?.server ?? ""]),

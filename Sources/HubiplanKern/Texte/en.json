@@ -29,5 +29,9 @@
  "Erneut versuchen": "Try again",
  "Verein": "Club",
  "Du hast noch keinen Zugang zum Mitgliederbereich. Bitte wende dich an deinen Verein.": "You do not have access to the members' area yet. Please contact your club.",
- "Version {version}": "Version {version}"
+ "Version {version}": "Version {version}",
+ "Neues": "News",
+ "Noch keine Mitteilungen.": "No messages yet.",
+ "Anhänge im Browser öffnen": "Open attachments in the browser",
+ "QR-Code scannen": "Scan QR code"
 }

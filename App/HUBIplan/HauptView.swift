@@ -3,13 +3,19 @@ import SwiftUI
 
 struct HauptView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var tab = Demo.tab
 
     var body: some View {
-        TabView {
+        TabView(selection: $tab) {
             TermineView()
                 .tabItem { Label(tr("Termine"), systemImage: "calendar") }
+                .tag("termine")
+            MitteilungenView()
+                .tabItem { Label(tr("Neues"), systemImage: "envelope") }
+                .tag("mitteilungen")
             KontoView()
                 .tabItem { Label(tr("Mein Konto"), systemImage: "person.crop.circle") }
+                .tag("konto")
         }
         .task { await model.refresh() }
     }
