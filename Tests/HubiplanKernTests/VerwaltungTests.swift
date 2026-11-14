@@ -16,7 +16,7 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertTrue(overview.twoFactor)
         XCTAssertFalse(overview.unlocked)
         XCTAssertEqual(overview.allUnits.map(\.key), ["u:1", "d:9"])
-        XCTAssertEqual(overview.allUnits[0].sections, [.tasks, .members])
+        XCTAssertEqual(overview.allUnits[0].sections, [.tasks, .members, .occasions])
         XCTAssertEqual(overview.allUnits[1].sections, [.members])
         XCTAssertTrue(overview.allUnits[1].isDepartment)
     }
@@ -252,6 +252,96 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertFalse(AdminUnit(id: 1, name: "A", permissions: ["members.view"]).canEditPhotos)
         XCTAssertTrue(AdminUnit(id: 1, name: "A", permissions: ["members.view"]).canCheckCards)
         XCTAssertFalse(AdminUnit(id: 1, name: "Zug", permissions: ["members.view"], scope: "d", stufen: true).canCheckCards)
+    }
+
+    func testAkteDerZugfuehrungHatAndereFelder() async throws {
+        let net = FakeTransport([
+            FakeTransport.json(200, #"{"count":0,"results":[]}"#),
+            FakeTransport.json(200, #"{"id":5,"kind":"organization","display_name":"Musterbau GmbH – Niederlassung","last_name":"Musterbau GmbH","member_type":"Fördermitglied","entry_date":"2012-05-01","departments":["1. Zug"],"contact":{"phone":"01234 56789"}}"#),
+        ])
+        let unit = AdminUnit(id: 9, name: "1. Zug", permissions: ["dept.members.edit"], scope: "d")
+        let client = verwaltung(net, unit: unit)
+        _ = try await client.members(search: "", status: "ehemalig")
+        XCTAssertEqual(net.seen[0].url, "https://verein.example.de/api/app/v1/admin/d/9/members/?suche=&page=1&page_size=50")
+        let member = try await client.member(5)
+        XCTAssertEqual(member.name, "Musterbau GmbH – Niederlassung")
+        XCTAssertEqual(member.typeName, "Fördermitglied")
+        XCTAssertEqual(member.entryDate, "2012-05-01")
+        XCTAssertEqual(member.departmentLabels(today: "2026-11-14"), ["1. Zug"])
+        XCTAssertTrue(unit.canEditMembers)
+        XCTAssertEqual(MasterData.keys(organization: true, department: true), ["phone", "email", "street", "postal_code", "city"])
+        XCTAssertEqual(MasterData.values(member, department: true)["phone"], "01234 56789")
+        XCTAssertNil(MasterData.values(member, department: true)["last_name"])
+        XCTAssertFalse(AdminUnit(id: 1, name: "A", permissions: ["dept.members.edit"]).canEditMembers)
+        XCTAssertTrue(AdminUnit(id: 1, name: "A", permissions: ["members.edit"]).canEditMembers)
+        XCTAssertEqual(AdminUnit(id: 1, name: "A", permissions: ["members.view"]).sections, [.tasks, .members, .occasions])
+        XCTAssertEqual(unit.sections, [.members])
+    }
+
+    func testStammdatenNurGeaenderteFelder() throws {
+        let member: MemberDetail = try decode(#"{"id":5,"first_name":"Erika","last_name":"Musterfrau","birth_date":"1984-03-07","gender":"weiblich","contact":{"phone":"01234 56789","city":"Musterstadt"}}"#)
+        let before = MasterData.values(member, department: false)
+        XCTAssertEqual(before["birth_date"], "07.03.1984")
+        XCTAssertEqual(MasterData.keys(organization: false, department: false).count, 12)
+        XCTAssertFalse(MasterData.keys(organization: true, department: false).contains("first_name"))
+        XCTAssertEqual(MasterData.changes(before: before, after: before), [:])
+        var after = before
+        after["phone"] = " 01234 99999 "
+        after["birth_date"] = "8.3.1984"
+        after["city"] = ""
+        XCTAssertEqual(MasterData.changes(before: before, after: after), ["phone": "01234 99999", "birth_date": "1984-03-08", "city": ""])
+        after["birth_date"] = ""
+        XCTAssertEqual(MasterData.changes(before: before, after: after)?["birth_date"], "")
+        after["birth_date"] = "31.02.1984"
+        XCTAssertNil(MasterData.changes(before: before, after: after))
+        XCTAssertEqual(MasterData.parseDate("2000-02-29"), "2000-02-29")
+        XCTAssertNil(MasterData.parseDate("29.02.1900"))
+        XCTAssertNil(MasterData.parseDate("1.13.2000"))
+        XCTAssertNil(MasterData.parseDate("heute"))
+        XCTAssertEqual(MasterData.label("last_name", organization: true), "Name der Organisation")
+        XCTAssertEqual(MasterData.label("last_name", organization: false), "Nachname")
+    }
+
+    func testStammdatenSpeichern() async throws {
+        let net = FakeTransport([
+            .success(HttpResponse(status: 200, body: Data(#"{"id":5,"first_name":"Erika","last_name":"Musterfrau","contact":{"phone":"01234 99999"}}"#.utf8), headers: ["X-Change-Set": "ab12", "X-Change-Undoable": "1"])),
+            FakeTransport.json(400, #"{"detail":"Bitte eine gültige E-Mail-Adresse angeben."}"#),
+        ])
+        let client = verwaltung(net)
+        let result = try await client.update(member: 5, values: ["phone": "01234 99999"])
+        XCTAssertEqual(net.seen[0].method, "PATCH")
+        XCTAssertEqual(net.seen[0].url, "https://verein.example.de/api/app/v1/admin/u/4/members/5/")
+        XCTAssertEqual(try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(net.seen[0].body)) as? [String: String]), ["phone": "01234 99999"])
+        XCTAssertEqual(result.member.contact?.phone, "01234 99999")
+        XCTAssertEqual(result.change.changeSet, "ab12")
+        do {
+            _ = try await client.update(member: 5, values: ["email": "x"])
+            XCTFail("Fehler erwartet")
+        } catch let error as ApiError {
+            XCTAssertEqual(error.status, 400)
+            XCTAssertEqual(error.message, "Bitte eine gültige E-Mail-Adresse angeben.")
+        }
+    }
+
+    func testGeburtstageUndJubilaeen() async throws {
+        let net = FakeTransport([
+            FakeTransport.json(200, #"{"results":[{"member_id":5,"first_name":"Erika","last_name":"Musterfrau","date":"2026-11-20","age":43}]}"#),
+            FakeTransport.json(200, #"{"results":[{"member_id":6,"first_name":"Max","last_name":"Mustermann","kind":"membership","years":25,"date":"2026-12-01","organization_short":"SVM"}]}"#),
+        ])
+        let client = verwaltung(net)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "Europe/Berlin")!
+        let range = MasterData.upcoming(today: Date(timeIntervalSince1970: 1_794_650_400), days: 30, calendar: calendar)
+        XCTAssertEqual(range.from, "2026-11-14")
+        XCTAssertEqual(range.to, "2026-12-14")
+        let birthdays = try await client.birthdays(from: range.from, to: range.to)
+        XCTAssertEqual(net.seen[0].url, "https://verein.example.de/api/app/v1/admin/u/4/birthdays/?von=2026-11-14&bis=2026-12-14")
+        XCTAssertEqual(birthdays.first?.name, "Erika Musterfrau")
+        XCTAssertEqual(birthdays.first?.age, 43)
+        let jubilees = try await client.jubilees(from: range.from, to: range.to)
+        XCTAssertEqual(net.seen[1].url, "https://verein.example.de/api/app/v1/admin/u/4/jubilees/?von=2026-11-14&bis=2026-12-14")
+        XCTAssertEqual(jubilees.first?.years, 25)
+        XCTAssertEqual(jubilees.first?.organization, "SVM")
     }
 
     func testSchluesselAblage() throws {

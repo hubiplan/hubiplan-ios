@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `ausweispruefung`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -88,6 +88,16 @@ struct DemoTransport: Transport {
             """
         } else if path.contains("/photo/") {
             return HttpResponse(status: 200, body: DemoBild.png(neu: path.contains("pending")))
+        } else if path.hasSuffix("/birthdays/") {
+            body = """
+            {"results":[{"member_id":2,"first_name":"Max","last_name":"Mustermann","date":"\(day(4, "00:00").prefix(10))","age":50},
+            {"member_id":4,"first_name":"Lena","last_name":"Beispiel","date":"\(day(19, "00:00").prefix(10))","age":18}]}
+            """
+        } else if path.hasSuffix("/jubilees/") {
+            body = """
+            {"results":[{"member_id":1,"first_name":"Erika","last_name":"Musterfrau","kind":"membership","years":25,"date":"\(day(40, "00:00").prefix(10))","organization_short":""},
+            {"member_id":5,"first_name":"Jonas","last_name":"Probe","kind":"membership","years":10,"date":"\(day(71, "00:00").prefix(10))","organization_short":""}]}
+            """
         } else if path.hasSuffix("/members/") {
             let t = english ? ["Full member", "Platoon 1", "Platoon 2", "Supporting member", "Youth"] : ["Vollmitglied", "Zug 1", "Zug 2", "Fördermitglied", "Jugend"]
             body = """
@@ -102,7 +112,7 @@ struct DemoTransport: Transport {
         } else if path.contains("/members/") {
             let t = english ? ["Full member", "Platoon 1"] : ["Vollmitglied", "Zug 1"]
             body = """
-            {"id":1,"kind":"person","first_name":"Erika","last_name":"Musterfrau","birth_date":"1984-03-07","club_number":"0042","status":"active",
+            {"id":1,"kind":"person","first_name":"Erika","last_name":"Musterfrau","birth_date":"1984-03-07","club_number":"0042","status":"active","gender":"weiblich",
             "photo":{"approved":{"url":"/api/orgs/1/members/1/photo/"},"pending":{"url":"/api/orgs/1/members/1/photo/pending/"}},
             "current_type":{"member_type":1,"member_type_name":"\(t[0])"},"periods":[{"id":1,"entry_date":"2010-01-01"}],
             "departments":[{"id":1,"department":1,"department_name":"\(t[1])","valid_from":"2010-01-01"}],

@@ -64,12 +64,19 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
         var list: [AdminSection] = []
         if !isDepartment { list.append(.tasks) }
         if showsMembers { list.append(.members) }
+        if !isDepartment, showsMembers { list.append(.occasions) }
         return list
+    }
+
+    /// Stammdaten und Kontakt ändern: in der Einheit „Mitglieder bearbeiten“; in einer
+    /// Untereinheit nur die Kontaktdaten (früher dept.members.edit).
+    public var canEditMembers: Bool {
+        permissions.contains("members.edit") || (isDepartment && permissions.contains("dept.members.edit"))
     }
 }
 
 public enum AdminSection: String, Sendable, CaseIterable {
-    case tasks, members
+    case tasks, members, occasions
 }
 
 /// Untereinheit mit Rollen nur dort (z. B. Zugführung).
@@ -295,14 +302,21 @@ public struct MemberDetail: Decodable, Equatable, Sendable {
     public var typeName: String
     public var contact: Contact?
     public var departments: [MemberDepartment]
+    /// Untereinheiten nur als Namen (Antwort für die Zugführung)
+    public var departmentNames: [String]
+    public var gender: String
     public var entryDate: String
     /// Freigegebenes Foto und ein neues, das auf Freigabe wartet (Pfade wie im Browser)
     public var photo: String?
     public var pendingPhoto: String?
     var suffix: String
+    var displayName: String
 
     enum CodingKeys: String, CodingKey {
-        case id, kind, title, status, contact, departments, periods, organization, photo
+        case id, kind, title, status, contact, departments, periods, organization, photo, gender
+        case memberType = "member_type"
+        case entryDate = "entry_date"
+        case displayName = "display_name"
         case lastName = "last_name"
         case firstName = "first_name"
         case birthDate = "birth_date"
@@ -341,13 +355,24 @@ public struct MemberDetail: Decodable, Equatable, Sendable {
         birthDate = try c.decodeIfPresent(String.self, forKey: .birthDate)
         clubNumber = try c.decodeIfPresent(String.self, forKey: .clubNumber) ?? ""
         status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
-        typeName = try c.decodeIfPresent(TypeName.self, forKey: .currentType)?.member_type_name ?? ""
+        gender = try c.decodeIfPresent(String.self, forKey: .gender) ?? ""
+        // Einheit: laufende Mitgliedsart als Objekt; Untereinheit (Zugführung): nur der Name
+        typeName = try c.decodeIfPresent(TypeName.self, forKey: .currentType)?.member_type_name
+            ?? (try? c.decodeIfPresent(String.self, forKey: .memberType)) ?? ""
         contact = try c.decodeIfPresent(Contact.self, forKey: .contact)
-        departments = try c.decodeIfPresent([MemberDepartment].self, forKey: .departments) ?? []
+        if let full = try? c.decodeIfPresent([MemberDepartment].self, forKey: .departments) {
+            departments = full
+            departmentNames = []
+        } else {
+            departments = []
+            departmentNames = (try? c.decodeIfPresent([String].self, forKey: .departments)) ?? []
+        }
         let periods = try c.decodeIfPresent([Period].self, forKey: .periods) ?? []
         // Erster Eintritt: frühester Zeitraum
-        entryDate = periods.compactMap(\.entry_date).filter { !$0.isEmpty }.min() ?? ""
+        entryDate = periods.compactMap(\.entry_date).filter { !$0.isEmpty }.min()
+            ?? (try? c.decodeIfPresent(String.self, forKey: .entryDate)) ?? ""
         suffix = try c.decodeIfPresent(Organization.self, forKey: .organization)?.name_suffix ?? ""
+        displayName = (try? c.decodeIfPresent(String.self, forKey: .displayName)) ?? ""
         let photos = try? c.decodeIfPresent(Photos.self, forKey: .photo)
         photo = photos?.approved?.url.flatMap { $0.isEmpty ? nil : $0 }
         pendingPhoto = photos?.pending?.url.flatMap { $0.isEmpty ? nil : $0 }
@@ -357,13 +382,18 @@ public struct MemberDetail: Decodable, Equatable, Sendable {
     public var isFormer: Bool { status == "former" }
 
     public var name: String {
-        if isOrganization { return organizationName(lastName, suffix) }
+        if isOrganization { return displayName.isEmpty ? organizationName(lastName, suffix) : displayName }
         return [title, firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
     }
 
     /// Heute laufende Zugehörigkeiten (Untereinheiten); `today` als `JJJJ-MM-TT`.
     public func currentDepartments(today: String) -> [MemberDepartment] {
         departments.filter { $0.validFrom <= today && ($0.validUntil.map { $0 >= today } ?? true) }
+    }
+
+    /// Namen der heute laufenden Untereinheiten, für die Anzeige.
+    public func departmentLabels(today: String) -> [String] {
+        (departmentNames + currentDepartments(today: today).map(\.name)).filter { !$0.isEmpty }
     }
 }
 
@@ -499,9 +529,36 @@ public struct AdminClient: Sendable {
     }
 
     /// `status`: "aktiv", "ehemalig" oder "alle" (Filter wie im Browser).
+    /// Untereinheiten kennen den Filter nicht (dort nur die aktuellen Mitglieder).
     public func members(search: String, page: Int = 1, status: String = "aktiv") async throws -> MemberPage {
         let q = queryValue(search.trimmingCharacters(in: .whitespacesAndNewlines))
-        return try await api.expect("GET", base + "members/?suche=\(q)&status=\(queryValue(status))&page=\(max(1, page))&page_size=50")
+        let filter = unit.isDepartment ? "" : "&status=\(queryValue(status))"
+        return try await api.expect("GET", base + "members/?suche=\(q)\(filter)&page=\(max(1, page))&page_size=50")
+    }
+
+    /// Stammdaten und Kontakt ändern (nur geänderte Felder, siehe `MasterData.changes`).
+    public func update(member id: Int, values: [String: String]) async throws -> (member: MemberDetail, change: AdminChange) {
+        let response = try await api.raw("PATCH", base + "members/\(id)/", json: values)
+        guard (200...299).contains(response.status) else {
+            let fields = Api.errorFields(response.body)
+            throw ApiError(status: response.status, code: fields.code, message: fields.message)
+        }
+        guard let member = try? JSONDecoder().decode(MemberDetail.self, from: response.body) else {
+            throw ApiError(status: response.status, code: "format")
+        }
+        return (member, AdminChange(response))
+    }
+
+    /// Geburtstage von `from` bis `to` (`JJJJ-MM-TT`), nur in der Einheit.
+    public func birthdays(from: String, to: String) async throws -> [BirthdayRow] {
+        let rows: Rows<BirthdayRow> = try await api.expect("GET", base + "birthdays/?von=\(queryValue(from))&bis=\(queryValue(to))")
+        return rows.results
+    }
+
+    /// Jubiläen von `from` bis `to` (`JJJJ-MM-TT`), nur in der Einheit.
+    public func jubilees(from: String, to: String) async throws -> [JubileeRow] {
+        let rows: Rows<JubileeRow> = try await api.expect("GET", base + "jubilees/?von=\(queryValue(from))&bis=\(queryValue(to))")
+        return rows.results
     }
 
     public func member(_ id: Int) async throws -> MemberDetail {
@@ -723,4 +780,152 @@ public struct CardCheck: Decodable, Equatable, Sendable {
     public var isOrganization: Bool { kind == "organization" }
     public var name: String { [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ") }
     public var detail: String { [memberType, club].filter { !$0.isEmpty }.joined(separator: " · ") }
+}
+
+struct Rows<Row: Decodable>: Decodable {
+    var results: [Row]
+
+    enum CodingKeys: String, CodingKey { case results }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        results = try c.decodeIfPresent([Row].self, forKey: .results) ?? []
+    }
+}
+
+public struct BirthdayRow: Decodable, Equatable, Sendable {
+    public var memberId: Int
+    public var firstName: String
+    public var lastName: String
+    public var date: String
+    public var age: Int
+
+    enum CodingKeys: String, CodingKey {
+        case date, age
+        case memberId = "member_id"
+        case firstName = "first_name"
+        case lastName = "last_name"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        memberId = try c.decode(Int.self, forKey: .memberId)
+        firstName = try c.decodeIfPresent(String.self, forKey: .firstName) ?? ""
+        lastName = try c.decodeIfPresent(String.self, forKey: .lastName) ?? ""
+        date = try c.decodeIfPresent(String.self, forKey: .date) ?? ""
+        age = try c.decodeIfPresent(Int.self, forKey: .age) ?? 0
+    }
+
+    public var name: String { [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ") }
+}
+
+public struct JubileeRow: Decodable, Equatable, Sendable {
+    public var memberId: Int
+    public var firstName: String
+    public var lastName: String
+    public var years: Int
+    public var date: String
+    /// Kurzname der Einheit, in der das Jubiläum zählt (z. B. Dachverband); leer: der Verein
+    public var organization: String
+
+    enum CodingKeys: String, CodingKey {
+        case years, date
+        case memberId = "member_id"
+        case firstName = "first_name"
+        case lastName = "last_name"
+        case organization = "organization_short"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        memberId = try c.decode(Int.self, forKey: .memberId)
+        firstName = try c.decodeIfPresent(String.self, forKey: .firstName) ?? ""
+        lastName = try c.decodeIfPresent(String.self, forKey: .lastName) ?? ""
+        years = try c.decodeIfPresent(Int.self, forKey: .years) ?? 0
+        date = try c.decodeIfPresent(String.self, forKey: .date) ?? ""
+        organization = try c.decodeIfPresent(String.self, forKey: .organization) ?? ""
+    }
+
+    public var name: String { [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ") }
+}
+
+/// Dialog „Stammdaten und Kontakt“: Felder, Ausgangswerte und was davon zu senden ist.
+public enum MasterData {
+    static let personOnly: Set<String> = ["first_name", "birth_date", "gender", "title"]
+    static let contact = ["phone", "email", "street", "postal_code", "city"]
+
+    /// Felder des Dialogs. Organisationen ohne Vorname, Geburtsdatum, Geschlecht und Titel;
+    /// in einer Untereinheit (Zugführung) nur die Kontaktdaten.
+    public static func keys(organization: Bool, department: Bool) -> [String] {
+        if department { return contact }
+        let all = ["title", "first_name", "last_name", "birth_date", "gender", "club_number", "email", "phone", "street", "postal_code", "city", "country"]
+        return all.filter { !(organization && personOnly.contains($0)) }
+    }
+
+    /// Ausgangswerte; das Geburtsdatum als `TT.MM.JJJJ`.
+    public static func values(_ member: MemberDetail, department: Bool) -> [String: String] {
+        let all: [String: String] = [
+            "title": member.title, "first_name": member.firstName, "last_name": member.lastName,
+            "birth_date": Zeit.plainDate(member.birthDate), "gender": member.gender, "club_number": member.clubNumber,
+            "email": member.contact?.email ?? "", "phone": member.contact?.phone ?? "",
+            "street": member.contact?.street ?? "", "postal_code": member.contact?.postalCode ?? "",
+            "city": member.contact?.city ?? "", "country": member.contact?.country ?? "",
+        ]
+        let wanted = Set(keys(organization: member.isOrganization, department: department))
+        return all.filter { wanted.contains($0.key) }
+    }
+
+    /// `TT.MM.JJJJ` (auch einstellig) oder `JJJJ-MM-TT` → `JJJJ-MM-TT`; nil, wenn es kein Datum ist.
+    public static func parseDate(_ text: String) -> String? {
+        let t = text.trimmingCharacters(in: .whitespaces)
+        var parts = t.split(separator: ".", omittingEmptySubsequences: false).map(String.init)
+        if parts.count == 3 {
+            parts.reverse()
+        } else {
+            parts = t.split(separator: "-", omittingEmptySubsequences: false).map(String.init)
+        }
+        guard parts.count == 3, parts[0].count == 4, (1...2).contains(parts[1].count), (1...2).contains(parts[2].count),
+              parts.allSatisfy({ $0.allSatisfy { $0.isASCII && $0.isNumber } }),
+              let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2]),
+              (1...12).contains(month), year >= 1
+        else { return nil }
+        let leap = (year % 4 == 0 && year % 100 != 0) || year % 400 == 0
+        let days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31][month - 1]
+        guard (1...days).contains(day) else { return nil }
+        return String(format: "%04d-%02d-%02d", year, month, day)
+    }
+
+    /// Geänderte Felder für die Anfrage: Text am Rand gekürzt, Geburtsdatum als `JJJJ-MM-TT`.
+    /// Ein geleertes Geburtsdatum geht als "" mit (freiwillig, der Server entfernt es).
+    /// nil, wenn das Datum ungültig ist.
+    public static func changes(before: [String: String], after: [String: String]) -> [String: String]? {
+        var out: [String: String] = [:]
+        for (key, raw) in after {
+            let value = raw.trimmingCharacters(in: .whitespaces)
+            let old = (before[key] ?? "").trimmingCharacters(in: .whitespaces)
+            if key == "birth_date" {
+                if value.isEmpty {
+                    if !old.isEmpty { out[key] = "" }
+                    continue
+                }
+                guard let iso = parseDate(value) else { return nil }
+                if iso != (parseDate(old) ?? old) { out[key] = iso }
+            } else if value != old {
+                out[key] = value
+            }
+        }
+        return out
+    }
+
+    public static func label(_ key: String, organization: Bool) -> String {
+        if key == "birth_date" { return tr("Geburtsdatum (freiwillig, TT.MM.JJJJ)") }
+        if organization, key == "last_name" { return tr("Name der Organisation") }
+        return ChangeField.label(key)
+    }
+
+    /// Zeitraum für Geburtstage und Jubiläen: heute bis in `days` Tagen.
+    public static func upcoming(today: Date, days: Int, calendar: Calendar = .current) -> (from: String, to: String) {
+        let end = calendar.date(byAdding: .day, value: days, to: today) ?? today
+        return (Zeit.day(today, timeZone: calendar.timeZone), Zeit.day(end, timeZone: calendar.timeZone))
+    }
 }
