@@ -9,8 +9,11 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `akte`, `ehrung`, `zusatzfelder`, `bank`, `aufnahme`, `dubletten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
+    /// Abschnitte, die eine Mitgliedsakte öffnen, und solche für „Neues Mitglied“
+    static let akteAbschnitte = ["mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank"]
+    static let aufnahmeAbschnitte = ["aufnahme", "dubletten"]
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
     static let accounts = AccountList(accounts: [
@@ -290,6 +293,8 @@ struct DemoTransport: Transport {
             return nachschlagen(path, english: english)
         } else if path.contains("/admin/"), path.contains("/competitions/") {
             return wettbewerbe(path, request.method, english: english)
+        } else if path.hasSuffix("/billing/mandates/") {
+            body = #"[{"id":1,"reference":"M-0042-1","holder":"Erika Musterfrau","iban_masked":"DE02 •••• •••• •••• •••• 51","signed_on":"2023-02-01","status":"active"}]"#
         } else if path.contains("/admin/"), path.contains("/billing/") {
             return rechnungen(path, request.method, english: english)
         } else if path.contains("/admin/"), path.contains("/todos/") {
@@ -335,6 +340,18 @@ struct DemoTransport: Transport {
             {"results":[{"member_id":1,"first_name":"Erika","last_name":"Musterfrau","kind":"membership","years":25,"date":"\(day(40, "00:00").prefix(10))","organization_short":""},
             {"member_id":5,"first_name":"Jonas","last_name":"Probe","kind":"membership","years":10,"date":"\(day(71, "00:00").prefix(10))","organization_short":""}]}
             """
+        } else if path.contains("/members/duplicates/") {
+            body = #"[{"id":55,"last_name":"Beispiel","first_name":"Lena","birth_date":"2008-03-07"},{"id":4,"last_name":"Beispiel","first_name":"Lena","birth_date":"2008-03-07","already_member_here":true}]"#
+        } else if path.hasSuffix("/honorary-titles/") {
+            let t = english ? ["Honorary member", "Platoon king", "Golden badge of honour"] : ["Ehrenmitglied", "Zugkönig", "Goldene Ehrennadel"]
+            body = path.contains("/members/")
+                ? #"[{"id":1,"title":1,"title_name":"\#(t[0])","valid_from":"2020-01-11"},{"id":2,"title":2,"title_name":"\#(t[1])","valid_from":"2018-09-01","valid_until":"2019-08-31"}]"#
+                : #"[{"id":1,"name":"\#(t[0])"},{"id":2,"name":"\#(t[1])"},{"id":3,"name":"\#(t[2])"}]"#
+        } else if path.hasSuffix("/fields/") {
+            let t = english
+                ? ["Shooting log no.", "Uniform received", "First aider", "Instrument", "Drum", "Flute", "Courses"]
+                : ["Schießbuch-Nr.", "Uniform erhalten", "Ersthelfer", "Instrument", "Trommel", "Flöte", "Lehrgänge"]
+            body = #"[{"definition":{"id":1,"label":"\#(t[0])","field_type":"text"},"value":"A-17"},{"definition":{"id":2,"label":"\#(t[1])","field_type":"date"},"value":"2024-05-03"},{"definition":{"id":3,"label":"\#(t[2])","field_type":"bool"},"value":true},{"definition":{"id":4,"label":"\#(t[3])","field_type":"choice","choices":["\#(t[4])","\#(t[5])"]},"value":"\#(t[4])"},{"definition":{"id":5,"label":"\#(t[6])","field_type":"text","repeatable":true},"value":["A"]}]"#
         } else if path.hasSuffix("/member-types/") {
             let t = english ? ["Full member", "Supporting member", "Youth"] : ["Vollmitglied", "Fördermitglied", "Jugend"]
             body = #"[{"id":1,"name":"\#(t[0])"},{"id":2,"name":"\#(t[1])"},{"id":3,"name":"\#(t[2])"}]"#

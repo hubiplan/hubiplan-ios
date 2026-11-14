@@ -46,7 +46,7 @@ struct VorgangBlatt: View {
             Form {
                 if let error { Section { Text(error).foregroundStyle(.red) } }
                 if let preview {
-                    folgen(preview)
+                    FolgenAbschnitt(preview: preview)
                 } else if vorgang == .beitragSelbst || vorgang == .beitragFremd {
                     if error == nil { ProgressView() }
                 } else {
@@ -119,19 +119,6 @@ struct VorgangBlatt: View {
             }
         case .beitragSelbst, .beitragFremd:
             EmptyView()
-        }
-    }
-
-    private func folgen(_ preview: MemberPreview) -> some View {
-        Section {
-            ForEach(Array(preview.consequences.enumerated()), id: \.offset) { _, line in
-                Label(line, systemImage: "circle.fill")
-                    .labelStyle(FolgenZeile())
-            }
-        } header: {
-            Text(tr("Das passiert:"))
-        } footer: {
-            Text(tr("Danach lässt sich die Änderung rückgängig machen."))
         }
     }
 
@@ -218,6 +205,24 @@ private struct FolgenZeile: LabelStyle {
         HStack(alignment: .firstTextBaseline, spacing: 8) {
             configuration.icon.font(.system(size: 6)).foregroundStyle(Color.secondary)
             configuration.title
+        }
+    }
+}
+
+/// „Das passiert:“ mit den Folgen einer Änderung, vor dem Bestätigen.
+struct FolgenAbschnitt: View {
+    let preview: MemberPreview
+
+    var body: some View {
+        Section {
+            ForEach(Array(preview.consequences.enumerated()), id: \.offset) { _, line in
+                Label(line, systemImage: "circle.fill")
+                    .labelStyle(FolgenZeile())
+            }
+        } header: {
+            Text(tr("Das passiert:"))
+        } footer: {
+            Text(tr("Danach lässt sich die Änderung rückgängig machen."))
         }
     }
 }
