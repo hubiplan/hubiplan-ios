@@ -87,11 +87,17 @@ public struct Api: Sendable {
         return (code, message)
     }
 
-    func raw(_ method: String, _ path: String, json: [String: Any]? = nil, retry: Bool = true, accept: Bool = true, limit: Int = Api.maxJsonBytes) async throws -> HttpResponse {
+    /// `form`: fertiger Inhalt mit eigenem `Content-Type` (Formular mit Datei) statt `json`.
+    /// `extra`: weitere Kopfzeilen, z. B. `Idempotency-Key` (geht in die Signatur ein).
+    func raw(
+        _ method: String, _ path: String, json: [String: Any]? = nil, retry: Bool = true, accept: Bool = true,
+        limit: Int = Api.maxJsonBytes, form: Multipart? = nil, extra: [String: String] = [:]
+    ) async throws -> HttpResponse {
         guard let url = serverLink(server: server, path: path) else {
             throw ApiError(status: 0, code: "address")
         }
-        var headers = ["Accept-Language": language]
+        var headers = extra
+        headers["Accept-Language"] = language
         if accept { headers["Accept"] = "application/json" }
         let used = await tokens?.token()
         if let used { headers["Authorization"] = "Bearer " + used }
@@ -99,6 +105,9 @@ public struct Api: Sendable {
         if let json {
             body = try JSONSerialization.data(withJSONObject: json, options: [.sortedKeys])
             headers["Content-Type"] = "application/json"
+        } else if let form {
+            body = form.body
+            headers["Content-Type"] = form.contentType
         }
         if let admin {
             // Vorstandsschlüssel nur zusammen mit dem Geräteschlüssel desselben Geräts (H3)
@@ -124,7 +133,7 @@ public struct Api: Sendable {
             guard retry, await tokens.renew(used: used) != nil else {
                 throw ApiError(status: 0, code: "renew_failed")
             }
-            return try await raw(method, path, json: json, retry: false, accept: accept, limit: limit)
+            return try await raw(method, path, json: json, retry: false, accept: accept, limit: limit, form: form, extra: extra)
         }
         return response
     }

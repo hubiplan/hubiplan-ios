@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -41,6 +41,42 @@ struct DemoTransport: Transport {
     private func day(_ offset: Int, _ time: String) -> String {
         let date = Calendar.current.date(byAdding: .day, value: offset, to: Date()) ?? Date()
         return "\(Zeit.day(date))T\(time):00+01:00"
+    }
+
+    /// Kassenbuch der Verwaltung: Konten, Kategorien, Buchungen, Belege.
+    private func kasse(_ path: String, _ method: String, english: Bool) -> HttpResponse {
+        let t = english
+            ? ["Current account", "Bank account", "Cash box", "Cash", "Drinks", "Donations", "Other", "Expense", "Income", "Transfer", "Drinks for the platoon meeting", "Beverage store Example", "Donation for the youth group", "Change", "Hall rent"]
+            : ["Girokonto", "Bankkonto", "Barkasse", "Bar", "Getränke", "Spenden", "Sonstiges", "Ausgabe", "Einnahme", "Umbuchung", "Getränke Zugversammlung", "Getränkemarkt Beispiel", "Spende für die Jugend", "Wechselgeld", "Saalmiete"]
+        let erste = """
+        {"id":9,"display_number":"2026-0031","date":"\(day(-2, "00:00").prefix(10))","kind":"expense","kind_label":"\(t[7])","amount":"23.40","account_name":"\(t[2])","category_name":"\(t[4])","text":"\(t[10])","counterparty":"\(t[11])","receipts":[{"id":5,"name":"beleg.jpg","content_type":"image/jpeg"}]}
+        """
+        let body: String
+        if path.contains("/receipts/"), method == "GET" {
+            return HttpResponse(status: 200, body: DemoBild.beleg().pngData() ?? Data())
+        } else if method != "GET" {
+            return HttpResponse(status: 201, body: Data(erste.utf8))
+        } else if path.hasSuffix("/accounts/") {
+            body = """
+            [{"id":1,"name":"\(t[0])","kind":"bank","kind_label":"\(t[1])","balance":"4218.35"},
+            {"id":2,"name":"\(t[2])","kind":"cash","kind_label":"\(t[3])","balance":"187.10"}]
+            """
+        } else if path.hasSuffix("/categories/") {
+            body = """
+            [{"id":1,"name":"\(t[4])","kind":"expense"},{"id":2,"name":"\(t[5])","kind":"income"},{"id":3,"name":"\(t[6])","kind":"both"}]
+            """
+        } else if path.hasSuffix("/bookings/") {
+            body = """
+            {"count":4,"results":[\(erste),
+            {"id":8,"display_number":"2026-0030","date":"\(day(-4, "00:00").prefix(10))","kind":"income","kind_label":"\(t[8])","amount":"150.00","account_name":"\(t[0])","category_name":"\(t[5])","text":"\(t[12])","counterparty":"Musterbau GmbH","receipts":[{"id":4,"name":"beleg.pdf","content_type":"application/pdf"}]},
+            {"id":7,"display_number":"2026-0029","date":"\(day(-5, "00:00").prefix(10))","kind":"transfer","kind_label":"\(t[9])","amount":"200.00","account_name":"\(t[0])","to_account_name":"\(t[2])","text":"\(t[13])","receipts":[{"id":3,"name":"beleg.jpg","content_type":"image/jpeg"}]},
+            {"id":6,"display_number":"2026-0028","date":"\(day(-9, "00:00").prefix(10))","kind":"expense","kind_label":"\(t[7])","amount":"380.00","account_name":"\(t[0])","category_name":"\(t[6])","text":"\(t[14])"}
+            ]}
+            """
+        } else {
+            body = erste
+        }
+        return HttpResponse(status: 200, body: Data(body.utf8))
     }
 
     /// Termine der Verwaltung: Liste, ein Termin mit Rückmeldungen, Änderungen mit „Rückgängig“.
@@ -98,12 +134,14 @@ struct DemoTransport: Transport {
             let unlocked = Demo.section != "freischalten"
             let zug = english ? "Platoon 1" : "Zug 1"
             body = """
-            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit"],"stufen":true}],
+            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit","finance.view","finance.edit"],"stufen":true}],
             "departments":[{"id":9,"name":"\(zug)","permissions":["members.view"],"stufen":true}],
             "two_factor":true,"unlocked":\(unlocked),"until":"\(day(21, "10:00"))"}
             """
         } else if path.contains("/admin/"), path.contains("/events/") {
             return termine(path, request.method, english: english)
+        } else if path.contains("/admin/"), path.contains("/finance/") {
+            return kasse(path, request.method, english: english)
         } else if path.hasSuffix("/tasks/") {
             let t = english
                 ? ["Data change", "New address and phone number", "Photo", "New photo for the membership card", "Event", "Christmas party", "4 replies, 2 open"]
@@ -281,6 +319,23 @@ struct DemoTransport: Transport {
 
 /// Erfundenes Ausweisfoto für den Vorführmodus: Fläche mit Personensymbol, kein Mensch.
 enum DemoBild {
+    /// Erfundener Kassenzettel als Belegfoto.
+    static func beleg() -> UIImage {
+        let size = CGSize(width: 300, height: 420)
+        return UIGraphicsImageRenderer(size: size).image { context in
+            UIColor(white: 0.97, alpha: 1).setFill()
+            context.fill(CGRect(origin: .zero, size: size))
+            let english = Texte.language == "en"
+            let lines = english
+                ? ["Beverage store Example", "Musterweg 5, Musterstadt", "", "2 crates of water      11.80", "1 crate of juice       11.60", "", "Total              23.40 EUR", "Paid in cash", "Thank you!"]
+                : ["Getränkemarkt Beispiel", "Musterweg 5, Musterstadt", "", "2 Kisten Wasser      11,80", "1 Kiste Saft         11,60", "", "Summe            23,40 EUR", "Bar bezahlt", "Vielen Dank!"]
+            for (index, line) in lines.enumerated() {
+                let font = UIFont.monospacedSystemFont(ofSize: index == 0 ? 17 : 14, weight: index == 0 || index == 6 ? .bold : .regular)
+                (line as NSString).draw(at: CGPoint(x: 24, y: 40 + index * 34), withAttributes: [.font: font, .foregroundColor: UIColor.black])
+            }
+        }
+    }
+
     static func png(neu: Bool) -> Data {
         let size = CGSize(width: 280, height: 360)
         let image = UIGraphicsImageRenderer(size: size).image { context in
