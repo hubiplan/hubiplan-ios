@@ -54,6 +54,7 @@ struct VorgangBlatt: View {
                 }
             }
             .disabled(busy)
+            .environment(\.locale, Locale(identifier: Texte.language))
             .navigationTitle(preview?.heading ?? title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

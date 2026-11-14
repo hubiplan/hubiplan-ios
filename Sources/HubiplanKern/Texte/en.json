@@ -662,7 +662,7 @@
  "ohne Geburtsdatum": "no date of birth",
  "schon Mitglied hier": "already a member here",
  "seit {von}": "since {von}",
- "seit {von} bis {bis}": "from {von} to {bis}",
+ "vom {von} bis {bis}": "from {von} to {bis}",
  "{label} (TT.MM.JJJJ)": "{label} (DD.MM.YYYY)",
  "{label}: bitte als TT.MM.JJJJ eingeben.": "{label}: please enter as DD.MM.YYYY.",
  "{label}: bitte ja, nein oder – wählen.": "{label}: please choose yes, no or –.",

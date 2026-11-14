@@ -37,7 +37,7 @@ final class VerwaltungAkteTests: XCTestCase {
         XCTAssertTrue(list[0].running)
         XCTAssertEqual(list[0].period, "seit 11.01.2020")
         XCTAssertFalse(list[1].running)
-        XCTAssertEqual(list[1].period, "seit 01.09.2018 bis 31.08.2019")
+        XCTAssertEqual(list[1].period, "vom 01.09.2018 bis 31.08.2019")
         XCTAssertEqual(list[1].note, "Zug 1")
     }
 

@@ -29,6 +29,7 @@ struct AufnahmeBlatt: View {
                 }
             }
             .disabled(busy)
+            .environment(\.locale, Locale(identifier: Texte.language))
             .navigationTitle(found == nil ? tr("Neues Mitglied") : draft.organization ? tr("Gibt es die Organisation schon?") : tr("Gibt es die Person schon?"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

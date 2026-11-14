@@ -52,8 +52,8 @@ extension Demo {
     static func fillDrafts(_ box: DraftBox, unit: AdminUnit) {
         let english = Texte.language == "en"
         let rows: [(String, String, String?)] = english
-            ? [("Drinks for the platoon meeting", "23,40", nil), ("Flowers for the anniversary", "18,00", "The financial year is closed.")]
-            : [("Getränke Zugversammlung", "23,40", nil), ("Blumen zum Jubiläum", "18,00", "Das Buchungsjahr ist abgeschlossen.")]
+            ? [("Stamps", "12,80", nil), ("Flowers for the anniversary", "18,00", "This category no longer exists.")]
+            : [("Briefmarken", "12,80", nil), ("Blumen zum Jubiläum", "18,00", "Diese Kategorie gibt es nicht mehr.")]
         for (index, row) in rows.enumerated() {
             var draft = BookingDraft(key: "demo-\(index)")
             draft.text = row.0

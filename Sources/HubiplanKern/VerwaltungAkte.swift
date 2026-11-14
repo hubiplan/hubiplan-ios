@@ -35,7 +35,7 @@ public struct AwardItem: Decodable, Equatable, Sendable, Identifiable {
 
     public var period: String {
         if let validUntil {
-            return tr("seit {von} bis {bis}", ["von": Zeit.plainDate(validFrom), "bis": Zeit.plainDate(validUntil)])
+            return tr("vom {von} bis {bis}", ["von": Zeit.plainDate(validFrom), "bis": Zeit.plainDate(validUntil)])
         }
         return tr("seit {von}", ["von": Zeit.plainDate(validFrom)])
     }
