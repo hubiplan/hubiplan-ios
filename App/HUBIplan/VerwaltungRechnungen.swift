@@ -196,7 +196,7 @@ struct RechnungView: View {
                     ProgressView()
                 }
             }
-            .environment(\.locale, Locale(identifier: Texte.language))
+            .environment(\.locale, Texte.locale)
             .refreshable { await load() }
             .task { await load() }
         }

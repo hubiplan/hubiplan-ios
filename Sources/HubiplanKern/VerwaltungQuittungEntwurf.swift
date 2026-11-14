@@ -31,6 +31,8 @@ public struct ReceiptChoices: Codable, Equatable, Sendable {
 public struct StoredReceipt: Codable, Equatable, Sendable, Identifiable {
     public var draft: ReceiptDraft
     public var unitId: Int
+    /// Tag, an dem die Quittung ausgestellt wurde (`JJJJ-MM-TT`)
+    public var date: String?
     public var accountName: String
     public var categoryName: String
     /// Warum der Server die Quittung zuletzt abgelehnt hat
@@ -39,17 +41,18 @@ public struct StoredReceipt: Codable, Equatable, Sendable, Identifiable {
     public var id: String { draft.key }
 
     enum CodingKeys: String, CodingKey {
-        case draft, error
+        case draft, date, error
         case unitId = "unit_id"
         case accountName = "account_name"
         case categoryName = "category_name"
     }
 
     /// Aus dem Blatt; nil, solange Angaben oder Unterschriften fehlen.
-    public init?(_ draft: ReceiptDraft, unit: AdminUnit, choices: ReceiptChoices) {
+    public init?(_ draft: ReceiptDraft, unit: AdminUnit, choices: ReceiptChoices, date: String = Zeit.day(Date())) {
         guard draft.formReady, draft.counterpartyReady, draft.treasurerReady(stored: choices.signature != nil) else { return nil }
         self.draft = draft
         unitId = unit.id
+        self.date = date
         accountName = choices.accounts.first { $0.id == draft.account }?.name ?? ""
         categoryName = choices.categories.first { $0.id == draft.category }?.name ?? ""
         error = nil
@@ -57,7 +60,7 @@ public struct StoredReceipt: Codable, Equatable, Sendable, Identifiable {
 
     /// Zeile in der Liste „Noch nicht gesendet“.
     public var line: String {
-        [tr("Quittung"), Geld.format(draft.parsedAmount), draft.name.trimmingCharacters(in: .whitespaces)]
+        [Zeit.plainDate(date), Geld.format(draft.parsedAmount), tr("Quittung"), draft.name.trimmingCharacters(in: .whitespaces)]
             .filter { !$0.isEmpty }.joined(separator: " · ")
     }
 

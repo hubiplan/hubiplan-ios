@@ -68,7 +68,7 @@ extension Demo {
         // Dazu eine unterschriebene Quittung, die auf die Verbindung wartet
         var receipt = ReceiptDraft(key: "demo-quittung", finalizeKey: "demo-abschluss")
         receipt.name = "Max Mustermann"
-        receipt.amount = "25,00"
+        receipt.amount = english ? "25.00" : "25,00"
         receipt.purpose = english ? "Expenses for flowers" : "Auslagen Blumen"
         receipt.account = 1
         receipt.category = 1

@@ -4,7 +4,7 @@ import SwiftUI
 /// Zeitraum eines Dienstes: Tag und Uhrzeiten; über Mitternacht mit beiden Tagen.
 func zeitraum(_ from: String, _ to: String) -> String {
     guard let start = Zeit.parse(from) else { return from }
-    let locale = Locale(identifier: Texte.language)
+    let locale = Texte.locale
     let day = Date.FormatStyle.dateTime.weekday(.abbreviated).day().month(.abbreviated).year().locale(locale)
     let time = Date.FormatStyle.dateTime.hour().minute().locale(locale)
     let first = start.formatted(day) + ", " + start.formatted(time)

@@ -116,7 +116,7 @@ public struct FieldEntry: Decodable, Equatable, Sendable, Identifiable {
         }
         switch definition.fieldType {
         case "date": text = Zeit.plainDate(raw)
-        case "number": text = raw.replacingOccurrences(of: ".", with: ",")
+        case "number": text = Texte.language == "en" ? raw : raw.replacingOccurrences(of: ".", with: ",")
         default: text = raw
         }
     }

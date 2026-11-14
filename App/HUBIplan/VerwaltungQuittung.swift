@@ -373,7 +373,7 @@ struct QuittungBlatt: View {
         // Vorführmodus: ausgefülltes Blatt für das Bildschirmfoto
         if Demo.active, draft.name.isEmpty {
             draft.name = "Max Mustermann"
-            draft.amount = "25,00"
+            draft.amount = Texte.language == "en" ? "25.00" : "25,00"
             draft.purpose = Texte.language == "en" ? "Expenses for flowers" : "Auslagen Blumen"
             draft.category = fitting.last?.id
             // Erst nach dem Zurücksetzen durch die geänderten Angaben

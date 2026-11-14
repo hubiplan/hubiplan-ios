@@ -29,7 +29,9 @@ final class IchTests: XCTestCase {
         XCTAssertEqual(list.sorted[2].headline, "R-2026-0007 · 15.01.2026 · Schützenverein Musterstadt")
         XCTAssertEqual(list.sorted[2].stateText, "Bezahlt")
         Texte.language = "en"
-        XCTAssertEqual(list.sorted[0].stateText, "Open: 1.260,50\u{00A0}€, due on 30.11.2026")
+        XCTAssertEqual(list.sorted[0].stateText, "Open: €1,260.50, due on 30/11/2026")
+        XCTAssertEqual(list.sorted[0].headline, "R-2026-0031 · 01/11/2026 · Zug 1")
+        XCTAssertEqual(list.openSum, "€1,272.50")
         let none = try JSONDecoder().decode(MyInvoices.self, from: Data("{}".utf8))
         XCTAssertNil(none.openSum)
     }
@@ -48,6 +50,15 @@ final class IchTests: XCTestCase {
             XCTAssertEqual(Geld.format(wrong), "")
         }
         XCTAssertEqual(Geld.format(nil), "")
+        // Englisch (britisch), wie in der Android-App
+        Texte.language = "en"
+        XCTAssertEqual(Geld.format("1234567.8"), "€1,234,567.80")
+        XCTAssertEqual(Geld.format("60"), "€60.00")
+        XCTAssertEqual(Geld.format("-0.50"), "-€0.50")
+        XCTAssertEqual(Zeit.plainDate("2026-11-20"), "20/11/2026")
+        XCTAssertEqual(Zeit.plainDate("kein Datum"), "")
+        Texte.language = "de"
+        XCTAssertEqual(Zeit.plainDate("2026-11-20"), "20.11.2026")
     }
 
     func testDatum() {

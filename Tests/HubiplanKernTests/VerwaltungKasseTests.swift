@@ -38,6 +38,17 @@ final class VerwaltungKasseTests: XCTestCase {
         XCTAssertNil(Geld.parseInput("1,234"))
         XCTAssertNil(Geld.parseInput("zehn"))
         XCTAssertNil(Geld.parseInput(""))
+        // Englisch: Komma trennt Tausender; ein einzelnes Komma vor ein oder zwei Ziffern bleibt Dezimalkomma
+        Texte.language = "en"
+        XCTAssertEqual(Geld.parseInput("€1,234.50"), "1234.50")
+        XCTAssertEqual(Geld.parseInput("1,234"), "1234.00")
+        XCTAssertEqual(Geld.parseInput("23.4"), "23.40")
+        XCTAssertEqual(Geld.parseInput("23,40"), "23.40")
+        XCTAssertEqual(Geld.parseInput("12 €"), "12.00")
+        XCTAssertNil(Geld.parseInput("1.234,50"))
+        XCTAssertEqual(Geld.inputText("60"), "60.00")
+        Texte.language = "de"
+        XCTAssertEqual(Geld.inputText("60"), "60,00")
     }
 
     func testKontenAlsFeldOderSeitenweiseNurAktive() async throws {

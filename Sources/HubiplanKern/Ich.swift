@@ -176,10 +176,14 @@ public enum Geld {
             if index > 0 && (digits.count - index) % 3 == 0 { grouped += "." }
             grouped.append(digit)
         }
-        return (cents < 0 ? "-" : "") + grouped + "," + String(format: "%02d", abs(cents) % 100) + "\u{00A0}€"
+        let sign = cents < 0 ? "-" : ""
+        let rest = String(format: "%02d", abs(cents) % 100)
+        // Englisch (britisch): „€1,234.50“
+        if Texte.language == "en" { return sign + "€" + grouped.replacingOccurrences(of: ".", with: ",") + "." + rest }
+        return sign + grouped + "," + rest + "\u{00A0}€"
     }
 
-    /// „1234.5“ → „1.234,50 €“; leer, wenn der Text kein Betrag ist.
+    /// „1234.5“ → „1.234,50 €“ (Englisch „€1,234.50“); leer, wenn der Text kein Betrag ist.
     public static func format(_ amount: String?) -> String {
         guard let amount, let value = cents(amount) else { return "" }
         return format(cents: value)
@@ -187,14 +191,16 @@ public enum Geld {
 }
 
 extension Zeit {
-    /// Datum ohne Uhrzeit („2026-11-20“) als „20.11.2026“; leer, wenn es keines ist.
+    /// Datum ohne Uhrzeit („2026-11-20“) als „20.11.2026“ (Englisch „20/11/2026“, wie in der
+    /// Android-App); leer, wenn es keines ist. Taugt auch als Vorgabe für ein Eingabefeld.
     public static func plainDate(_ iso: String?) -> String {
         guard let iso else { return "" }
         let parts = iso.prefix(10).split(separator: "-")
         guard parts.count == 3, parts[0].count == 4, parts[1].count == 2, parts[2].count == 2,
               parts.allSatisfy({ $0.allSatisfy { $0.isASCII && $0.isNumber } })
         else { return "" }
-        return "\(parts[2]).\(parts[1]).\(parts[0])"
+        let mark = Texte.language == "en" ? "/" : "."
+        return parts[2] + mark + parts[1] + mark + parts[0]
     }
 }
 

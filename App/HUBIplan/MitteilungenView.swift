@@ -40,7 +40,7 @@ struct MitteilungenView: View {
 func kopfzeile(_ item: CircularItem) -> String {
     var parts = [item.sender, item.kindLabel].filter { !$0.isEmpty }
     if let sent = item.sent {
-        parts.append(sent.formatted(.dateTime.day().month().year().locale(Locale(identifier: Texte.language)))
+        parts.append(sent.formatted(.dateTime.day().month().year().locale(Texte.locale))
             .replacingOccurrences(of: " ", with: "\u{00A0}"))
     }
     return parts.joined(separator: " · ")

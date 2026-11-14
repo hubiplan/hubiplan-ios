@@ -207,7 +207,7 @@ struct AkteBlattView: View {
                 }
             }
             .disabled(busy)
-            .environment(\.locale, Locale(identifier: Texte.language))
+            .environment(\.locale, Texte.locale)
             .navigationTitle(heading)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
