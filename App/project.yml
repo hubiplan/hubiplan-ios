@@ -1,0 +1,47 @@
+# Xcode-Projekt der App; wird mit XcodeGen erzeugt (`xcodegen generate --spec App/project.yml`),
+# nicht eingecheckt.
+name: HUBIplan
+options:
+  bundleIdPrefix: de.hubiplan
+  deploymentTarget:
+    iOS: "17.0"
+  developmentLanguage: de
+packages:
+  HubiplanKern:
+    path: ..
+targets:
+  HUBIplan:
+    type: application
+    platform: iOS
+    sources:
+      - HUBIplan
+    dependencies:
+      - package: HubiplanKern
+    info:
+      path: HUBIplan/Info.plist
+      properties:
+        CFBundleDisplayName: HUBIplan
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        CFBundleLocalizations: [de, en]
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        ITSAppUsesNonExemptEncryption: false
+        CFBundleURLTypes:
+          - CFBundleURLName: de.hubiplan.app.verbinden
+            CFBundleURLSchemes: [hubiplan]
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: de.hubiplan.app
+        MARKETING_VERSION: 0.1.0
+        CURRENT_PROJECT_VERSION: 1
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SWIFT_VERSION: "5.0"

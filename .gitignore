@@ -10,3 +10,6 @@ Package.resolved.orig
 *.p12
 *.mobileprovision
 *.cer
+# Mit XcodeGen erzeugt
+*.xcodeproj/
+App/HUBIplan/Info.plist
