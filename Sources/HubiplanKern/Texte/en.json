@@ -372,7 +372,7 @@
  "Wird sofort gebucht, nur mit Belegfoto. Ändern und Storno im Browser.": "Posted immediately, only with a photo of the receipt. Changes and reversals in the browser.",
  "Zahler (optional)": "Payer (optional)",
  "ohne Beleg": "no receipt",
- "{datum} · Nr. {nummer}": "{datum} · no. {nummer}",
+ "{datum} · Nr. {nummer}": "{datum} · No. {nummer}",
  "{name} (im Browser ansehen)": "{name} (view in the browser)",
  "Ändern oder stornieren bitte im Browser.": "Please change or reverse it in the browser."
 }
