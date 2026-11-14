@@ -17,7 +17,7 @@ final class VerwaltungAufgabenTests: XCTestCase {
     }
 
     private func json(_ body: [String: Any]?) throws -> String {
-        let data = try JSONSerialization.data(withJSONObject: try XCTUnwrap(body), options: [.sortedKeys])
+        let data = try JSONSerialization.data(withJSONObject: try XCTUnwrap(body), options: [.sortedKeys, .withoutEscapingSlashes])
         return String(decoding: data, as: UTF8.self)
     }
 
