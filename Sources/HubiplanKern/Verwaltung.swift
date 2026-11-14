@@ -332,8 +332,9 @@ public struct MemberDetail: Decodable, Equatable, Sendable {
 /// hinter Face ID, Touch ID oder Gerätecode und im Arbeitsspeicher höchstens fünf Minuten.
 public struct AdminAccess: Sendable {
     public let token: String
-    /// nil: Freischaltung ohne Schlüsselpaar (ältere Instanz), Anfragen ohne Unterschrift
-    public let key: P256.Signing.PrivateKey?
+    /// Privater Teil des Schlüsselpaars in Rohform; nil: Freischaltung ohne Schlüsselpaar
+    /// (ältere Instanz), Anfragen ohne Unterschrift
+    let keyRaw: Data?
     let now: @Sendable () -> Date
     let nonce: @Sendable () -> String
 
@@ -344,15 +345,19 @@ public struct AdminAccess: Sendable {
         nonce: @escaping @Sendable () -> String = { SignedFormat.newNonce() }
     ) {
         self.token = token
-        self.key = key
+        self.keyRaw = key?.rawRepresentation
         self.now = now
         self.nonce = nonce
     }
 
+    public var key: P256.Signing.PrivateKey? {
+        keyRaw.flatMap { try? P256.Signing.PrivateKey(rawRepresentation: $0) }
+    }
+
     /// Zum Ablegen im Schlüsselbund: `Schlüssel` oder `Schlüssel Schlüsselpaar`.
     public var stored: String {
-        guard let key else { return token }
-        return token + " " + Base64Url.encode(key.rawRepresentation)
+        guard let keyRaw else { return token }
+        return token + " " + Base64Url.encode(keyRaw)
     }
 
     public init?(stored: String) {

@@ -168,11 +168,19 @@ private struct VerwaltungStart: View {
             }
             Section {
                 if units.count > 1 {
-                    Picker(tr("Verwaltete Einheit"), selection: Binding(get: { unit.key }, set: { unitKey = $0 })) {
-                        ForEach(units, id: \.key) { Text($0.name).tag($0.key) }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tr("Verwaltete Einheit")).font(.caption).foregroundStyle(Color.secondary)
+                        Picker(tr("Verwaltete Einheit"), selection: Binding(get: { unit.key }, set: { unitKey = $0 })) {
+                            ForEach(units, id: \.key) { Text($0.name).tag($0.key) }
+                        }
+                        .labelsHidden()
+                        .padding(.leading, -12)
                     }
                 } else {
-                    LabeledContent(tr("Verwaltete Einheit"), value: unit.name)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(tr("Verwaltete Einheit")).font(.caption).foregroundStyle(Color.secondary)
+                        Text(unit.name)
+                    }
                 }
             }
             Section {
@@ -354,7 +362,7 @@ struct MitgliederView: View {
                     ProgressView()
                 }
             }
-            .searchable(text: $search, prompt: tr("Name oder Mitgliedsnummer"))
+            .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: tr("Name oder Mitgliedsnummer"))
             .task(id: "\(search)|\(former)") {
                 // Beim Tippen kurz warten, damit nicht jeder Buchstabe eine Anfrage auslöst
                 if rows != nil { try? await Task.sleep(for: .milliseconds(350)) }
