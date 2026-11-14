@@ -161,6 +161,7 @@ private struct VerwaltungStart: View {
     @State private var showMembers = Demo.active && ["mitglieder", "mitglied", "stammdaten"].contains(Demo.section)
     @State private var showTasks = Demo.active && ["offen", "meldungen"].contains(Demo.section)
     @State private var showOccasions = Demo.active && Demo.section == "anlaesse"
+    @State private var showEvents = Demo.active && ["vtermine", "vtermin", "neuertermin"].contains(Demo.section)
     @State private var scanning = false
     @State private var check: Geprueft?
 
@@ -223,6 +224,13 @@ private struct VerwaltungStart: View {
                         Bereich(symbol: "person.2", title: tr("Mitglieder"), hint: tr("Suchen, anrufen, Mitgliedsakte öffnen"))
                     }
                 }
+                if unit.sections.contains(.events) {
+                    NavigationLink {
+                        TermineVerwaltungView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "calendar", title: tr("Termine"), hint: tr("Absagen, Zu- und Absagen eintragen, neuer Termin"))
+                    }
+                }
                 if unit.sections.contains(.occasions) {
                     NavigationLink {
                         AnlaesseView(unit: unit)
@@ -233,7 +241,7 @@ private struct VerwaltungStart: View {
             } header: {
                 Text(tr("Was möchtest du tun?"))
             } footer: {
-                Text(tr("Termine, Kassenbuch, Rechnungen und alles Weitere verwaltest du zurzeit im Browser."))
+                Text(tr("Kassenbuch, Rechnungen und alles Weitere verwaltest du zurzeit im Browser."))
             }
             Section {
                 Button(tr("Verwaltung auf diesem iPhone sperren"), role: .destructive) { confirmLock = true }
@@ -248,6 +256,7 @@ private struct VerwaltungStart: View {
         .navigationDestination(isPresented: $showMembers) { MitgliederView(unit: unit) }
         .navigationDestination(isPresented: $showTasks) { OffenePunkteView(unit: unit) }
         .navigationDestination(isPresented: $showOccasions) { AnlaesseView(unit: unit) }
+        .navigationDestination(isPresented: $showEvents) { TermineVerwaltungView(unit: unit) }
         .sheet(isPresented: $scanning) {
             AusweisScan(unit: unit) { result in
                 scanning = false
@@ -318,6 +327,8 @@ struct OffenePunkteView: View {
                                     NavigationLink { AenderungenView(unit: unit) } label: { zeile(task) }
                                 case let .member(id):
                                     NavigationLink { MitgliedView(unit: unit, id: id) } label: { zeile(task) }
+                                case let .event(id):
+                                    NavigationLink { TerminVerwaltungView(unit: unit, id: id, occurrence: nil) } label: { zeile(task) }
                                 case nil:
                                     zeile(task)
                                 }
@@ -825,14 +836,10 @@ private struct StammdatenBlatt: View {
                                 Text(tr("divers")).tag("divers")
                             }
                         } else {
-                            VStack(alignment: .leading, spacing: 0) {
-                                Text(MasterData.label(key, organization: member.isOrganization))
-                                    .font(.caption).foregroundStyle(Color.secondary)
-                                TextField(MasterData.label(key, organization: member.isOrganization), text: binding(key))
-                                    .keyboardType(keyboard(key))
-                                    .textInputAutocapitalization(key == "email" ? .never : .words)
-                                    .autocorrectionDisabled()
-                            }
+                            BeschriftetesFeld(label: MasterData.label(key, organization: member.isOrganization), text: binding(key))
+                                .keyboardType(keyboard(key))
+                                .textInputAutocapitalization(key == "email" ? .never : .words)
+                                .autocorrectionDisabled()
                         }
                     }
                 } footer: {
@@ -842,7 +849,7 @@ private struct StammdatenBlatt: View {
                 }
             }
             .disabled(saving)
-            .navigationTitle(unit.isDepartment ? tr("Kontaktdaten bearbeiten") : tr("Stammdaten und Kontakt"))
+            .navigationTitle(unit.isDepartment ? tr("Kontaktdaten") : tr("Stammdaten"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }

@@ -16,8 +16,8 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertTrue(overview.twoFactor)
         XCTAssertFalse(overview.unlocked)
         XCTAssertEqual(overview.allUnits.map(\.key), ["u:1", "d:9"])
-        XCTAssertEqual(overview.allUnits[0].sections, [.tasks, .members, .occasions])
-        XCTAssertEqual(overview.allUnits[1].sections, [.members])
+        XCTAssertEqual(overview.allUnits[0].sections, [.tasks, .members, .events, .occasions])
+        XCTAssertEqual(overview.allUnits[1].sections, [.members, .events])
         XCTAssertTrue(overview.allUnits[1].isDepartment)
     }
 
@@ -35,7 +35,9 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertTrue(AdminUnit(id: 2, name: "Zug", permissions: ["dept.members.view"], scope: "d").showsMembers)
         XCTAssertTrue(AdminUnit(id: 2, name: "Zug", permissions: ["members.view"], scope: "d", stufen: true).showsMembers)
         XCTAssertFalse(AdminUnit(id: 2, name: "Zug", permissions: ["dept.members.view"], scope: "d", stufen: true).showsMembers)
-        XCTAssertEqual(AdminUnit(id: 3, name: "B", permissions: ["finance.view"]).sections, [.tasks])
+        XCTAssertEqual(AdminUnit(id: 3, name: "B", permissions: ["finance.view"]).sections, [.tasks, .events])
+        XCTAssertEqual(AdminUnit(id: 3, name: "B", permissions: ["finance.view"], stufen: true).sections, [.tasks])
+        XCTAssertEqual(AdminUnit(id: 3, name: "B", permissions: ["events.view"], stufen: true).sections, [.tasks, .events])
     }
 
     func testFreischaltenSchicktSchluesselpaar() async throws {
@@ -153,8 +155,8 @@ final class VerwaltungTests: XCTestCase {
     }
 
     func testOffenePunkteFuehrenInDieApp() throws {
-        let tasks: [AdminTask] = try decode(#"[{"kind":"change_request","ref":3},{"kind":"photo","membership":5},{"kind":"photo"},{"kind":"event","ref":"x"}]"#)
-        XCTAssertEqual(tasks.map(\.target), [.changeRequests, .member(5), nil, nil])
+        let tasks: [AdminTask] = try decode(#"[{"kind":"change_request","ref":3},{"kind":"photo","membership":5},{"kind":"photo"},{"kind":"event","ref":"x"},{"kind":"event","ref":7}]"#)
+        XCTAssertEqual(tasks.map(\.target), [.changeRequests, .member(5), nil, nil, .event(7)])
     }
 
     func testAenderungsmeldungenInFesterReihenfolge() async throws {
@@ -274,8 +276,8 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertNil(MasterData.values(member, department: true)["last_name"])
         XCTAssertFalse(AdminUnit(id: 1, name: "A", permissions: ["dept.members.edit"]).canEditMembers)
         XCTAssertTrue(AdminUnit(id: 1, name: "A", permissions: ["members.edit"]).canEditMembers)
-        XCTAssertEqual(AdminUnit(id: 1, name: "A", permissions: ["members.view"]).sections, [.tasks, .members, .occasions])
-        XCTAssertEqual(unit.sections, [.members])
+        XCTAssertEqual(AdminUnit(id: 1, name: "A", permissions: ["members.view"]).sections, [.tasks, .members, .events, .occasions])
+        XCTAssertEqual(unit.sections, [.members, .events])
     }
 
     func testStammdatenNurGeaenderteFelder() throws {
