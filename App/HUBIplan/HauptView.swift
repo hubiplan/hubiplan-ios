@@ -132,6 +132,7 @@ struct KontoView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { scroll in
             Form {
                 Section(tr("Verbunden als")) {
                     Text(model.account?.display ?? "")
@@ -139,6 +140,35 @@ struct KontoView: View {
                 }
                 Section(tr("Instanz")) {
                     Text(model.account?.server ?? "")
+                }
+                Section {
+                    ForEach(model.accounts.accounts) { entry in
+                        Button {
+                            Task { await model.switchAccount(entry.id) }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(model.accounts.label(entry)).foregroundStyle(Color.primary)
+                                    Text(entry.email).font(.footnote).foregroundStyle(Color.secondary)
+                                }
+                                Spacer()
+                                if entry.id == model.accounts.activeId {
+                                    Image(systemName: "checkmark").accessibilityLabel(tr("Wird gezeigt"))
+                                }
+                            }
+                        }
+                    }
+                    Button {
+                        model.linkError = nil
+                        model.adding = true
+                    } label: {
+                        Label(tr("Weiteres Konto verbinden"), systemImage: "plus")
+                    }
+                    .disabled(model.accounts.full)
+                } header: {
+                    Text(tr("Konten"))
+                } footer: {
+                    Text(tr("Für mehrere Vereine mit eigener HUBIplan-Instanz. Tippe ein Konto an, um es zu zeigen."))
                 }
                 Section {
                     Button(tr("Verbindung trennen"), role: .destructive) { Task { await model.disconnect() } }
@@ -165,38 +195,9 @@ struct KontoView: View {
                             .foregroundStyle(.red)
                     }
                 } header: {
-                    Text(tr("Gerätekalender"))
+                    Text(tr("Gerätekalender")).id("kalender")
                 } footer: {
                     Text(tr("Je Verein ein eigener Kalender „HUBIplan“. Er liegt dort, wo dein Kalender neue Termine ablegt (zum Beispiel in iCloud), und wird aktualisiert, wenn du die App öffnest, und nach jeder Rückmeldung."))
-                }
-                Section {
-                    ForEach(model.accounts.accounts) { entry in
-                        Button {
-                            Task { await model.switchAccount(entry.id) }
-                        } label: {
-                            HStack {
-                                VStack(alignment: .leading, spacing: 2) {
-                                    Text(model.accounts.label(entry)).foregroundStyle(Color.primary)
-                                    Text(entry.email).font(.footnote).foregroundStyle(.secondary)
-                                }
-                                Spacer()
-                                if entry.id == model.accounts.activeId {
-                                    Image(systemName: "checkmark").accessibilityLabel(tr("Wird gezeigt"))
-                                }
-                            }
-                        }
-                    }
-                    Button {
-                        model.linkError = nil
-                        model.adding = true
-                    } label: {
-                        Label(tr("Weiteres Konto verbinden"), systemImage: "plus")
-                    }
-                    .disabled(model.accounts.full)
-                } header: {
-                    Text(tr("Konten"))
-                } footer: {
-                    Text(tr("Für mehrere Vereine mit eigener HUBIplan-Instanz. Tippe ein Konto an, um es zu zeigen."))
                 }
                 Section {
                     Text(tr("Version {version}", ["version": AppModel.version]))
@@ -205,6 +206,14 @@ struct KontoView: View {
                 }
             }
             .navigationTitle(tr("Mein Konto"))
+            .task {
+                // Vorführmodus: für das Bildschirmfoto zum Gerätekalender springen
+                if Demo.active, Demo.section == "kalender" {
+                    try? await Task.sleep(nanoseconds: 800_000_000)
+                    scroll.scrollTo("kalender", anchor: .top)
+                }
+            }
+            }
             .sheet(isPresented: $model.adding, onDismiss: {
                 model.pending = nil
                 model.linkError = nil

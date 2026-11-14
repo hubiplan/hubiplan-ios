@@ -57,6 +57,7 @@ jobs:
             foto ausweis "$SPRACHE" -demo 1 -reiter ausweis
             foto rechnungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt rechnungen
             foto konto "$SPRACHE" -demo 1 -reiter konto
+            foto kalender "$SPRACHE" -demo 1 -reiter konto -abschnitt kalender
           done
           xcrun simctl shutdown booted
       - uses: actions/upload-artifact@v4
