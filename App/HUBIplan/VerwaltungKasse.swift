@@ -113,6 +113,8 @@ struct KassenbuchView: View {
     @State private var more = false
     @State private var withoutReceipt = false
     @State private var creating = false
+    @State private var receipt = false
+    @State private var finishedDemo = false
     /// Vorführmodus: für das Bildschirmfoto gleich in eine Buchung
     @State private var showDemo = Demo.active && Demo.section == "buchung"
 
@@ -174,16 +176,30 @@ struct KassenbuchView: View {
         .toolbar {
             if unit.canEditFinance {
                 ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        creating = true
+                    Menu {
+                        Button {
+                            creating = true
+                        } label: {
+                            Label(tr("Neue Buchung"), systemImage: "camera")
+                        }
+                        Button {
+                            receipt = true
+                        } label: {
+                            Label(tr("Quittung mit Unterschrift"), systemImage: "signature")
+                        }
                     } label: {
-                        Label(tr("Neue Buchung"), systemImage: "plus")
+                        Label(tr("Neu"), systemImage: "plus")
                     }
                 }
             }
         }
         .sheet(isPresented: $creating) {
             NeueBuchungBlatt(unit: unit) {
+                Task { await load() }
+            }
+        }
+        .sheet(isPresented: $receipt) {
+            QuittungBlatt(unit: unit) {
                 Task { await load() }
             }
         }
@@ -201,6 +217,10 @@ struct KassenbuchView: View {
         more = result.1.hasMore
         page = 1
         if Demo.active, Demo.section == "neuebuchung" { creating = true }
+        if Demo.active, Demo.section == "quittung", finishedDemo == false {
+            finishedDemo = true
+            receipt = true
+        }
     }
 
     private func loadMore() async {
