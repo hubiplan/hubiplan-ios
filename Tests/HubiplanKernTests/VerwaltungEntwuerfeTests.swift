@@ -63,7 +63,7 @@ final class VerwaltungEntwuerfeTests: XCTestCase {
         XCTAssertEqual(stored.accountName, "Barkasse")
         XCTAssertEqual(stored.categoryName, "Feste")
         XCTAssertEqual(stored.text, "Getränke")
-        XCTAssertEqual(stored.line, "14.11.2026 · 23,40 € · Getränke")
+        XCTAssertEqual(stored.line, "14.11.2026 · 23,40\u{00A0}€ · Getränke")
         XCTAssertEqual(stored.fields.map(\.name), ["date", "kind", "amount", "account", "category", "text", "counterparty"])
         XCTAssertEqual(stored.fields.map(\.value), ["2026-11-14", "expense", "23.40", "2", "5", "Getränke", "Getränkemarkt Beispiel"])
         // Unvollständig oder ohne Foto: kein Entwurf
