@@ -55,7 +55,7 @@ struct TermineVerwaltungView: View {
                                         .font(.footnote).foregroundStyle(Color.secondary)
                                     Text(row.title).strikethrough(row.isCancelled)
                                     if row.isCancelled {
-                                        Text(tr("Abgesagt")).font(.footnote).foregroundStyle(.red)
+                                        Abzeichen(tr("Abgesagt"), .fehler)
                                     }
                                     if !row.detail.isEmpty {
                                         Text(row.detail).font(.footnote).foregroundStyle(Color.secondary)

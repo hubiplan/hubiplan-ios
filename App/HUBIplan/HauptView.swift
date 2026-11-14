@@ -106,22 +106,38 @@ struct TerminZeile: View {
         }
     }
 
+    private var statusSymbol: String? {
+        guard !event.isCancelled else { return nil }
+        switch event.myResponse {
+        case "yes": return "checkmark"
+        case "no": return "xmark"
+        default: return nil
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(event.title)
-                .font(.headline)
-                .strikethrough(event.isCancelled)
-            Text(when).font(.subheadline)
-            if !event.location.isEmpty {
-                Text(event.location).font(.subheadline).foregroundStyle(.secondary)
-            }
-            if !event.owner.isEmpty {
-                Text(event.owner).font(.footnote).foregroundStyle(.secondary)
-            }
-            if let status {
-                Text(status)
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(event.responseMissing ? Color.orange : Color.secondary)
+            HStack(alignment: .top, spacing: 12) {
+                DatumKaestchen(iso: event.startsAt, gedaempft: event.isCancelled)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(event.title)
+                        .font(.headline)
+                        .strikethrough(event.isCancelled)
+                    Text(when).font(.subheadline)
+                    if !event.location.isEmpty {
+                        Text(event.location).font(.subheadline).foregroundStyle(.secondary)
+                    }
+                    if !event.owner.isEmpty {
+                        Text(event.owner).font(.footnote).foregroundStyle(.secondary)
+                    }
+                    if let status {
+                        Abzeichen(
+                            status,
+                            Design.zustand(abgesagt: event.isCancelled, antwort: event.myResponse),
+                            symbol: statusSymbol
+                        )
+                    }
+                }
             }
             if event.rsvpEnabled && !event.isCancelled {
                 HStack {
