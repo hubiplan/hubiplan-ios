@@ -36,6 +36,7 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         ITSAppUsesNonExemptEncryption: false
         NSCameraUsageDescription: Die Kamera liest den QR-Code, mit dem du die App mit deinem Verein verbindest.
+        NSCalendarsFullAccessUsageDescription: Die App trägt die Termine deines Vereins in einen eigenen Kalender ein und hält sie dort aktuell.
         CFBundleURLTypes:
           - CFBundleURLName: de.hubiplan.app.verbinden
             CFBundleURLSchemes: [hubiplan]

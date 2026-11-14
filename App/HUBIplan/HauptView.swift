@@ -21,6 +21,7 @@ struct HauptView: View {
                 .tag("konto")
         }
         .task { await model.refresh() }
+        .onChange(of: model.showEvents) { _, _ in tab = "termine" }
         // Link zum Verbinden kam von außen (hubiplan://…), während schon ein Konto verbunden ist
         .verbindenFrage(aktiv: !model.adding)
         .alert(
@@ -143,6 +144,30 @@ struct KontoView: View {
                     Button(tr("Verbindung trennen"), role: .destructive) { Task { await model.disconnect() } }
                 } footer: {
                     Text(tr("Die App vergisst dieses Konto. Im Browser bleibt alles, wie es ist."))
+                }
+                Section {
+                    Toggle(tr("Termine in den Kalender des Geräts übernehmen"), isOn: Binding(
+                        get: { model.calendarOn },
+                        set: { on in Task { await model.setCalendar(on: on) } }
+                    ))
+                    if model.calendarOn {
+                        Picker(tr("Erinnerung"), selection: Binding(
+                            get: { model.reminder ?? -1 },
+                            set: { minutes in Task { await model.setReminder(minutes >= 0 ? minutes : nil) } }
+                        )) {
+                            ForEach(Erinnerung.choices, id: \.self) { minutes in
+                                Text(Erinnerung.label(minutes)).tag(minutes ?? -1)
+                            }
+                        }
+                    }
+                    if model.calendarDenied {
+                        Text(tr("Ohne Zugriff auf den Kalender bleiben die Termine nur in der App. Du kannst ihn in den Einstellungen des Geräts unter HUBIplan erlauben."))
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text(tr("Gerätekalender"))
+                } footer: {
+                    Text(tr("Je Verein ein eigener Kalender „HUBIplan“. Er liegt dort, wo dein Kalender neue Termine ablegt (zum Beispiel in iCloud), und wird aktualisiert, wenn du die App öffnest, und nach jeder Rückmeldung."))
                 }
                 Section {
                     ForEach(model.accounts.accounts) { entry in

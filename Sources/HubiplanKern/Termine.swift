@@ -22,6 +22,9 @@ public struct Occurrence: Decodable, Equatable, Identifiable, Sendable {
     public var endsAt: String
     public var allDay: Bool
     public var location: String
+    /// Anschrift des Ortes und Hinweis zum Termin (ältere Stände: fehlen)
+    public var address: String
+    public var note: String
     public var category: Category?
     public var isCancelled: Bool
     public var owner: String
@@ -33,7 +36,7 @@ public struct Occurrence: Decodable, Equatable, Identifiable, Sendable {
     public var id: String { key }
 
     enum CodingKeys: String, CodingKey {
-        case key, title, location, category, owner
+        case key, title, location, address, note, category, owner
         case eventId = "event_id"
         case startsAt = "starts_at"
         case endsAt = "ends_at"
@@ -53,6 +56,8 @@ public struct Occurrence: Decodable, Equatable, Identifiable, Sendable {
         endsAt = try c.decode(String.self, forKey: .endsAt)
         allDay = try c.decodeIfPresent(Bool.self, forKey: .allDay) ?? false
         location = try c.decodeIfPresent(String.self, forKey: .location) ?? ""
+        address = try c.decodeIfPresent(String.self, forKey: .address) ?? ""
+        note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
         category = try c.decodeIfPresent(Category.self, forKey: .category)
         isCancelled = try c.decodeIfPresent(Bool.self, forKey: .isCancelled) ?? false
         owner = try c.decodeIfPresent(String.self, forKey: .owner) ?? ""
