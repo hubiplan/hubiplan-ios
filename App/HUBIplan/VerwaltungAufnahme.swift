@@ -138,7 +138,7 @@ struct AufnahmeBlatt: View {
         if Demo.active, draft.lastName.isEmpty {
             draft.firstName = "Lena"
             draft.lastName = "Beispiel"
-            draft.birthDate = "07.03.2008"
+            draft.birthDate = Zeit.plainDate("2008-03-07")
             draft.street = "Musterweg 2"
             draft.postalCode = "41468"
             draft.city = "Musterstadt"
