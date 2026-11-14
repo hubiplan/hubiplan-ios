@@ -111,6 +111,8 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
     /// Eingeschaltete Module der Einheit (ältere Stände: fehlt)
     public var modules: [String]?
     public var eventsEnabled: Bool
+    /// Helferdienste eingeschaltet (nur für Instanzen ohne Modulliste)
+    public var helpersEnabled: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, modules
@@ -122,6 +124,7 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         case memberKind = "member_kind"
         case memberName = "member_name"
         case eventsEnabled = "events_enabled"
+        case helpersEnabled = "helpers_enabled"
     }
 
     public init(from decoder: Decoder) throws {
@@ -136,6 +139,7 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         memberName = try c.decodeIfPresent(String.self, forKey: .memberName) ?? ""
         modules = try c.decodeIfPresent([String].self, forKey: .modules)
         eventsEnabled = try c.decodeIfPresent(Bool.self, forKey: .eventsEnabled) ?? true
+        helpersEnabled = try c.decodeIfPresent(Bool.self, forKey: .helpersEnabled) ?? false
     }
 
     /// Modul eingeschaltet? Ohne Modulliste (ältere Instanz) gilt der einzelne Schalter.

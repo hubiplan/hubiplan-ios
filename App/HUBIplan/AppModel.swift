@@ -19,6 +19,10 @@ final class AppModel: ObservableObject {
     /// Eigene Daten und Rechnungen des gewählten Zugangs
     @Published var profile: Profile?
     @Published var invoices: MyInvoices?
+    /// Aufgaben und Helferdienste des gewählten Zugangs; Hinweis nach einer Aktion
+    @Published var todos: [MemberTodo] = []
+    @Published var helpers: HelperOverview?
+    @Published var taskNotice: String?
     @Published var loading = false
     @Published var error: String?
     /// Link, den die App zum Verbinden bekommen hat und der noch bestätigt werden muss
@@ -77,6 +81,9 @@ final class AppModel: ObservableObject {
         card = nil
         profile = nil
         invoices = nil
+        todos = []
+        helpers = nil
+        taskNotice = nil
         cardOffline = false
         error = nil
     }
@@ -208,6 +215,7 @@ final class AppModel: ObservableObject {
             self.circulars = circulars
         }
         if epoch == self.epoch { await refreshIch() }
+        if epoch == self.epoch { await refreshTasks() }
         if epoch == self.epoch { await syncCalendar() }
     }
 
@@ -233,6 +241,9 @@ final class AppModel: ObservableObject {
         card = nil
         profile = nil
         invoices = nil
+        todos = []
+        helpers = nil
+        taskNotice = nil
         await refresh()
     }
 
@@ -267,6 +278,66 @@ final class AppModel: ObservableObject {
         }
         if let id = accounts.activeId { calendarSynced[id] = nil }
         await refresh()
+    }
+
+    // MARK: Aufgaben und Helferdienste
+
+    func refreshTasks() async {
+        guard let session, let access else { return }
+        let id = access.id
+        let epoch = self.epoch
+        let api = session.api()
+        var todos: [MemberTodo]?
+        var helpers: HelperOverview?
+        if access.hasTodos { todos = try? await api.memberTodos(accessId: id) }
+        if access.hasHelpers { helpers = try? await api.helpers(accessId: id) }
+        guard epoch == self.epoch, self.access?.id == id else { return }
+        if let todos { self.todos = todos } else if !access.hasTodos { self.todos = [] }
+        if let helpers { self.helpers = helpers } else if !access.hasHelpers { self.helpers = nil }
+    }
+
+    /// Aufgabe übernehmen ("claim"), freigeben ("release") oder erledigen/wieder öffnen ("status").
+    func change(_ todo: MemberTodo, action: String) async {
+        guard let access else { return }
+        taskNotice = nil
+        await run { api in
+            let fresh: MemberTodo
+            let notice: String
+            switch action {
+            case "claim":
+                fresh = try await api.claimTodo(accessId: access.id, id: todo.id, version: todo.version, claim: true)
+                notice = tr("Aufgabe übernommen.")
+            case "release":
+                fresh = try await api.claimTodo(accessId: access.id, id: todo.id, version: todo.version, claim: false)
+                notice = tr("Übernahme freigegeben.")
+            default:
+                fresh = try await api.completeTodo(accessId: access.id, id: todo.id, version: todo.version, done: !todo.done)
+                notice = fresh.done ? tr("Aufgabe erledigt.") : tr("Aufgabe wieder geöffnet.")
+            }
+            if let index = self.todos.firstIndex(where: { $0.id == fresh.id }) { self.todos[index] = fresh }
+            self.taskNotice = notice
+        }
+        await refreshTasks()
+    }
+
+    func signup(_ shift: HelperShift) async {
+        guard let access else { return }
+        taskNotice = nil
+        await run { api in
+            try await api.signupShift(accessId: access.id, shiftId: shift.id)
+            self.taskNotice = tr("Du bist eingetragen.")
+        }
+        await refreshTasks()
+    }
+
+    func cancelShift(_ shift: MyShift) async {
+        guard let access else { return }
+        taskNotice = nil
+        await run { api in
+            try await api.cancelShift(accessId: access.id, assignmentId: shift.id)
+            self.taskNotice = tr("Dienst abgesagt.")
+        }
+        await refreshTasks()
     }
 
     // MARK: Gerätekalender
