@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -75,6 +75,45 @@ struct DemoTransport: Transport {
             """
         } else {
             body = erste
+        }
+        return HttpResponse(status: 200, body: Data(body.utf8))
+    }
+
+    /// Geschäftspartner, Qualifikationen und Fristen der Verwaltung (nur lesen).
+    private func nachschlagen(_ path: String, english: Bool) -> HttpResponse {
+        let body: String
+        if path.hasSuffix("/partners/") {
+            let t = english
+                ? ["Beverage store Example", "Purchasing", "Delivers on Fridays, crates are collected on Mondays.", "Marquee hire Sample", "Example Savings Bank"]
+                : ["Getränkemarkt Beispiel", "Einkauf", "Liefert freitags, Leergut wird montags abgeholt.", "Zeltverleih Muster", "Sparkasse Beispielstadt"]
+            body = """
+            [{"id":1,"name":"\(t[0])","roles":["supplier","sponsor"],"number":"GP-0007","details":{"street":"Musterstraße 12","postcode":"12345","city":"Musterstadt","email":"info@getraenke.example","phone":"+49 30 1234567"},
+            "notes":"\(t[2])","contacts":[{"id":1,"last_name":"Beispiel","first_name":"Lena","function":"\(t[1])","email":"lena.beispiel@getraenke.example","phone":"+49 30 1234568","is_primary":true}]},
+            {"id":2,"name":"\(t[3])","roles":["venue"],"number":"GP-0004","details":{"city":"Musterdorf"},"contacts":[{"id":2,"last_name":"Probe","first_name":"Jonas"}]},
+            {"id":3,"name":"\(t[4])","roles":["bank","donor"],"number":"GP-0001","details":{"city":"Musterstadt"}}]
+            """
+        } else if path.hasSuffix("/qualifications/") {
+            let t = english
+                ? ["Range officer", "First aid", "Youth leader card"]
+                : ["Schießleiter", "Erste Hilfe", "Jugendleiter-Card"]
+            body = """
+            [{"id":1,"member":2,"first_name":"Max","last_name":"Mustermann","kind_name":"\(t[1])","valid_until":"\(day(-12, "00:00").prefix(10))","status":"expired"},
+            {"id":2,"member":1,"first_name":"Erika","last_name":"Musterfrau","kind_name":"\(t[0])","valid_until":"\(day(40, "00:00").prefix(10))","status":"expiring"},
+            {"id":3,"member":4,"first_name":"Lena","last_name":"Beispiel","kind_name":"\(t[2])","valid_until":"\(day(75, "00:00").prefix(10))","status":"expiring"}]
+            """
+        } else {
+            let t = english
+                ? ["Report the new board to the register of associations", "Board", "Tax return for the tax office", "Treasurer", "Check the fire extinguishers", "Clubhouse warden", "Update the transparency register", "Notary appointment is booked.", "Handed in on time."]
+                : ["Neuen Vorstand beim Vereinsregister anmelden", "Vorstand", "Steuererklärung beim Finanzamt", "Kassierer", "Feuerlöscher prüfen lassen", "Hauswart", "Transparenzregister aktualisieren", "Notartermin ist vereinbart.", "Fristgerecht abgegeben."]
+            body = """
+            {"items":[
+            {"id":2,"title":"\(t[4])","due_date":"\(day(45, "00:00").prefix(10))","status":"planned","role_name":"\(t[5])","interval_months":24},
+            {"id":1,"title":"\(t[2])","note":"\(t[7])","due_date":"\(day(-5, "00:00").prefix(10))","status":"overdue","role_name":"\(t[3])","interval_months":36,
+            "history":[{"id":1,"done_on":"2023-11-02","note":"\(t[8])","done_by":"Max Mustermann"}]},
+            {"id":3,"title":"\(t[0])","due_date":"\(day(20, "00:00").prefix(10))","status":"soon","role_name":"\(t[1])"},
+            {"id":4,"title":"\(t[6])","status":"election","role_name":"\(t[1])"}
+            ]}
+            """
         }
         return HttpResponse(status: 200, body: Data(body.utf8))
     }
@@ -209,7 +248,7 @@ struct DemoTransport: Transport {
             let unlocked = Demo.section != "freischalten"
             let zug = english ? "Platoon 1" : "Zug 1"
             body = """
-            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit","finance.view","finance.edit","billing.view","billing.edit","todos.view","todos.edit"],"stufen":true}],
+            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit","finance.view","finance.edit","billing.view","billing.edit","todos.view","todos.edit","partners.view","obligations.view"],"stufen":true,"modules":["qualifications","obligations"]}],
             "departments":[{"id":9,"name":"\(zug)","permissions":["members.view"],"stufen":true}],
             "two_factor":true,"unlocked":\(unlocked),"until":"\(day(21, "10:00"))"}
             """
@@ -219,6 +258,8 @@ struct DemoTransport: Transport {
             body = #"{"signature":{"w":300,"h":100,"s":[[15,60,40,25,60,70,85,30,110,65,150,50,200,58,280,40]]}}"#
         } else if path.contains("/admin/"), path.contains("/finance/") {
             return kasse(path, request.method, english: english)
+        } else if path.contains("/admin/"), path.hasSuffix("/billing/partners/") || path.hasSuffix("/qualifications/") || path.hasSuffix("/obligations/") {
+            return nachschlagen(path, english: english)
         } else if path.contains("/admin/"), path.contains("/billing/") {
             return rechnungen(path, request.method, english: english)
         } else if path.contains("/admin/"), path.contains("/todos/") {
