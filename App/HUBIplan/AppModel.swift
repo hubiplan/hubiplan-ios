@@ -28,6 +28,8 @@ final class AppModel: ObservableObject {
     /// Versammlungen und Dokumente des gewählten Zugangs (soweit eingeschaltet)
     @Published var meetings: MyMeetings?
     @Published var documents: MyDocuments?
+    /// Umfragen des gewählten Zugangs (soweit eingeschaltet)
+    @Published var surveys: SurveyList?
     /// Datei, die gerade zum Ansehen offen ist (liegt nur kurz im Zwischenspeicher)
     @Published var preview: URL?
     @Published var previewBusy = false
@@ -113,6 +115,7 @@ final class AppModel: ObservableObject {
         invoices = nil
         meetings = nil
         documents = nil
+        surveys = nil
         scores = nil
         sheetCache = [:]
         adminOverview = nil
@@ -281,11 +284,14 @@ final class AppModel: ObservableObject {
         if access.hasMeetings { meetings = try? await api.myMeetings(accessId: id) }
         var documents: MyDocuments?
         if access.hasDocs { documents = try? await api.myDocuments(accessId: id) }
+        var surveys: SurveyList?
+        if access.hasSurveys { surveys = try? await api.memberSurveys(accessId: id) }
         guard epoch == self.epoch, self.access?.id == id else { return }
         if let profile { self.profile = profile }
         self.invoices = invoices ?? self.invoices
         self.meetings = access.hasMeetings ? (meetings ?? self.meetings) : nil
         self.documents = access.hasDocs ? (documents ?? self.documents) : nil
+        self.surveys = access.hasSurveys ? (surveys ?? self.surveys) : nil
         await loadAdmin()
     }
 
@@ -526,6 +532,49 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: Umfragen
+
+    /// Umfragen neu laden (nach einer Aktion oder beim Öffnen).
+    func reloadSurveys() async {
+        guard let access, access.hasSurveys else { return }
+        await run { api in
+            let fresh = try await api.memberSurveys(accessId: access.id)
+            if self.access?.id == access.id { self.surveys = fresh }
+        }
+    }
+
+    /// Eine Aktion zu einer Umfrage; danach Liste neu. `true`, wenn sie geklappt hat.
+    private func surveyAction(_ notice: String, _ work: @escaping (Api, Int) async throws -> MemberSurvey) async -> Bool {
+        guard let access else { return false }
+        var done = false
+        taskNotice = nil
+        await run { api in
+            _ = try await work(api, access.id)
+            self.taskNotice = notice
+            done = true
+        }
+        if done { await reloadSurveys() }
+        return done
+    }
+
+    func answer(_ survey: MemberSurvey, draft: [Int: SurveyAnswerRow]) async -> Bool {
+        await surveyAction(tr("Danke, deine Antwort ist gespeichert.")) { api, access in
+            try await api.answerSurvey(accessId: access, surveyId: survey.id, payload: survey.answerPayload(draft))
+        }
+    }
+
+    func withdraw(_ survey: MemberSurvey) async {
+        _ = await surveyAction(tr("Antwort zurückgezogen.")) { api, access in
+            try await api.withdrawSurvey(accessId: access, surveyId: survey.id)
+        }
+    }
+
+    func follow(_ survey: MemberSurvey) async {
+        _ = await surveyAction(tr("Zusage gespeichert.")) { api, access in
+            try await api.followSurvey(accessId: access, surveyId: survey.id)
+        }
+    }
+
     /// Ordner für Dateien zum Ansehen; wird bei jedem Öffnen, beim Start und beim Trennen geleert.
     private static var viewDir: URL { FileManager.default.temporaryDirectory.appendingPathComponent("ansicht", isDirectory: true) }
 
@@ -571,6 +620,7 @@ final class AppModel: ObservableObject {
         invoices = nil
         meetings = nil
         documents = nil
+        surveys = nil
         scores = nil
         sheetCache = [:]
         todos = []
