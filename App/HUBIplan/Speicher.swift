@@ -58,7 +58,11 @@ final class UrlSessionTransport: NSObject, Transport, URLSessionTaskDelegate, @u
         }
         let (data, response) = try await session.data(for: urlRequest)
         guard let http = response as? HTTPURLResponse else { throw ApiError(status: 0, code: "offline") }
-        return HttpResponse(status: http.statusCode, body: data)
+        var headers: [String: String] = [:]
+        for (name, value) in http.allHeaderFields {
+            if let name = name as? String, let value = value as? String { headers[name] = value }
+        }
+        return HttpResponse(status: http.statusCode, body: data, headers: headers)
     }
 
     func urlSession(

@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `mitglieder`, `mitglied`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -49,6 +49,44 @@ struct DemoTransport: Transport {
         let body: String
         if path.hasSuffix("/me/") {
             body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers","meetings","docs","music","scores"],"musician":true}]}"#
+        } else if path.hasSuffix("/api/app/v1/admin/") {
+            let unlocked = Demo.section != "freischalten"
+            let zug = english ? "Platoon 1" : "Zug 1"
+            body = """
+            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","events.view"],"stufen":true}],
+            "departments":[{"id":9,"name":"\(zug)","permissions":["members.view"],"stufen":true}],
+            "two_factor":true,"unlocked":\(unlocked),"until":"\(day(21, "10:00"))"}
+            """
+        } else if path.hasSuffix("/tasks/") {
+            let t = english
+                ? ["Data change", "New address and phone number", "Photo", "New photo for the membership card", "Event", "Christmas party", "12 replies, 3 open"]
+                : ["Datenänderung", "Neue Anschrift und Telefonnummer", "Foto", "Neues Foto für den Ausweis", "Termin", "Weihnachtsfeier", "12 Rückmeldungen, 3 offen"]
+            body = """
+            {"items":[
+            {"kind":"change_request","kind_label":"\(t[0])","title":"Max Mustermann","detail":"\(t[1])"},
+            {"kind":"photo","kind_label":"\(t[2])","title":"Erika Musterfrau","detail":"\(t[3])"},
+            {"kind":"event","kind_label":"\(t[4])","title":"\(t[5])","detail":"\(t[6])"}
+            ]}
+            """
+        } else if path.hasSuffix("/members/") {
+            let t = english ? ["Full member", "Platoon 1", "Platoon 2", "Supporting member", "Youth"] : ["Vollmitglied", "Zug 1", "Zug 2", "Fördermitglied", "Jugend"]
+            body = """
+            {"count":5,"results":[
+            {"id":4,"last_name":"Beispiel","first_name":"Lena","member_type":"\(t[4])","departments":["\(t[2])"],"city":"Musterstadt","status":"active"},
+            {"id":3,"kind":"organization","last_name":"Musterbau GmbH","member_type":"\(t[3])","city":"Musterstadt","status":"active"},
+            {"id":1,"last_name":"Musterfrau","first_name":"Erika","member_type":"\(t[0])","departments":["\(t[1])"],"city":"Musterstadt","status":"active"},
+            {"id":2,"last_name":"Mustermann","first_name":"Max","member_type":"\(t[0])","departments":["\(t[1])"],"city":"Musterstadt","status":"active"},
+            {"id":5,"last_name":"Probe","first_name":"Jonas","member_type":"\(t[0])","departments":["\(t[2])"],"city":"Musterdorf","status":"active"}
+            ]}
+            """
+        } else if path.contains("/members/") {
+            let t = english ? ["Full member", "Platoon 1"] : ["Vollmitglied", "Zug 1"]
+            body = """
+            {"id":1,"kind":"person","first_name":"Erika","last_name":"Musterfrau","birth_date":"1984-03-07","club_number":"0042","status":"active",
+            "current_type":{"member_type":1,"member_type_name":"\(t[0])"},"periods":[{"id":1,"entry_date":"2010-01-01"}],
+            "departments":[{"id":1,"department":1,"department_name":"\(t[1])","valid_from":"2010-01-01"}],
+            "contact":{"email":"erika@example.org","phone":"02131 000000","street":"Musterweg 1","postal_code":"41468","city":"Musterstadt"}}
+            """
         } else if path.hasSuffix("/events/") {
             let titles = english
                 ? ["Platoon meeting", "Shooting practice", "Christmas party", "General assembly"]

@@ -62,6 +62,7 @@ struct AusweisView: View {
     @State private var showMeetings = Demo.active && Demo.section == "versammlungen"
     @State private var showDocuments = Demo.active && Demo.section == "dokumente"
     @State private var showAccount = Demo.active && Demo.tab == "konto"
+    @State private var showAdmin = Demo.active && ["verwaltung", "freischalten", "mitglieder", "mitglied"].contains(Demo.section)
 
     var body: some View {
         NavigationStack {
@@ -110,6 +111,9 @@ struct AusweisView: View {
                     if let documents = model.documents {
                         IchVerweis(title: tr("Dokumente"), detail: trn("1 Dokument", "{n} Dokumente", documents.count)) { DokumenteView() }
                     }
+                    if let units = model.adminOverview?.allUnits, !units.isEmpty {
+                        IchVerweis(title: tr("Verwaltung"), detail: units.map(\.name).joined(separator: ", ")) { VerwaltungView() }
+                    }
                 }
                 .frame(maxWidth: 520, alignment: .leading)
                 .frame(maxWidth: .infinity)
@@ -124,6 +128,7 @@ struct AusweisView: View {
             .navigationDestination(isPresented: $showMeetings) { VersammlungenView() }
             .navigationDestination(isPresented: $showDocuments) { DokumenteView() }
             .navigationDestination(isPresented: $showAccount) { KontoView() }
+            .navigationDestination(isPresented: $showAdmin) { VerwaltungView() }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
