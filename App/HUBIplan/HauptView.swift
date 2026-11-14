@@ -21,6 +21,7 @@ struct HauptView: View {
                 .tag("konto")
         }
         .task { await model.refresh() }
+        .onChange(of: model.showEvents) { _, _ in tab = "termine" }
         // Link zum Verbinden kam von außen (hubiplan://…), während schon ein Konto verbunden ist
         .verbindenFrage(aktiv: !model.adding)
         .alert(
@@ -131,6 +132,7 @@ struct KontoView: View {
 
     var body: some View {
         NavigationStack {
+            ScrollViewReader { scroll in
             Form {
                 Section(tr("Verbunden als")) {
                     Text(model.account?.display ?? "")
@@ -140,11 +142,6 @@ struct KontoView: View {
                     Text(model.account?.server ?? "")
                 }
                 Section {
-                    Button(tr("Verbindung trennen"), role: .destructive) { Task { await model.disconnect() } }
-                } footer: {
-                    Text(tr("Die App vergisst dieses Konto. Im Browser bleibt alles, wie es ist."))
-                }
-                Section {
                     ForEach(model.accounts.accounts) { entry in
                         Button {
                             Task { await model.switchAccount(entry.id) }
@@ -152,7 +149,7 @@ struct KontoView: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(model.accounts.label(entry)).foregroundStyle(Color.primary)
-                                    Text(entry.email).font(.footnote).foregroundStyle(.secondary)
+                                    Text(entry.email).font(.footnote).foregroundStyle(Color.secondary)
                                 }
                                 Spacer()
                                 if entry.id == model.accounts.activeId {
@@ -174,12 +171,49 @@ struct KontoView: View {
                     Text(tr("Für mehrere Vereine mit eigener HUBIplan-Instanz. Tippe ein Konto an, um es zu zeigen."))
                 }
                 Section {
+                    Button(tr("Verbindung trennen"), role: .destructive) { Task { await model.disconnect() } }
+                } footer: {
+                    Text(tr("Die App vergisst dieses Konto. Im Browser bleibt alles, wie es ist."))
+                }
+                Section {
+                    Toggle(tr("Termine in den Kalender des Geräts übernehmen"), isOn: Binding(
+                        get: { model.calendarOn },
+                        set: { on in Task { await model.setCalendar(on: on) } }
+                    ))
+                    if model.calendarOn {
+                        Picker(tr("Erinnerung"), selection: Binding(
+                            get: { model.reminder ?? -1 },
+                            set: { minutes in Task { await model.setReminder(minutes >= 0 ? minutes : nil) } }
+                        )) {
+                            ForEach(Erinnerung.choices, id: \.self) { minutes in
+                                Text(Erinnerung.label(minutes)).tag(minutes ?? -1)
+                            }
+                        }
+                    }
+                    if model.calendarDenied {
+                        Text(tr("Ohne Zugriff auf den Kalender bleiben die Termine nur in der App. Du kannst ihn in den Einstellungen des Geräts unter HUBIplan erlauben."))
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text(tr("Gerätekalender")).id("kalender")
+                } footer: {
+                    Text(tr("Je Verein ein eigener Kalender „HUBIplan“. Er liegt dort, wo dein Kalender neue Termine ablegt (zum Beispiel in iCloud), und wird aktualisiert, wenn du die App öffnest, und nach jeder Rückmeldung."))
+                }
+                Section {
                     Text(tr("Version {version}", ["version": AppModel.version]))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle(tr("Mein Konto"))
+            .task {
+                // Vorführmodus: für das Bildschirmfoto zum Gerätekalender springen
+                if Demo.active, Demo.section == "kalender" {
+                    try? await Task.sleep(nanoseconds: 800_000_000)
+                    scroll.scrollTo("kalender", anchor: .top)
+                }
+            }
+            }
             .sheet(isPresented: $model.adding, onDismiss: {
                 model.pending = nil
                 model.linkError = nil

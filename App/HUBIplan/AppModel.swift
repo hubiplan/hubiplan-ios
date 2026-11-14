@@ -24,12 +24,20 @@ final class AppModel: ObservableObject {
     /// Link, den die App zum Verbinden bekommen hat und der noch bestätigt werden muss
     @Published var pending: PairingLink?
     @Published var linkError: String?
+    /// Gerätekalender: eingeschaltet, Erinnerung in Minuten, Zugriff verweigert
+    @Published private(set) var calendarOn = KalenderEinstellung.on
+    @Published private(set) var reminder = KalenderEinstellung.reminder
+    @Published var calendarDenied = false
+    /// Zählt hoch, wenn die App über einen Kalendereintrag geöffnet wurde (dann Reiter „Termine“)
+    @Published var showEvents = 0
 
     private let transport: Transport = Demo.active ? DemoTransport() : UrlSessionTransport()
     private var session: DeviceSession?
     private var cards: CardStore = DemoCards()
     /// Zählt jeden Kontowechsel; Antworten für ein früheres Konto werden verworfen
     private var epoch = 0
+    /// Letzter Abgleich mit dem Gerätekalender je Konto
+    private var calendarSynced: [String: Date] = [:]
 
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
@@ -79,6 +87,10 @@ final class AppModel: ObservableObject {
 
     /// Link aus QR-Code, Eingabefeld oder `hubiplan://verbinden…`; verbunden wird erst nach Rückfrage.
     func offer(link: String) {
+        if CalendarMark.isEventLink(link) {
+            showEvents += 1
+            return
+        }
         guard !accounts.full else {
             linkError = tr("Mehr als {anzahl} Konten lassen sich nicht verbinden. Trenne zuerst ein Konto.", ["anzahl": "\(AccountList.limit)"])
             return
@@ -139,6 +151,8 @@ final class AppModel: ObservableObject {
         guard let account else { return }
         await session?.forget()
         cards.clear()
+        if !Demo.active { Geraetekalender.shared.remove(prefix: CalendarMark.prefix(server: account.server)) }
+        calendarSynced[account.id] = nil
         accounts.remove(account.id)
         save()
         activate()
@@ -194,6 +208,7 @@ final class AppModel: ObservableObject {
             self.circulars = circulars
         }
         if epoch == self.epoch { await refreshIch() }
+        if epoch == self.epoch { await syncCalendar() }
     }
 
     /// Reiter „Ich“: Ausweis, eigene Daten und Rechnungen (soweit das Modul eingeschaltet ist).
@@ -250,6 +265,72 @@ final class AppModel: ObservableObject {
         await run { api in
             try await api.respond(accessId: access.id, eventId: event.eventId, status: status)
         }
+        if let id = accounts.activeId { calendarSynced[id] = nil }
         await refresh()
+    }
+
+    // MARK: Gerätekalender
+
+    func setCalendar(on: Bool) async {
+        if on {
+            var granted = Demo.active
+            if !granted { granted = await Geraetekalender.shared.request() }
+            guard granted else {
+                calendarDenied = true
+                return
+            }
+        } else if !Demo.active {
+            Geraetekalender.shared.remove()
+        }
+        calendarDenied = false
+        calendarOn = on
+        calendarSynced = [:]
+        if !Demo.active { KalenderEinstellung.on = on }
+        await syncCalendar()
+    }
+
+    func setReminder(_ minutes: Int?) async {
+        reminder = minutes
+        calendarSynced = [:]
+        if !Demo.active { KalenderEinstellung.reminder = minutes }
+        await syncCalendar()
+    }
+
+    /// Termine aller Einheiten des gezeigten Kontos in den Gerätekalender schreiben
+    /// (höchstens alle 15 Minuten, sofort nach einer Rückmeldung oder geänderter Einstellung).
+    private func syncCalendar() async {
+        guard calendarOn, !Demo.active, let session, let account else { return }
+        guard Geraetekalender.allowed else {
+            // Zugriff in den Einstellungen des Geräts entzogen
+            calendarOn = false
+            KalenderEinstellung.on = false
+            return
+        }
+        if let last = calendarSynced[account.id], Date().timeIntervalSince(last) < 15 * 60 { return }
+        let epoch = self.epoch
+        let api = session.api()
+        let now = Date()
+        let from = Zeit.day(now.addingTimeInterval(-30 * 86400))
+        let to = Zeit.day(now.addingTimeInterval(400 * 86400))
+        var keep = Set<String>()
+        var complete = true
+        for access in accesses where access.eventsEnabled {
+            let name = CalendarMark.name(server: account.server, accessId: access.id)
+            keep.insert(name)
+            let title = access.clubDisplayName.isEmpty ? access.clubName : access.clubDisplayName
+            do {
+                let items = try await api.events(accessId: access.id, from: from, to: to)
+                guard epoch == self.epoch, calendarOn else { return }
+                let wanted = items.compactMap { $0.calendarEntry(unitTitle: title, reminderMinutes: reminder) }
+                try Geraetekalender.shared.sync(name: name, title: title, wanted: wanted)
+            } catch {
+                complete = false
+            }
+        }
+        guard epoch == self.epoch else { return }
+        if complete {
+            Geraetekalender.shared.remove(prefix: CalendarMark.prefix(server: account.server), keep: keep)
+            calendarSynced[account.id] = now
+        }
     }
 }

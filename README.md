@@ -19,7 +19,7 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 | I2 | Oberfläche: Verbinden, Termine, Mitteilungen, mehrere Konten | fertig |
 | I3 | Push über Apple (APNs) als verschlüsseltes Wecksignal | in Arbeit (Kern: Anmelden und Entschlüsseln; App-Teil braucht das Apple-Entwicklerkonto) |
 | I4 | „Ich“: Ausweis, Daten, Rechnungen, Versammlungen, Foto | in Arbeit (Ausweis mit QR-Code, auch ohne Netz; eigene Daten, Rechnungen) |
-| I5 | Kalender, Aufgaben, Helferdienste, Noten | offen |
+| I5 | Kalender, Aufgaben, Helferdienste, Noten | in Arbeit (Gerätekalender) |
 | I6 | Verwaltung | offen |
 | I7 | TestFlight und App Store | offen |
 
