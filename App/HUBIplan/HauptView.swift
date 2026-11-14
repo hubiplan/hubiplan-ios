@@ -13,6 +13,11 @@ struct HauptView: View {
             MitteilungenView()
                 .tabItem { Label(tr("Neues"), systemImage: "envelope") }
                 .tag("mitteilungen")
+            if model.accesses.contains(where: { $0.hasTodos || $0.hasHelpers }) {
+                AufgabenView()
+                    .tabItem { Label(tr("Aufgaben"), systemImage: "checklist") }
+                    .tag("aufgaben")
+            }
             AusweisView()
                 .tabItem { Label(tr("Ich"), systemImage: "person.text.rectangle") }
                 .tag("ausweis")

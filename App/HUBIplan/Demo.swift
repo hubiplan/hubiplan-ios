@@ -5,10 +5,10 @@ import HubiplanKern
 /// Die App spricht dann mit keinem Server; alle Daten sind erfunden (Demoverein).
 enum Demo {
     static var active: Bool { UserDefaults.standard.bool(forKey: "demo") }
-    /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `ausweis`, `konto`).
+    /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -47,7 +47,7 @@ struct DemoTransport: Transport {
         let english = Texte.language == "en"
         let body: String
         if path.hasSuffix("/me/") {
-            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing"]}]}"#
+            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers"]}]}"#
         } else if path.hasSuffix("/events/") {
             let titles = english
                 ? ["Platoon meeting", "Shooting practice", "Christmas party", "General assembly"]
@@ -84,6 +84,30 @@ struct DemoTransport: Transport {
             {"id":2,"number":"R-2026-0031","status":"open","status_label":"\(labels[1])","date":"\(day(-12, "00:00").prefix(10))","due_date":"\(day(9, "00:00").prefix(10))","subject":"\(labels[3])","total":"36.00","outstanding":"36.00","issuer_name":"Schützenverein Musterstadt"},
             {"id":1,"number":"R-2026-0007","status":"paid","status_label":"\(labels[0])","date":"2026-01-15","subject":"\(labels[2])","total":"60.00","outstanding":"0.00","issuer_name":"Schützenverein Musterstadt"}
             ]}
+            """
+        } else if path.hasSuffix("/todos/") {
+            let t = english
+                ? ["Put up the tent", "Friday from 4 pm at the fairground. Bring gloves.", "by 27 Nov 2026", "Order drinks", "Check the lighting"]
+                : ["Zelt aufbauen", "Freitag ab 16 Uhr auf dem Festplatz. Handschuhe mitbringen.", "bis 27.11.2026", "Getränke bestellen", "Beleuchtung prüfen"]
+            body = """
+            {"items":[
+            {"id":1,"title":"\(t[0])","description":"\(t[1])","status":"open","version":2,"due_label":"\(t[2])","can_claim":true},
+            {"id":2,"title":"\(t[4])","status":"open","version":1,"claimed":true,"claimed_by_me":true,"can_complete":true},
+            {"id":3,"title":"\(t[3])","status":"done","version":4,"can_complete":true}
+            ]}
+            """
+        } else if path.hasSuffix("/helpers/") {
+            let t = english
+                ? ["Summer festival", "Bar", "Marquee", "Till", "Entrance", "Erika M.", "Max M."]
+                : ["Sommerfest", "Theke", "Festzelt", "Kasse", "Eingang", "Erika M.", "Max M."]
+            body = """
+            {"plans":[{"id":1,"title":"\(t[0])","unit":"Schützenverein Musterstadt","signup":"self","max_shifts":2,"duties":[
+            {"id":1,"name":"\(t[1])","location":"\(t[2])","min_age":18,"shifts":[
+            {"id":1,"starts_at":"\(day(20, "18:00"))","ends_at":"\(day(20, "22:00"))","needed":4,"taken":2,"names":["\(t[5])","\(t[6])"],"mine":1,"can_cancel":true},
+            {"id":2,"starts_at":"\(day(21, "18:00"))","ends_at":"\(day(21, "22:00"))","needed":4,"taken":1,"names":["\(t[6])"]}]},
+            {"id":2,"name":"\(t[3])","location":"\(t[4])","shifts":[
+            {"id":3,"starts_at":"\(day(20, "17:00"))","ends_at":"\(day(20, "20:00"))","needed":2,"taken":2}]}]}],
+            "mine":[{"id":1,"plan":"\(t[0])","duty":"\(t[1])","location":"\(t[2])","starts_at":"\(day(20, "18:00"))","ends_at":"\(day(20, "22:00"))"}]}
             """
         } else if path.hasSuffix("/api/portal/1/") {
             let type = english ? "Full member" : "Vollmitglied"

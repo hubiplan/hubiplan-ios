@@ -54,6 +54,8 @@ jobs:
             foto verbinden "$SPRACHE"
             foto termine "$SPRACHE" -demo 1 -reiter termine
             foto neues "$SPRACHE" -demo 1 -reiter mitteilungen
+            foto aufgaben "$SPRACHE" -demo 1 -reiter aufgaben
+            foto helfer "$SPRACHE" -demo 1 -reiter aufgaben -abschnitt helfer
             foto ausweis "$SPRACHE" -demo 1 -reiter ausweis
             foto rechnungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt rechnungen
             foto konto "$SPRACHE" -demo 1 -reiter konto
