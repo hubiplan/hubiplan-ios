@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -75,6 +75,34 @@ struct DemoTransport: Transport {
             """
         } else {
             body = erste
+        }
+        return HttpResponse(status: 200, body: Data(body.utf8))
+    }
+
+    /// Wettbewerbe der Verwaltung: Liste, Standzugänge, neuer Standzugang.
+    private func wettbewerbe(_ path: String, _ method: String, english: Bool) -> HttpResponse {
+        let t = english
+            ? ["King's shoot", "Shooting range", "Club championship air rifle", "Clubhouse", "Easter egg shoot", "App (iPhone)"]
+            : ["Königsschießen", "Schießstand", "Vereinsmeisterschaft Luftgewehr", "Vereinsheim", "Ostereierschießen", "App (iPhone)"]
+        let body: String
+        if method == "DELETE" {
+            return HttpResponse(status: 204, body: Data())
+        } else if method == "POST" {
+            return HttpResponse(status: 201, body: Data("""
+            {"id":3,"label":"\(t[5])","expires_at":"\(day(0, "23:59"))","active":true,"token":"demo-standzugang-0123456789"}
+            """.utf8))
+        } else if path.hasSuffix("/stand-access/") {
+            body = path.contains("/competitions/1/")
+                ? """
+                [{"id":1,"label":"\(t[5])","expires_at":"\(day(0, "23:59"))","active":true},{"id":2,"label":"Tablet","expires_at":"\(day(0, "23:59"))","active":true}]
+                """
+                : "[]"
+        } else {
+            body = """
+            [{"id":3,"title":"\(t[4])","date":"\(day(-200, "00:00").prefix(10))","status":"endgueltig","form":"scheibe","location":"\(t[1])","starter_count":31},
+            {"id":2,"title":"\(t[2])","date":"\(day(21, "00:00").prefix(10))","status":"offen","form":"scheibe","location":"\(t[3])","starter_count":12},
+            {"id":1,"title":"\(t[0])","date":"\(day(0, "00:00").prefix(10))","status":"laufend","form":"vogel","location":"\(t[1])","starter_count":23}]
+            """
         }
         return HttpResponse(status: 200, body: Data(body.utf8))
     }
@@ -248,7 +276,7 @@ struct DemoTransport: Transport {
             let unlocked = Demo.section != "freischalten"
             let zug = english ? "Platoon 1" : "Zug 1"
             body = """
-            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit","finance.view","finance.edit","billing.view","billing.edit","todos.view","todos.edit","partners.view","obligations.view"],"stufen":true,"modules":["qualifications","obligations"]}],
+            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit","finance.view","finance.edit","billing.view","billing.edit","todos.view","todos.edit","partners.view","obligations.view","results.edit"],"stufen":true,"modules":["qualifications","obligations","competitions"]}],
             "departments":[{"id":9,"name":"\(zug)","permissions":["members.view"],"stufen":true}],
             "two_factor":true,"unlocked":\(unlocked),"until":"\(day(21, "10:00"))"}
             """
@@ -260,6 +288,8 @@ struct DemoTransport: Transport {
             return kasse(path, request.method, english: english)
         } else if path.contains("/admin/"), path.hasSuffix("/billing/partners/") || path.hasSuffix("/qualifications/") || path.hasSuffix("/obligations/") {
             return nachschlagen(path, english: english)
+        } else if path.contains("/admin/"), path.contains("/competitions/") {
+            return wettbewerbe(path, request.method, english: english)
         } else if path.contains("/admin/"), path.contains("/billing/") {
             return rechnungen(path, request.method, english: english)
         } else if path.contains("/admin/"), path.contains("/todos/") {

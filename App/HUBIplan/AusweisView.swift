@@ -62,7 +62,7 @@ struct AusweisView: View {
     @State private var showMeetings = Demo.active && Demo.section == "versammlungen"
     @State private var showDocuments = Demo.active && Demo.section == "dokumente"
     @State private var showAccount = Demo.active && Demo.tab == "konto"
-    @State private var showAdmin = Demo.active && ["verwaltung", "freischalten", "offen", "meldungen", "mitglieder", "mitglied", "stammdaten", "anlaesse", "ausweispruefung", "vtermine", "vtermin", "neuertermin", "kasse", "buchung", "neuebuchung", "quittung", "vrechnungen", "vrechnung", "vaufgaben", "vaufgabe", "neueaufgabe", "partner", "qualifikationen", "fristen", "frist"].contains(Demo.section)
+    @State private var showAdmin = Demo.active && ["verwaltung", "freischalten", "offen", "meldungen", "mitglieder", "mitglied", "stammdaten", "anlaesse", "ausweispruefung", "vtermine", "vtermin", "neuertermin", "kasse", "buchung", "neuebuchung", "quittung", "vrechnungen", "vrechnung", "vaufgaben", "vaufgabe", "neueaufgabe", "partner", "qualifikationen", "fristen", "frist", "wettbewerbe", "standcode"].contains(Demo.section)
 
     var body: some View {
         NavigationStack {
