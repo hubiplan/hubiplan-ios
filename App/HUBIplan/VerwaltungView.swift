@@ -26,6 +26,11 @@ struct VerwaltungView: View {
                         VerwaltungStart(units: overview.allUnits, until: overview.until, unitKey: $unitKey)
                     }
                 }
+            } else if !model.adminLoaded {
+                // Die Übersicht ist noch unterwegs: kein Fehlertext, bevor die Antwort da ist
+                ProgressView()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .task { await model.loadAdmin() }
             } else {
                 VerwaltungHinweis(
                     text: tr("Die Verwaltung ist gerade nicht verfügbar. Bitte Verbindung und Berechtigung prüfen."),

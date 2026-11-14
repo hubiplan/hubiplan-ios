@@ -186,7 +186,7 @@ struct KontoView: View {
                 }
                 Section {
                     Button(tr("Verbindung trennen"), role: .destructive) {
-                        // Nicht gesendete Buchungen gingen verloren: vorher fragen
+                        // Nicht gesendete Buchungen und Quittungen gingen verloren: vorher fragen
                         unsent = model.draftBox?.count ?? 0
                         if unsent > 0, !Demo.active { confirmDisconnect = true } else { Task { await model.disconnect() } }
                     }
@@ -194,8 +194,8 @@ struct KontoView: View {
                         Button(tr("Trennen und Entwürfe löschen"), role: .destructive) { Task { await model.disconnect() } }
                     } message: {
                         Text(trn(
-                            "Auf diesem iPhone liegt noch 1 nicht gesendete Buchung. Beim Trennen geht sie verloren.",
-                            "Auf diesem iPhone liegen noch {n} nicht gesendete Buchungen. Beim Trennen gehen sie verloren.",
+                            "Auf diesem iPhone liegt noch 1 nicht gesendete Buchung oder Quittung. Beim Trennen geht sie verloren.",
+                            "Auf diesem iPhone liegen noch {n} nicht gesendete Buchungen oder Quittungen. Beim Trennen gehen sie verloren.",
                             unsent
                         ))
                     }
