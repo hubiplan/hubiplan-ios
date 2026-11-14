@@ -10,6 +10,7 @@
 - en: –
 - Art: neu | verbessert | behoben | sicherheit
 - Braucht HUBIplan: – <!-- z. B. eine neue Schnittstellenfunktion; sonst „–“ -->
+- Android-App: – <!-- gibt es dort schon, nachzuziehen in hubiplan-android#…, oder „–“ -->
 
 ## Geprüft
 
@@ -17,3 +18,7 @@
 - [ ] Oberfläche geändert: macOS-Lauf von Hand, oder: <!-- nicht betroffen -->
 - [ ] Nur erfundene Daten in Code, Tests und Bildschirmfotos
 - [ ] Keine Zugangsdaten, internen Chat-/Sitzungslinks, privaten Pfade, nicht öffentlichen Hostnamen oder realen Betriebsdaten in Änderungen und PR-Text
+
+## Beitragsbedingungen
+
+- [ ] Ich stimme den [Beitragsbedingungen](https://github.com/hubiplan/hubiplan-ios/blob/main/CONTRIBUTING.md#beitragsbedingungen) zu.
