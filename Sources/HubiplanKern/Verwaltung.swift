@@ -81,6 +81,9 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
     public var canEditMembers: Bool {
         permissions.contains("members.edit") || (isDepartment && permissions.contains("dept.members.edit"))
     }
+
+    /// Mitgliedsart, Untereinheit, Austritt, Wiedereintritt: nur in der Einheit mit „Mitglieder bearbeiten“.
+    public var canManageMembers: Bool { !isDepartment && permissions.contains("members.edit") }
 }
 
 public enum AdminSection: String, Sendable, CaseIterable {
@@ -279,12 +282,14 @@ public struct MemberPage: Decodable, Equatable, Sendable {
 
 public struct MemberDepartment: Decodable, Equatable, Sendable {
     public var id: Int
+    /// Kennung der Untereinheit (fehlt bei älteren Ständen: 0)
+    public var department: Int
     public var name: String
     public var validFrom: String
     public var validUntil: String?
 
     enum CodingKeys: String, CodingKey {
-        case id
+        case id, department
         case name = "department_name"
         case validFrom = "valid_from"
         case validUntil = "valid_until"
@@ -293,13 +298,14 @@ public struct MemberDepartment: Decodable, Equatable, Sendable {
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(Int.self, forKey: .id)
+        department = try c.decodeIfPresent(Int.self, forKey: .department) ?? 0
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
         validFrom = try c.decodeIfPresent(String.self, forKey: .validFrom) ?? ""
         validUntil = try c.decodeIfPresent(String.self, forKey: .validUntil)
     }
 }
 
-/// Mitgliedsakte, soweit die App sie in dieser Fassung zeigt (nur lesen).
+/// Mitgliedsakte, soweit die App sie zeigt.
 public struct MemberDetail: Decodable, Equatable, Sendable {
     public var id: Int
     public var kind: String
@@ -319,6 +325,11 @@ public struct MemberDetail: Decodable, Equatable, Sendable {
     /// Freigegebenes Foto und ein neues, das auf Freigabe wartet (Pfade wie im Browser)
     public var photo: String?
     public var pendingPhoto: String?
+    /// Laufende Mitgliedsart (Kennung), nil in Untereinheiten und bei Ehemaligen
+    public var currentType: Int?
+    public var paysFeeSelf: Bool
+    /// Austrittsgründe zur Auswahl, wie der Server sie nennt
+    public var exitReasons: [MemberChoice]
     var suffix: String
     var displayName: String
 
@@ -332,9 +343,12 @@ public struct MemberDetail: Decodable, Equatable, Sendable {
         case birthDate = "birth_date"
         case clubNumber = "club_number"
         case currentType = "current_type"
+        case paysFeeSelf = "pays_fee_self"
+        case exitReasons = "exit_reasons"
     }
 
     private struct TypeName: Decodable {
+        var member_type: Int?
         var member_type_name: String?
     }
 
@@ -367,8 +381,11 @@ public struct MemberDetail: Decodable, Equatable, Sendable {
         status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
         gender = try c.decodeIfPresent(String.self, forKey: .gender) ?? ""
         // Einheit: laufende Mitgliedsart als Objekt; Untereinheit (Zugführung): nur der Name
-        typeName = try c.decodeIfPresent(TypeName.self, forKey: .currentType)?.member_type_name
-            ?? (try? c.decodeIfPresent(String.self, forKey: .memberType)) ?? ""
+        let type = try c.decodeIfPresent(TypeName.self, forKey: .currentType)
+        currentType = type?.member_type
+        typeName = type?.member_type_name ?? (try? c.decodeIfPresent(String.self, forKey: .memberType)) ?? ""
+        paysFeeSelf = (try? c.decodeIfPresent(Bool.self, forKey: .paysFeeSelf)) ?? true
+        exitReasons = (try? c.decodeIfPresent([MemberChoice].self, forKey: .exitReasons)) ?? []
         contact = try c.decodeIfPresent(Contact.self, forKey: .contact)
         if let full = try? c.decodeIfPresent([MemberDepartment].self, forKey: .departments) {
             departments = full
@@ -548,7 +565,12 @@ public struct AdminClient: Sendable {
 
     /// Stammdaten und Kontakt ändern (nur geänderte Felder, siehe `MasterData.changes`).
     public func update(member id: Int, values: [String: String]) async throws -> (member: MemberDetail, change: AdminChange) {
-        let response = try await api.raw("PATCH", base + "members/\(id)/", json: values)
+        try await memberChange("PATCH", "members/\(id)/", values)
+    }
+
+    /// Änderung an einem Mitglied; die Antwort ist die neue Akte.
+    func memberChange(_ method: String, _ path: String, _ json: [String: Any]) async throws -> (member: MemberDetail, change: AdminChange) {
+        let response = try await api.raw(method, base + path, json: json)
         guard (200...299).contains(response.status) else {
             let fields = Api.errorFields(response.body)
             throw ApiError(status: response.status, code: fields.code, message: fields.message)

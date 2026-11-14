@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -335,6 +335,16 @@ struct DemoTransport: Transport {
             {"results":[{"member_id":1,"first_name":"Erika","last_name":"Musterfrau","kind":"membership","years":25,"date":"\(day(40, "00:00").prefix(10))","organization_short":""},
             {"member_id":5,"first_name":"Jonas","last_name":"Probe","kind":"membership","years":10,"date":"\(day(71, "00:00").prefix(10))","organization_short":""}]}
             """
+        } else if path.hasSuffix("/member-types/") {
+            let t = english ? ["Full member", "Supporting member", "Youth"] : ["Vollmitglied", "Fördermitglied", "Jugend"]
+            body = #"[{"id":1,"name":"\#(t[0])"},{"id":2,"name":"\#(t[1])"},{"id":3,"name":"\#(t[2])"}]"#
+        } else if path.contains("/admin/"), path.hasSuffix("/departments/") {
+            let t = english ? ["Platoon 1", "Platoon 2"] : ["Zug 1", "Zug 2"]
+            body = #"[{"id":1,"name":"\#(t[0])"},{"id":2,"name":"\#(t[1])"}]"#
+        } else if path.hasSuffix("/preview/") {
+            body = english
+                ? #"{"title":"Record leaving","consequences":["Erika Musterfrau leaves the club on \#(Zeit.plainDate(String(day(0, "00:00").prefix(10)))).","The membership in Platoon 1 ends on the same day.","Open invoices remain.","The membership card becomes invalid."]}"#
+                : #"{"title":"Austritt eintragen","consequences":["Erika Musterfrau tritt zum \#(Zeit.plainDate(String(day(0, "00:00").prefix(10)))) aus dem Verein aus.","Die Zugehörigkeit zu Zug 1 endet am selben Tag.","Offene Rechnungen bleiben bestehen.","Der Mitgliedsausweis wird ungültig."]}"#
         } else if path.hasSuffix("/members/") {
             let t = english ? ["Full member", "Platoon 1", "Platoon 2", "Supporting member", "Youth"] : ["Vollmitglied", "Zug 1", "Zug 2", "Fördermitglied", "Jugend"]
             body = """
@@ -353,6 +363,7 @@ struct DemoTransport: Transport {
             "photo":{"approved":{"url":"/api/orgs/1/members/1/photo/"},"pending":{"url":"/api/orgs/1/members/1/photo/pending/"}},
             "current_type":{"member_type":1,"member_type_name":"\(t[0])"},"periods":[{"id":1,"entry_date":"2010-01-01"}],
             "departments":[{"id":1,"department":1,"department_name":"\(t[1])","valid_from":"2010-01-01"}],
+            "pays_fee_self":true,"exit_reasons":[{"value":"resignation","label":"\(english ? "Resignation" : "Kündigung")"},{"value":"death","label":"\(english ? "Deceased" : "Verstorben")"}],
             "contact":{"email":"erika@example.org","phone":"02131 000000","street":"Musterweg 1","postal_code":"41468","city":"Musterstadt"}}
             """
         } else if path.hasSuffix("/events/") {

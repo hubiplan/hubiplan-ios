@@ -158,7 +158,7 @@ private struct VerwaltungStart: View {
     @State private var open: Int?
     @State private var confirmLock = false
     /// Vorführmodus: für das Bildschirmfoto gleich in die Mitglieder
-    @State private var showMembers = Demo.active && ["mitglieder", "mitglied", "stammdaten"].contains(Demo.section)
+    @State private var showMembers = Demo.active && ["mitglieder", "mitglied", "stammdaten", "austritt", "folgen"].contains(Demo.section)
     @State private var showTasks = Demo.active && ["offen", "meldungen"].contains(Demo.section)
     @State private var showOccasions = Demo.active && Demo.section == "anlaesse"
     @State private var showEvents = Demo.active && ["vtermine", "vtermin", "neuertermin"].contains(Demo.section)
@@ -442,7 +442,7 @@ struct MitgliederView: View {
     @State private var page = 1
     @State private var more = false
     /// Vorführmodus: für das Bildschirmfoto gleich in eine Akte
-    @State private var shown: Int? = Demo.active && ["mitglied", "stammdaten"].contains(Demo.section) ? 1 : nil
+    @State private var shown: Int? = Demo.active && ["mitglied", "stammdaten", "austritt", "folgen"].contains(Demo.section) ? 1 : nil
 
     var body: some View {
         VerwaltungSchutz {
@@ -518,6 +518,7 @@ struct MitgliedView: View {
     @State private var pending: UIImage?
     @State private var busy = false
     @State private var editing = false
+    @State private var vorgang: MitgliedVorgang?
 
     var body: some View {
         VerwaltungSchutz {
@@ -573,8 +574,23 @@ struct MitgliedView: View {
                         if unit.canEditMembers, !member.isFormer {
                             Button(unit.isDepartment ? tr("Kontaktdaten bearbeiten") : tr("Stammdaten und Kontakt ändern")) { editing = true }
                         }
+                        if unit.canManageMembers, !member.isFormer {
+                            Button(tr("Mitgliedsart wechseln")) { vorgang = .art }
+                            Button(tr("Untereinheit wechseln")) { vorgang = .untereinheit }
+                            // Schalter zeigt den Stand der Akte; umgelegt wird erst nach der Bestätigung
+                            Toggle(tr("Zahlt Beitrag selbst"), isOn: Binding(
+                                get: { member.paysFeeSelf },
+                                set: { vorgang = $0 ? .beitragSelbst : .beitragFremd }
+                            ))
+                            Button(tr("Austritt eintragen"), role: .destructive) { vorgang = .austritt }
+                        }
+                        if unit.canManageMembers, member.isFormer {
+                            Button(tr("Wiedereintritt eintragen")) { vorgang = .wiedereintritt }
+                        }
                     } footer: {
-                        Text(tr("Mitgliedsart, Untereinheiten, Austritt und alles Weitere änderst du zurzeit im Browser."))
+                        Text(unit.isDepartment
+                            ? tr("Alles Weitere ändert der Verein.")
+                            : tr("Ehrungen, Zusatzfelder, Bankverbindung und alles Weitere änderst du zurzeit im Browser."))
                     }
                 } else if model.adminError == nil {
                     ProgressView()
@@ -584,6 +600,12 @@ struct MitgliedView: View {
                 await load()
                 // Vorführmodus: für das Bildschirmfoto gleich das Blatt zum Ändern
                 if Demo.active, Demo.section == "stammdaten", member != nil { editing = true }
+                if Demo.active, ["austritt", "folgen"].contains(Demo.section), member != nil { vorgang = .austritt }
+            }
+            .sheet(item: $vorgang) { wanted in
+                if let member {
+                    VorgangBlatt(unit: unit, member: member, vorgang: wanted) { updated in self.member = updated }
+                }
             }
             .sheet(isPresented: $editing) {
                 if let member {

@@ -90,6 +90,8 @@ jobs:
             foto standcode "$SPRACHE" -demo 1 -reiter ausweis -abschnitt standcode
             foto mitglieder "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglieder
             foto mitglied "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglied
+            foto austritt "$SPRACHE" -demo 1 -reiter ausweis -abschnitt austritt
+            foto folgen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt folgen
             foto konto "$SPRACHE" -demo 1 -reiter konto
             foto kalender "$SPRACHE" -demo 1 -reiter konto -abschnitt kalender
           done
