@@ -64,6 +64,7 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
         var list: [AdminSection] = []
         if !isDepartment { list.append(.tasks) }
         if showsMembers { list.append(.members) }
+        if showsEvents { list.append(.events) }
         if !isDepartment, showsMembers { list.append(.occasions) }
         return list
     }
@@ -76,7 +77,7 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
 }
 
 public enum AdminSection: String, Sendable, CaseIterable {
-    case tasks, members, occasions
+    case tasks, members, events, occasions
 }
 
 /// Untereinheit mit Rollen nur dort (z. B. Zugführung).
@@ -178,6 +179,7 @@ public struct AdminTask: Decodable, Equatable, Sendable {
     public var target: AdminTarget? {
         if kind == "change_request" { return .changeRequests }
         if kind == "photo", let membership { return .member(membership) }
+        if kind == "event", let ref { return .event(ref) }
         return nil
     }
 }
@@ -185,6 +187,7 @@ public struct AdminTask: Decodable, Equatable, Sendable {
 public enum AdminTarget: Equatable, Sendable {
     case changeRequests
     case member(Int)
+    case event(Int)
 }
 
 struct AdminTasks: Decodable {
@@ -607,7 +610,7 @@ public struct AdminClient: Sendable {
         return await api.image(target)
     }
 
-    private func change(_ method: String, _ path: String, _ json: [String: Any]) async throws -> AdminChange {
+    func change(_ method: String, _ path: String, _ json: [String: Any]?) async throws -> AdminChange {
         let response = try await api.raw(method, base + path, json: json)
         guard (200...299).contains(response.status) else {
             let fields = Api.errorFields(response.body)

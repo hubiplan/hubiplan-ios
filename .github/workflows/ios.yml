@@ -70,6 +70,9 @@ jobs:
             foto ausweispruefung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt ausweispruefung
             foto stammdaten "$SPRACHE" -demo 1 -reiter ausweis -abschnitt stammdaten
             foto anlaesse "$SPRACHE" -demo 1 -reiter ausweis -abschnitt anlaesse
+            foto vtermine "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vtermine
+            foto vtermin "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vtermin
+            foto neuertermin "$SPRACHE" -demo 1 -reiter ausweis -abschnitt neuertermin
             foto mitglieder "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglieder
             foto mitglied "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglied
             foto konto "$SPRACHE" -demo 1 -reiter konto
