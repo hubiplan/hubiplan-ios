@@ -11,7 +11,11 @@ enum Demo {
     /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
-    static let account = Account(server: "https://verein.example.de", display: "Erika Musterfrau", email: "erika@example.org")
+    /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
+    static let accounts = AccountList(accounts: [
+        AccountEntry(id: "", server: "https://verein.example.de", display: "Erika Musterfrau", email: "erika@example.org"),
+        AccountEntry(id: "kapelle", server: "https://kapelle.example.org", display: "Erika Musterfrau", email: "erika@example.org"),
+    ])
 }
 
 final class DemoStore: SecretStore, @unchecked Sendable {

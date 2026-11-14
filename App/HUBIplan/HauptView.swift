@@ -21,6 +21,14 @@ struct HauptView: View {
                 .tag("konto")
         }
         .task { await model.refresh() }
+        // Link zum Verbinden kam von außen (hubiplan://…), während schon ein Konto verbunden ist
+        .verbindenFrage(aktiv: !model.adding)
+        .alert(
+            model.linkError ?? "",
+            isPresented: Binding(get: { !model.adding && model.linkError != nil }, set: { if !$0 { model.linkError = nil } })
+        ) {
+            Button(tr("Schließen"), role: .cancel) { model.linkError = nil }
+        }
     }
 }
 
@@ -137,12 +145,47 @@ struct KontoView: View {
                     Text(tr("Die App vergisst dieses Konto. Im Browser bleibt alles, wie es ist."))
                 }
                 Section {
+                    ForEach(model.accounts.accounts) { entry in
+                        Button {
+                            Task { await model.switchAccount(entry.id) }
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(model.accounts.label(entry)).foregroundStyle(Color.primary)
+                                    Text(entry.email).font(.footnote).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                if entry.id == model.accounts.activeId {
+                                    Image(systemName: "checkmark").accessibilityLabel(tr("Wird gezeigt"))
+                                }
+                            }
+                        }
+                    }
+                    Button {
+                        model.linkError = nil
+                        model.adding = true
+                    } label: {
+                        Label(tr("Weiteres Konto verbinden"), systemImage: "plus")
+                    }
+                    .disabled(model.accounts.full)
+                } header: {
+                    Text(tr("Konten"))
+                } footer: {
+                    Text(tr("Für mehrere Vereine mit eigener HUBIplan-Instanz. Tippe ein Konto an, um es zu zeigen."))
+                }
+                Section {
                     Text(tr("Version {version}", ["version": AppModel.version]))
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
             }
             .navigationTitle(tr("Mein Konto"))
+            .sheet(isPresented: $model.adding, onDismiss: {
+                model.pending = nil
+                model.linkError = nil
+            }) {
+                VerbindenView()
+            }
         }
     }
 }

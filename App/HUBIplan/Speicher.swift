@@ -69,24 +69,32 @@ final class UrlSessionTransport: NSObject, Transport, URLSessionTaskDelegate, @u
     }
 }
 
-/// Das verbundene Konto (ohne Geheimnisse; die liegen im Schlüsselbund).
-struct Account: Codable, Equatable {
-    var server: String
-    var display: String
-    var email: String
+/// Die verbundenen Konten (ohne Geheimnisse; die liegen je Konto im Schlüsselbund).
+enum Konten {
+    private static let key = "konten"
+    /// Ablage aus der Zeit mit nur einem Konto
+    private static let oldKey = "konto"
 
-    private static let key = "konto"
-
-    static func load() -> Account? {
-        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
-        return try? JSONDecoder().decode(Account.self, from: data)
+    static func load() -> AccountList {
+        let defaults = UserDefaults.standard
+        if let data = defaults.data(forKey: key), let list = try? JSONDecoder().decode(AccountList.self, from: data) {
+            return list
+        }
+        if let data = defaults.data(forKey: oldKey), let list = AccountList.migrate(single: data) {
+            save(list)
+            defaults.removeObject(forKey: oldKey)
+            return list
+        }
+        return AccountList()
     }
 
-    static func save(_ account: Account?) {
-        if let account, let data = try? JSONEncoder().encode(account) {
-            UserDefaults.standard.set(data, forKey: key)
-        } else {
-            UserDefaults.standard.removeObject(forKey: key)
-        }
+    static func save(_ list: AccountList) {
+        guard let data = try? JSONEncoder().encode(list) else { return }
+        UserDefaults.standard.set(data, forKey: key)
+    }
+
+    /// Schlüsselbund eines Kontos; das Konto aus der Zeit vor mehreren Konten behält seinen Platz.
+    static func secrets(_ id: String) -> KeychainStore {
+        KeychainStore(service: id.isEmpty ? "de.hubiplan.app.konto" : "de.hubiplan.app.konto.\(id)")
     }
 }

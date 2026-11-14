@@ -6,9 +6,12 @@ import UIKit
 /// Ausweise auf dem Gerät: Dateien im App-Bereich, vom System verschlüsselt, nicht in
 /// Sicherungen. Beim Trennen der Verbindung gelöscht.
 struct FileCardStore: CardStore {
+    /// Kennung des Kontos; jedes Konto hat seinen eigenen Ordner
+    let account: String
+
     private var dir: URL {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
-        return base.appendingPathComponent("ausweise", isDirectory: true)
+        return base.appendingPathComponent(account.isEmpty ? "ausweise" : "ausweise-\(account)", isDirectory: true)
     }
 
     private func file(_ accessId: Int) -> URL { dir.appendingPathComponent("ausweis-\(accessId).bin") }

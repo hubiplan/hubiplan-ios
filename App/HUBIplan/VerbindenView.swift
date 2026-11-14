@@ -51,16 +51,38 @@ struct VerbindenView: View {
                 }
                 .ignoresSafeArea()
             }
-            // Vor dem Verbinden die Adresse der Instanz zeigen und nachfragen
-            .alert(
-                tr("Mit {server} verbinden?", ["server": model.pending?.server ?? ""]),
-                isPresented: Binding(get: { model.pending != nil }, set: { if !$0 { model.pending = nil } })
-            ) {
-                Button(tr("Verbinden")) { Task { await model.connect() } }
-                Button(tr("Abbrechen"), role: .cancel) { model.pending = nil }
-            } message: {
-                Text(tr("Die App spricht danach nur mit dieser Adresse. Verbinde dich nur, wenn das die Adresse deines Vereins ist."))
+            .toolbar {
+                if model.adding {
+                    ToolbarItem(placement: .cancellationAction) {
+                        Button(tr("Abbrechen")) { model.adding = false }
+                    }
+                }
             }
+            .verbindenFrage(aktiv: true)
         }
     }
+}
+
+
+/// Vor dem Verbinden die Adresse der Instanz zeigen und nachfragen.
+private struct VerbindenFrage: ViewModifier {
+    @EnvironmentObject private var model: AppModel
+    let aktiv: Bool
+
+    func body(content: Content) -> some View {
+        content.alert(
+            tr("Mit {server} verbinden?", ["server": model.pending?.server ?? ""]),
+            isPresented: Binding(get: { aktiv && model.pending != nil }, set: { if !$0 { model.pending = nil } })
+        ) {
+            Button(tr("Verbinden")) { Task { await model.connect() } }
+            Button(tr("Abbrechen"), role: .cancel) { model.pending = nil }
+        } message: {
+            Text(tr("Die App spricht danach nur mit dieser Adresse. Verbinde dich nur, wenn das die Adresse deines Vereins ist."))
+        }
+    }
+}
+
+extension View {
+    /// `aktiv` ist nur an der Stelle wahr, die gerade sichtbar ist (sonst fragten zwei Stellen zugleich).
+    func verbindenFrage(aktiv: Bool) -> some View { modifier(VerbindenFrage(aktiv: aktiv)) }
 }
