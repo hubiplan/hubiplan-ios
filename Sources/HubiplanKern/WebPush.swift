@@ -7,7 +7,8 @@ public struct PushDecryptError: Error, Equatable {
 /// Schlüssel dieses Geräts für Web-Push (RFC 8291): P-256-Schlüsselpaar und 16 Byte „auth“.
 /// Der öffentliche Teil und auth gehen an HUBIplan, der private bleibt auf dem Gerät
 /// (im Schlüsselbund, in der gemeinsamen Gruppe von App und Mitteilungserweiterung).
-public struct PushKeys: Sendable {
+// CryptoKit kennzeichnet den Schlüssel nicht als Sendable; er ist unveränderlich.
+public struct PushKeys: @unchecked Sendable {
     public let privateKey: P256.KeyAgreement.PrivateKey
     public let auth: Data
 

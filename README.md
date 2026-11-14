@@ -36,7 +36,7 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 
 ## Bauen und testen
 
-Voraussetzungen: Swift-Werkzeug ab 5.9 (Linux, WSL oder macOS) und `testplatz` aus
+Voraussetzungen: Swift-Werkzeug ab 5.9 (Linux, WSL oder macOS; auch im offiziellen Docker-Abbild `swift`) und `testplatz` aus
 [hubiplan](https://github.com/hubiplan/hubiplan/blob/main/docs/testserver.md).
 
 ```bash
@@ -51,5 +51,7 @@ Sicherheitslücken bitte nicht öffentlich melden, sondern vertraulich über
 **Security › Report a vulnerability** in diesem Repository.
 
 ## Lizenz
+
+Copyright © 2026 Ralf Philipsen (Philipsen EDV)
 
 [AGPL-3.0-or-later](LICENSE), wie HUBIplan.
