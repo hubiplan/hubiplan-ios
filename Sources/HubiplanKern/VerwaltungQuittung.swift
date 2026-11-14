@@ -34,7 +34,7 @@ public struct SignatureStrokes: Codable, Equatable, Sendable {
 }
 
 /// Hinterlegte Unterschrift, wie der Server sie ausgibt (Punkte je Linie hintereinander).
-public struct SignatureShape: Decodable, Equatable, Sendable {
+public struct SignatureShape: Codable, Equatable, Sendable {
     public var w: Int
     public var h: Int
     public var s: [[Int]]
@@ -103,7 +103,7 @@ public struct CashReceiptItem: Decodable, Equatable, Sendable {
 }
 
 /// Quittung, die in der App vorbereitet und unterschrieben wird.
-public struct ReceiptDraft: Equatable, Sendable {
+public struct ReceiptDraft: Codable, Equatable, Sendable {
     /// Zugleich `Idempotency-Key` für das Anlegen auf dem Server.
     public var key: String
     /// `Idempotency-Key` für den Abschluss (ein Schlüssel gilt nur für einen Schritt).

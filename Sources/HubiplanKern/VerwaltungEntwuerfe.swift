@@ -111,7 +111,7 @@ public struct DraftBox: Sendable {
     }
 
     /// Schlüssel lesen; `create`: bei Bedarf neu anlegen.
-    private func key(create: Bool) -> SymmetricKey? {
+    func key(create: Bool) -> SymmetricKey? {
         if let stored = secrets.read(DraftBox.keyName), let data = Base64Url.decode(stored), data.count == 32 {
             return SymmetricKey(data: data)
         }
@@ -123,19 +123,30 @@ public struct DraftBox: Sendable {
         return secrets.read(DraftBox.keyName) == text ? fresh : nil
     }
 
-    private func name(_ key: String) -> String {
-        String(key.filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }.prefix(64)) + DraftBox.ending
+    func name(_ key: String, ending: String = DraftBox.ending) -> String {
+        String(key.filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }.prefix(64)) + ending
     }
 
     private var draftNames: [String] { files.names().filter { $0.hasSuffix(DraftBox.ending) } }
 
-    private func open(_ name: String) -> StoredBooking? {
+    /// Datei entschlüsseln und lesen; nil, wenn sie fehlt oder sich nicht mehr öffnen lässt.
+    func unseal<T: Decodable>(_ type: T.Type, _ name: String) -> T? {
         guard let key = key(create: false), let sealed = files.read(name),
               let box = try? AES.GCM.SealedBox(combined: sealed),
               let plain = try? AES.GCM.open(box, using: key)
         else { return nil }
-        return try? JSONDecoder().decode(StoredBooking.self, from: plain)
+        return try? JSONDecoder().decode(type, from: plain)
     }
+
+    /// Verschlüsselt ablegen; false, wenn es nicht geklappt hat.
+    func seal<T: Encodable>(_ value: T, _ name: String) -> Bool {
+        guard let key = key(create: true), let plain = try? JSONEncoder().encode(value),
+              let sealed = try? AES.GCM.seal(plain, using: key).combined
+        else { return false }
+        return files.write(name, sealed)
+    }
+
+    private func open(_ name: String) -> StoredBooking? { unseal(StoredBooking.self, name) }
 
     /// Entwürfe, älteste zuerst; `unit`: nur die dieser Einheit.
     public func list(unit: Int? = nil) -> [StoredBooking] {
@@ -145,28 +156,31 @@ public struct DraftBox: Sendable {
     /// Entwurf sichern (ersetzt einen mit demselben Schlüssel); false, wenn es nicht geklappt hat.
     public func save(_ draft: StoredBooking) -> Bool {
         let file = name(draft.key)
-        guard file != DraftBox.ending, let key = key(create: true), let plain = try? JSONEncoder().encode(draft),
-              let sealed = try? AES.GCM.seal(plain, using: key).combined
-        else { return false }
-        return files.write(file, sealed)
+        guard file != DraftBox.ending else { return false }
+        return seal(draft, file)
     }
 
     public func delete(_ key: String) {
         files.delete(name(key))
     }
 
-    /// Anzahl ohne Entschlüsseln (z. B. als Warnung vor dem Trennen der Verbindung).
-    public var count: Int { draftNames.count }
+    /// Anzahl der Buchungen und Quittungen ohne Entschlüsseln (z. B. als Warnung vor dem Trennen
+    /// der Verbindung).
+    public var count: Int { draftNames.count + receiptNames.count }
 
-    /// Dateien, die sich nicht mehr lesen lassen. Sie bleiben liegen und werden gezählt, nie
-    /// still ausgeblendet.
-    public var unreadable: Int { draftNames.filter { open($0) == nil }.count }
+    private var broken: [String] {
+        draftNames.filter { open($0) == nil } + receiptNames.filter { unseal(StoredReceipt.self, $0) == nil }
+    }
+
+    /// Dateien (Buchungen und Quittungen), die sich nicht mehr lesen lassen. Sie bleiben liegen
+    /// und werden gezählt, nie still ausgeblendet.
+    public var unreadable: Int { broken.count }
 
     /// Nur auf ausdrücklichen Wunsch: unlesbare Dateien löschen. Gibt die Anzahl zurück.
     public func discardUnreadable() -> Int {
-        let broken = draftNames.filter { open($0) == nil }
-        broken.forEach(files.delete)
-        return broken.count
+        let gone = broken
+        gone.forEach(files.delete)
+        return gone.count
     }
 
     /// Alles dieses Kontos löschen (Verbindung trennen): Dateien und Schlüssel.
