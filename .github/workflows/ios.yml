@@ -82,6 +82,10 @@ jobs:
             foto vaufgaben "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vaufgaben
             foto vaufgabe "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vaufgabe
             foto neueaufgabe "$SPRACHE" -demo 1 -reiter ausweis -abschnitt neueaufgabe
+            foto partner "$SPRACHE" -demo 1 -reiter ausweis -abschnitt partner
+            foto qualifikationen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt qualifikationen
+            foto fristen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt fristen
+            foto frist "$SPRACHE" -demo 1 -reiter ausweis -abschnitt frist
             foto mitglieder "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglieder
             foto mitglied "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglied
             foto konto "$SPRACHE" -demo 1 -reiter konto

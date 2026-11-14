@@ -164,6 +164,9 @@ private struct VerwaltungStart: View {
     @State private var showEvents = Demo.active && ["vtermine", "vtermin", "neuertermin"].contains(Demo.section)
     @State private var showFinance = Demo.active && ["kasse", "buchung", "neuebuchung", "quittung"].contains(Demo.section)
     @State private var showTodos = Demo.active && ["vaufgaben", "vaufgabe", "neueaufgabe"].contains(Demo.section)
+    @State private var showPartners = Demo.active && Demo.section == "partner"
+    @State private var showQualifications = Demo.active && Demo.section == "qualifikationen"
+    @State private var showObligations = Demo.active && ["fristen", "frist"].contains(Demo.section)
     @State private var showBilling = Demo.active && ["vrechnungen", "vrechnung"].contains(Demo.section)
     @State private var scanning = false
     @State private var check: Geprueft?
@@ -262,6 +265,27 @@ private struct VerwaltungStart: View {
                         Bereich(symbol: "gift", title: tr("Jubiläen und Geburtstage"), hint: tr("Geburtstage und Jubiläen der nächsten Wochen"))
                     }
                 }
+                if unit.sections.contains(.partners) {
+                    NavigationLink {
+                        GeschaeftspartnerView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "building.2", title: tr("Geschäftspartner"), hint: tr("Lieferanten, Sponsoren und Ansprechpartner nachschlagen"))
+                    }
+                }
+                if unit.sections.contains(.qualifications) {
+                    NavigationLink {
+                        QualifikationenView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "rosette", title: tr("Qualifikationen"), hint: tr("Nachweise, die bald ablaufen"))
+                    }
+                }
+                if unit.sections.contains(.obligations) {
+                    NavigationLink {
+                        FristenView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "calendar.badge.exclamationmark", title: tr("Fristen"), hint: tr("Vereinspflichten mit Frist und Zuständigkeit"))
+                    }
+                }
             } header: {
                 Text(tr("Was möchtest du tun?"))
             } footer: {
@@ -284,6 +308,9 @@ private struct VerwaltungStart: View {
         .navigationDestination(isPresented: $showFinance) { KassenbuchView(unit: unit) }
         .navigationDestination(isPresented: $showBilling) { RechnungenView(unit: unit) }
         .navigationDestination(isPresented: $showTodos) { AufgabenVerwaltungView(unit: unit) }
+        .navigationDestination(isPresented: $showPartners) { GeschaeftspartnerView(unit: unit) }
+        .navigationDestination(isPresented: $showQualifications) { QualifikationenView(unit: unit) }
+        .navigationDestination(isPresented: $showObligations) { FristenView(unit: unit) }
         .sheet(isPresented: $scanning) {
             AusweisScan(unit: unit) { result in
                 scanning = false
