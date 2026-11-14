@@ -5,7 +5,9 @@ import UIKit
 
 @MainActor
 final class AppModel: ObservableObject {
-    @Published var account: Account?
+    @Published private(set) var accounts = AccountList()
+    /// Ein weiteres Konto wird gerade verbunden (Blatt über „Mein Konto“)
+    @Published var adding = false
     @Published var accesses: [PortalAccess] = []
     @Published var accessId: Int?
     @Published var events: [Occurrence] = []
@@ -25,7 +27,9 @@ final class AppModel: ObservableObject {
 
     private let transport: Transport = Demo.active ? DemoTransport() : UrlSessionTransport()
     private var session: DeviceSession?
-    private let cards: CardStore = Demo.active ? DemoCards() : FileCardStore()
+    private var cards: CardStore = DemoCards()
+    /// Zählt jeden Kontowechsel; Antworten für ein früheres Konto werden verworfen
+    private var epoch = 0
 
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
@@ -33,17 +37,40 @@ final class AppModel: ObservableObject {
 
     init() {
         Texte.language = Texte.pick(preferred: Locale.preferredLanguages)
-        if Demo.active {
-            account = Demo.account
-            session = DeviceSession(server: Demo.account.server, store: DemoStore(), transport: transport)
-        } else if let saved = Account.load() {
-            account = saved
-            session = makeSession(saved.server)
-        }
+        accounts = Demo.active ? Demo.accounts : Konten.load()
+        activate()
     }
 
-    private func makeSession(_ server: String) -> DeviceSession {
-        DeviceSession(server: server, store: KeychainStore(service: "de.hubiplan.app.konto"), transport: transport)
+    /// Das gezeigte Konto
+    var account: AccountEntry? { accounts.active }
+
+    private func makeSession(server: String, id: String) -> DeviceSession {
+        let store: SecretStore = Demo.active ? DemoStore() : Konten.secrets(id)
+        return DeviceSession(server: server, store: store, transport: transport)
+    }
+
+    private func save() {
+        if !Demo.active { Konten.save(accounts) }
+    }
+
+    /// Sitzung und Ablage auf das gezeigte Konto stellen; Daten des vorigen Kontos verschwinden.
+    private func activate(session ready: DeviceSession? = nil) {
+        epoch += 1
+        if let account {
+            session = ready ?? makeSession(server: account.server, id: account.id)
+            cards = Demo.active ? DemoCards() : FileCardStore(account: account.id)
+        } else {
+            session = nil
+        }
+        accesses = []
+        accessId = nil
+        events = []
+        circulars = []
+        card = nil
+        profile = nil
+        invoices = nil
+        cardOffline = false
+        error = nil
     }
 
     var access: PortalAccess? { accesses.first { $0.id == accessId } ?? accesses.first }
@@ -52,7 +79,10 @@ final class AppModel: ObservableObject {
 
     /// Link aus QR-Code, Eingabefeld oder `hubiplan://verbinden…`; verbunden wird erst nach Rückfrage.
     func offer(link: String) {
-        guard account == nil else { return }
+        guard !accounts.full else {
+            linkError = tr("Mehr als {anzahl} Konten lassen sich nicht verbinden. Trenne zuerst ein Konto.", ["anzahl": "\(AccountList.limit)"])
+            return
+        }
         if let parsed = PairingLink.parse(link) {
             pending = parsed
             linkError = nil
@@ -65,50 +95,68 @@ final class AppModel: ObservableObject {
         guard let link = pending else { return }
         pending = nil
         loading = true
-        defer { loading = false }
-        let new = makeSession(link.server)
+        let id = accounts.freeId()
+        let new = makeSession(server: link.server, id: id)
         do {
             let paired = try await new.connect(code: link.code, deviceName: UIDevice.current.name, appVersion: Self.version)
-            let saved = Account(server: link.server, display: paired.user.display, email: paired.user.email)
-            Account.save(saved)
-            session = new
-            account = saved
+            let entry = AccountEntry(id: id, server: link.server, display: paired.user.display, email: paired.user.email)
+            // Dasselbe Konto noch einmal verbunden: der alte Eintrag weicht dem neuen
+            if let replaced = accounts.add(entry) { await forget(replaced) }
+            save()
+            activate(session: new)
             linkError = nil
+            adding = false
+            loading = false
             await refresh()
         } catch let failure as ApiError {
+            await new.forget()
+            loading = false
             linkError = failure.text
         } catch {
+            await new.forget()
+            loading = false
             linkError = ApiError(status: 0, code: "offline").text
         }
     }
 
+    /// Geheimnisse und Ablage eines Kontos auf dem Gerät löschen.
+    private func forget(_ entry: AccountEntry) async {
+        guard !Demo.active else { return }
+        await makeSession(server: entry.server, id: entry.id).forget()
+        FileCardStore(account: entry.id).clear()
+    }
+
+    /// Anderes verbundenes Konto zeigen.
+    func switchAccount(_ id: String) async {
+        guard id != accounts.activeId, accounts.select(id) else { return }
+        save()
+        activate()
+        await refresh()
+    }
+
+    /// Das gezeigte Konto vergessen; gibt es weitere, kommt das nächste nach vorn.
     func disconnect() async {
+        guard let account else { return }
         await session?.forget()
-        session = nil
-        if !Demo.active { Account.save(nil) }
-        account = nil
-        accesses = []
-        accessId = nil
-        events = []
-        circulars = []
         cards.clear()
-        card = nil
-        profile = nil
-        invoices = nil
-        cardOffline = false
-        error = nil
+        accounts.remove(account.id)
+        save()
+        activate()
+        if self.account != nil { await refresh() }
     }
 
     // MARK: Daten
 
     private func run(_ work: @MainActor (Api) async throws -> Void) async {
         guard let session else { return }
+        let epoch = self.epoch
         loading = true
         defer { loading = false }
         do {
             try await work(session.api())
-            error = nil
+            if epoch == self.epoch { error = nil }
         } catch let failure as ApiError {
+            guard epoch == self.epoch else { return }
             if failure.mustReconnect {
                 await disconnect()
                 linkError = failure.text
@@ -116,13 +164,20 @@ final class AppModel: ObservableObject {
                 error = failure.text
             }
         } catch {
-            self.error = ApiError(status: 0, code: "offline").text
+            if epoch == self.epoch { self.error = ApiError(status: 0, code: "offline").text }
         }
     }
 
     func refresh() async {
+        let epoch = self.epoch
         await run { api in
             let me = try await api.me()
+            guard epoch == self.epoch else { return }
+            if let id = self.accounts.activeId, let shown = self.account,
+               shown.display != me.user.display || shown.email != me.user.email {
+                self.accounts.update(id, display: me.user.display, email: me.user.email)
+                self.save()
+            }
             self.accesses = me.portal
             if self.access == nil { self.accessId = me.portal.first?.id }
             guard let access = self.access else {
@@ -132,10 +187,13 @@ final class AppModel: ObservableObject {
             }
             let now = Date()
             let end = Calendar.current.date(byAdding: .month, value: 6, to: now) ?? now
-            self.events = try await api.events(accessId: access.id, from: Zeit.day(now), to: Zeit.day(end))
-            self.circulars = try await api.circulars(accessId: access.id)
+            let events = try await api.events(accessId: access.id, from: Zeit.day(now), to: Zeit.day(end))
+            let circulars = try await api.circulars(accessId: access.id)
+            guard epoch == self.epoch else { return }
+            self.events = events
+            self.circulars = circulars
         }
-        await refreshIch()
+        if epoch == self.epoch { await refreshIch() }
     }
 
     /// Reiter „Ich“: Ausweis, eigene Daten und Rechnungen (soweit das Modul eingeschaltet ist).
@@ -143,13 +201,14 @@ final class AppModel: ObservableObject {
         await refreshCard()
         guard let session, let access else { return }
         let id = access.id
+        let epoch = self.epoch
         let api = session.api()
         let profile = try? await api.profile(accessId: id)
         var invoices: MyInvoices?
         if access.has(module: "billing", fallback: true) {
             invoices = try? await api.myInvoices(accessId: id)
         }
-        guard self.access?.id == id else { return }
+        guard epoch == self.epoch, self.access?.id == id else { return }
         if let profile { self.profile = profile }
         self.invoices = invoices ?? self.invoices
     }
@@ -166,13 +225,15 @@ final class AppModel: ObservableObject {
     func refreshCard() async {
         guard let session, let access else { return }
         let id = access.id
+        let epoch = self.epoch
         if card == nil { card = cards.load(accessId: id) }
         do {
             let fresh = try await session.api().refreshCard(accessId: id, store: cards)
-            guard self.access?.id == id else { return }
+            guard epoch == self.epoch, self.access?.id == id else { return }
             card = fresh
             cardOffline = false
         } catch let failure as ApiError {
+            guard epoch == self.epoch else { return }
             if failure.mustReconnect {
                 await disconnect()
                 linkError = failure.text
@@ -180,7 +241,7 @@ final class AppModel: ObservableObject {
                 cardOffline = true
             }
         } catch {
-            cardOffline = true
+            if epoch == self.epoch { cardOffline = true }
         }
     }
 

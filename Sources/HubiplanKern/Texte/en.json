@@ -60,5 +60,11 @@
  "Anschrift": "Postal address",
  "E-Mail": "Email",
  "Telefon": "Phone",
- "Stimmt etwas nicht? Ändern kannst du deine Daten im Mitgliederbereich im Browser.": "Something wrong? You can change your data in the members' area in the browser."
+ "Stimmt etwas nicht? Ändern kannst du deine Daten im Mitgliederbereich im Browser.": "Something wrong? You can change your data in the members' area in the browser.",
+ "Mehr als {anzahl} Konten lassen sich nicht verbinden. Trenne zuerst ein Konto.": "You cannot connect more than {anzahl} accounts. Disconnect one first.",
+ "Schließen": "Close",
+ "Wird gezeigt": "Shown",
+ "Weiteres Konto verbinden": "Connect another account",
+ "Konten": "Accounts",
+ "Für mehrere Vereine mit eigener HUBIplan-Instanz. Tippe ein Konto an, um es zu zeigen.": "For several clubs with their own HUBIplan instance. Tap an account to show it."
 }
