@@ -162,7 +162,7 @@ private struct VerwaltungStart: View {
     @State private var showTasks = Demo.active && ["offen", "meldungen"].contains(Demo.section)
     @State private var showOccasions = Demo.active && Demo.section == "anlaesse"
     @State private var showEvents = Demo.active && ["vtermine", "vtermin", "neuertermin"].contains(Demo.section)
-    @State private var showFinance = Demo.active && ["kasse", "buchung", "neuebuchung"].contains(Demo.section)
+    @State private var showFinance = Demo.active && ["kasse", "buchung", "neuebuchung", "quittung"].contains(Demo.section)
     @State private var scanning = false
     @State private var check: Geprueft?
 
