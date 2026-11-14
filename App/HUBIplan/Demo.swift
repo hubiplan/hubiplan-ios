@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `ausweispruefung`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -43,6 +43,51 @@ struct DemoTransport: Transport {
         return "\(Zeit.day(date))T\(time):00+01:00"
     }
 
+    /// Termine der Verwaltung: Liste, ein Termin mit Rückmeldungen, Änderungen mit „Rückgängig“.
+    private func termine(_ path: String, _ method: String, english: Bool) -> HttpResponse {
+        let t = english
+            ? ["Platoon meeting", "Shooting practice", "Christmas party", "General assembly", "Clubhouse", "Shooting range", "Platoon 1", "Platoon 2", "Members", "weekly", "Dinner from 7 pm, please bring a small gift for the raffle.", "arrives later"]
+            : ["Zugversammlung", "Übungsschießen", "Weihnachtsfeier", "Jahreshauptversammlung", "Vereinsheim", "Schießstand", "Zug 1", "Zug 2", "Mitglieder", "wöchentlich", "Essen ab 19 Uhr, bitte ein kleines Geschenk für die Tombola mitbringen.", "kommt später"]
+        let club = "Schützenverein Musterstadt"
+        let body: String
+        if method != "GET", !(method == "POST" && path.hasSuffix("/events/")) {
+            return HttpResponse(status: 200, body: Data("{}".utf8), headers: ["X-Change-Set": "demo", "X-Change-Undoable": "1"])
+        } else if path.hasSuffix("/responses/") {
+            body = """
+            {"summary":{"yes":3,"no":1,"guests":1,"persons":4},"capacity":80,
+            "items":[{"membership_id":1,"name":"Erika Musterfrau","departments":"\(t[6])","status":"yes","guests":1,"note":"\(t[11])","source":"member"},
+            {"membership_id":2,"name":"Max Mustermann","departments":"\(t[6])","status":"yes","source":"board"},
+            {"membership_id":4,"name":"Lena Beispiel","departments":"\(t[7])","status":"yes","source":"member"},
+            {"membership_id":5,"name":"Jonas Probe","departments":"\(t[7])","status":"no","source":"member"}],
+            "open":[{"membership_id":6,"name":"Anna Vorlage","departments":"\(t[6])"},{"membership_id":7,"name":"Paul Entwurf","departments":"\(t[7])"}]}
+            """
+        } else if path.hasSuffix("/events/") {
+            if method == "POST" {
+                return HttpResponse(
+                    status: 201, body: Data(#"{"id":9,"title":"\#(t[0])","starts_at":"\#(day(7, "19:00"))","ends_at":"\#(day(7, "21:00"))"}"#.utf8),
+                    headers: ["X-Change-Set": "demo", "X-Change-Undoable": "1"]
+                )
+            }
+            body = """
+            {"can_manage":true,"rsvp_allowed":true,"items":[
+            {"key":"1","event_id":1,"title":"\(t[0])","starts_at":"\(day(3, "19:30"))","ends_at":"\(day(3, "21:30"))","location":"\(t[4])","owner":"\(t[6])","rsvp_enabled":true,"can_edit":true},
+            {"key":"2","event_id":2,"title":"\(t[1])","starts_at":"\(day(6, "18:00"))","ends_at":"\(day(6, "20:00"))","original_start":"\(day(6, "18:00"))","location":"\(t[5])","owner":"\(club)","is_series":true,"can_edit":true},
+            {"key":"2b","event_id":2,"title":"\(t[1])","starts_at":"\(day(13, "18:00"))","ends_at":"\(day(13, "20:00"))","original_start":"\(day(13, "18:00"))","location":"\(t[5])","owner":"\(club)","is_series":true,"is_cancelled":true,"can_edit":true},
+            {"key":"3","event_id":3,"title":"\(t[2])","starts_at":"\(day(28, "18:00"))","ends_at":"\(day(28, "23:00"))","location":"\(t[4])","owner":"\(club)","rsvp_enabled":true,"can_edit":true},
+            {"key":"4","event_id":4,"title":"\(t[3])","starts_at":"\(day(63, "00:00"))","ends_at":"\(day(63, "00:00"))","all_day":true,"owner":"\(club)","can_edit":true}
+            ]}
+            """
+        } else {
+            body = """
+            {"id":3,"title":"\(t[2])","description":"\(t[10])","location":"\(t[4])","starts_at":"\(day(28, "18:00"))","ends_at":"\(day(28, "23:00"))",
+            "visibility_label":"\(t[8])","repeat":"none","owner":"\(club)","can_edit":true,
+            "rsvp":{"enabled":true,"deadline":"\(day(21, "23:59"))","capacity":80,"free":76,"guests_allowed":true,"max_guests":2,"can_view_list":true,"can_enter":true,
+            "summary":{"yes":3,"no":1,"guests":1,"persons":4,"open":2}}}
+            """
+        }
+        return HttpResponse(status: 200, body: Data(body.utf8))
+    }
+
     func send(_ request: HttpRequest) async throws -> HttpResponse {
         let path = URLComponents(string: request.url)?.path ?? ""
         let english = Texte.language == "en"
@@ -53,19 +98,21 @@ struct DemoTransport: Transport {
             let unlocked = Demo.section != "freischalten"
             let zug = english ? "Platoon 1" : "Zug 1"
             body = """
-            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view"],"stufen":true}],
+            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit"],"stufen":true}],
             "departments":[{"id":9,"name":"\(zug)","permissions":["members.view"],"stufen":true}],
             "two_factor":true,"unlocked":\(unlocked),"until":"\(day(21, "10:00"))"}
             """
+        } else if path.contains("/admin/"), path.contains("/events/") {
+            return termine(path, request.method, english: english)
         } else if path.hasSuffix("/tasks/") {
             let t = english
-                ? ["Data change", "New address and phone number", "Photo", "New photo for the membership card", "Event", "Christmas party", "12 replies, 3 open"]
-                : ["Datenänderung", "Neue Anschrift und Telefonnummer", "Foto", "Neues Foto für den Ausweis", "Termin", "Weihnachtsfeier", "12 Rückmeldungen, 3 offen"]
+                ? ["Data change", "New address and phone number", "Photo", "New photo for the membership card", "Event", "Christmas party", "4 replies, 2 open"]
+                : ["Datenänderung", "Neue Anschrift und Telefonnummer", "Foto", "Neues Foto für den Ausweis", "Termin", "Weihnachtsfeier", "4 Rückmeldungen, 2 offen"]
             body = """
             {"items":[
             {"kind":"change_request","kind_label":"\(t[0])","title":"Max Mustermann","detail":"\(t[1])","ref":1},
             {"kind":"photo","kind_label":"\(t[2])","title":"Erika Musterfrau","detail":"\(t[3])","membership":1},
-            {"kind":"event","kind_label":"\(t[4])","title":"\(t[5])","detail":"\(t[6])"}
+            {"kind":"event","kind_label":"\(t[4])","title":"\(t[5])","detail":"\(t[6])","ref":3}
             ]}
             """
         } else if path.hasSuffix("/change-requests/") {
@@ -88,6 +135,16 @@ struct DemoTransport: Transport {
             """
         } else if path.contains("/photo/") {
             return HttpResponse(status: 200, body: DemoBild.png(neu: path.contains("pending")))
+        } else if path.hasSuffix("/birthdays/") {
+            body = """
+            {"results":[{"member_id":2,"first_name":"Max","last_name":"Mustermann","date":"\(day(4, "00:00").prefix(10))","age":50},
+            {"member_id":4,"first_name":"Lena","last_name":"Beispiel","date":"\(day(19, "00:00").prefix(10))","age":18}]}
+            """
+        } else if path.hasSuffix("/jubilees/") {
+            body = """
+            {"results":[{"member_id":1,"first_name":"Erika","last_name":"Musterfrau","kind":"membership","years":25,"date":"\(day(40, "00:00").prefix(10))","organization_short":""},
+            {"member_id":5,"first_name":"Jonas","last_name":"Probe","kind":"membership","years":10,"date":"\(day(71, "00:00").prefix(10))","organization_short":""}]}
+            """
         } else if path.hasSuffix("/members/") {
             let t = english ? ["Full member", "Platoon 1", "Platoon 2", "Supporting member", "Youth"] : ["Vollmitglied", "Zug 1", "Zug 2", "Fördermitglied", "Jugend"]
             body = """
@@ -102,7 +159,7 @@ struct DemoTransport: Transport {
         } else if path.contains("/members/") {
             let t = english ? ["Full member", "Platoon 1"] : ["Vollmitglied", "Zug 1"]
             body = """
-            {"id":1,"kind":"person","first_name":"Erika","last_name":"Musterfrau","birth_date":"1984-03-07","club_number":"0042","status":"active",
+            {"id":1,"kind":"person","first_name":"Erika","last_name":"Musterfrau","birth_date":"1984-03-07","club_number":"0042","status":"active","gender":"weiblich",
             "photo":{"approved":{"url":"/api/orgs/1/members/1/photo/"},"pending":{"url":"/api/orgs/1/members/1/photo/pending/"}},
             "current_type":{"member_type":1,"member_type_name":"\(t[0])"},"periods":[{"id":1,"entry_date":"2010-01-01"}],
             "departments":[{"id":1,"department":1,"department_name":"\(t[1])","valid_from":"2010-01-01"}],
