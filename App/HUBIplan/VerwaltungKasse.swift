@@ -107,6 +107,12 @@ struct KassenbuchView: View {
     @EnvironmentObject private var model: AppModel
     let unit: AdminUnit
     @State private var accounts: [FinanceAccount]?
+    /// Buchungen dieser Einheit, die noch nicht gesendet sind
+    @State private var drafts: [StoredBooking] = []
+    @State private var unreadable = 0
+    @State private var fix: StoredBooking?
+    @State private var discard: StoredBooking?
+    @State private var confirmUnreadable = false
     @State private var bookings: [BookingItem] = []
     @State private var count = 0
     @State private var page = 1
@@ -122,6 +128,7 @@ struct KassenbuchView: View {
         VerwaltungSchutz {
             List {
                 VerwaltungMeldung { await load() }
+                entwuerfe
                 if let accounts {
                     Section(tr("Konten")) {
                         if accounts.isEmpty { Text(tr("Keine.")).foregroundStyle(.secondary) }
@@ -198,6 +205,32 @@ struct KassenbuchView: View {
                 Task { await load() }
             }
         }
+        .sheet(item: $fix) { draft in
+            EntwurfKorrigierenBlatt(unit: unit, draft: draft) {
+                Task { await load() }
+            }
+        }
+        .confirmationDialog(
+            tr("Entwurf verwerfen?"),
+            isPresented: Binding(get: { discard != nil }, set: { if !$0 { discard = nil } }),
+            titleVisibility: .visible,
+            presenting: discard
+        ) { draft in
+            Button(tr("Verwerfen"), role: .destructive) {
+                model.draftBox?.delete(draft.key)
+                showDrafts()
+            }
+        } message: { _ in
+            Text(tr("Die Buchung und das Belegfoto werden von diesem iPhone gelöscht. Das lässt sich nicht rückgängig machen."))
+        }
+        .confirmationDialog(tr("Unlesbare Entwürfe löschen?"), isPresented: $confirmUnreadable, titleVisibility: .visible) {
+            Button(tr("Löschen"), role: .destructive) {
+                _ = model.draftBox?.discardUnreadable()
+                showDrafts()
+            }
+        } message: {
+            Text(tr("Diese Entwürfe lassen sich nicht mehr öffnen und nicht senden. Das Löschen lässt sich nicht rückgängig machen."))
+        }
         .sheet(isPresented: $receipt) {
             QuittungBlatt(unit: unit) {
                 Task { await load() }
@@ -205,7 +238,64 @@ struct KassenbuchView: View {
         }
     }
 
+    /// Abschnitt „Noch nicht gesendet“: auch ohne Verbindung sichtbar.
+    @ViewBuilder
+    private var entwuerfe: some View {
+        if !drafts.isEmpty {
+            Section {
+                ForEach(drafts) { draft in
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(draft.line)
+                        Text([draft.accountName, draft.categoryName].filter { !$0.isEmpty }.joined(separator: " · "))
+                            .font(.footnote).foregroundStyle(Color.secondary)
+                        if let problem = draft.error {
+                            Text(problem).font(.footnote).foregroundStyle(.red)
+                        }
+                        if unit.canEditFinance {
+                            HStack(spacing: 16) {
+                                if draft.error != nil { Button(tr("Korrigieren")) { fix = draft } }
+                                Button(tr("Verwerfen …"), role: .destructive) { discard = draft }
+                            }
+                            .buttonStyle(.borderless)
+                            .font(.footnote)
+                        }
+                    }
+                }
+            } header: {
+                Text(tr("Noch nicht gesendet ({n})", ["n": drafts.count]))
+            } footer: {
+                Text(tr("Diese Buchungen liegen verschlüsselt auf diesem iPhone. Die App sendet sie, sobald wieder eine Verbindung besteht."))
+            }
+        }
+        if unreadable > 0 {
+            Section {
+                Text(trn("1 Entwurf lässt sich nicht mehr öffnen.", "{n} Entwürfe lassen sich nicht mehr öffnen.", unreadable))
+                Button(tr("Unlesbare Entwürfe löschen …"), role: .destructive) { confirmUnreadable = true }
+            }
+        }
+    }
+
+    private func showDrafts() {
+        guard let box = model.draftBox else { return }
+        drafts = box.list(unit: unit.id)
+        unreadable = box.unreadable
+    }
+
+    /// Liegengebliebene Buchungen senden; ohne Verbindung bleiben sie liegen.
+    private func sendDrafts() async {
+        guard let box = model.draftBox else { return }
+        if Demo.active, Demo.section == "entwuerfe", box.count == 0 { Demo.fillDrafts(box, unit: unit) }
+        showDrafts()
+        guard unit.canEditFinance, !drafts.isEmpty, !Demo.active else { return }
+        let sent = await model.verwaltung(unit) { try await $0.send(drafts: box) }
+        if let sent, sent > 0 {
+            model.adminDone(trn("1 Entwurf gesendet", "{n} Entwürfe gesendet", sent))
+        }
+        showDrafts()
+    }
+
     private func load() async {
+        await sendDrafts()
         let filter = withoutReceipt
         let result = await model.verwaltung(unit) { client -> ([FinanceAccount], BookingPage) in
             (try await client.accounts(), try await client.bookings(page: 1, withoutReceipt: filter))
@@ -447,20 +537,111 @@ private struct NeueBuchungBlatt: View {
 
     private func save() async {
         error = nil
-        guard let jpeg, let fields = values.fields(categories: categories) else {
+        guard let jpeg, let stored = StoredBooking(values, unit: unit, accounts: accounts, categories: categories, jpeg: jpeg) else {
             error = tr("Bitte Beleg, Betrag, Buchungstext, Konto und Kategorie prüfen.")
             return
         }
         saving = true
         defer { saving = false }
-        // Derselbe Schlüssel bei jedem Versuch: ein zweites Senden bucht nicht doppelt
-        let key = draft.key
-        guard let booked = await model.verwaltung(unit, { try await $0.book(fields: fields, jpeg: jpeg, key: key) }) else {
+        // Derselbe Schlüssel bei jedem Versuch: ein zweites Senden bucht nicht doppelt.
+        // Erst als Entwurf sichern, dann senden: ohne Verbindung bleibt die Buchung auf dem iPhone.
+        let box = model.draftBox
+        let outcome = await model.verwaltung(unit) { client -> BookingOutcome in
+            if let box { return try await client.book(stored, box: box) }
+            let booked = try await client.book(fields: stored.fields, jpeg: stored.photo, key: stored.key)
+            return .booked(booked.displayNumber)
+        }
+        switch outcome {
+        case let .booked(number):
+            model.adminDone(tr("Gebucht als Nr. {nummer}", ["nummer": number]))
+        case .kept:
+            model.adminDone(tr("Ohne Verbindung: als Entwurf gespeichert, wird später gesendet"))
+        case nil:
             error = model.adminError
             return
         }
-        model.adminDone(tr("Gebucht als Nr. {nummer}", ["nummer": booked.displayNumber]))
         done()
+        dismiss()
+    }
+}
+
+/// Entwurf, den der Server abgelehnt hat: Konto und Kategorie neu wählen, dann erneut senden.
+private struct EntwurfKorrigierenBlatt: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let unit: AdminUnit
+    let draft: StoredBooking
+    let saved: () -> Void
+    @State private var accounts: [FinanceAccount] = []
+    @State private var categories: [FinanceCategory] = []
+    @State private var account: Int?
+    @State private var category: Int?
+    @State private var error: String?
+
+    private var fitting: [FinanceCategory] { FinanceCategory.matching(categories, kind: draft.kind) }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                if let error { Section { Text(error).foregroundStyle(.red) } }
+                Section {
+                    Text(draft.line)
+                    if let problem = draft.error { Text(problem).font(.footnote).foregroundStyle(.red) }
+                }
+                Section {
+                    Picker(tr("Konto"), selection: $account) {
+                        Text(tr("Bitte wählen")).tag(Int?.none)
+                        ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
+                    }
+                    if !fitting.isEmpty {
+                        Picker(tr("Kategorie"), selection: $category) {
+                            Text(tr("Bitte wählen")).tag(Int?.none)
+                            ForEach(fitting) { Text($0.name).tag(Optional($0.id)) }
+                        }
+                    }
+                } footer: {
+                    Text(tr("Betrag, Datum, Text und Beleg bleiben, wie sie sind. Stimmt davon etwas nicht, verwirf den Entwurf und buche neu."))
+                }
+            }
+            .navigationTitle(tr("Entwurf korrigieren"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) { Button(tr("Speichern")) { save() } }
+            }
+            .task { await load() }
+        }
+    }
+
+    private func load() async {
+        let result = await model.verwaltung(unit) { client -> ([FinanceAccount], [FinanceCategory]) in
+            (try await client.accounts(), try await client.categories())
+        }
+        guard let result else {
+            error = model.adminError
+            return
+        }
+        accounts = result.0
+        categories = result.1
+        account = result.0.contains { $0.id == draft.account } ? draft.account : nil
+        category = fitting.contains { $0.id == draft.category } ? draft.category : nil
+    }
+
+    private func save() {
+        guard let chosen = accounts.first(where: { $0.id == account }) else {
+            error = tr("Bitte ein Konto wählen.")
+            return
+        }
+        let kind = fitting.first { $0.id == category }
+        if !fitting.isEmpty, kind == nil {
+            error = tr("Bitte eine Kategorie wählen.")
+            return
+        }
+        guard model.draftBox?.save(draft.fixed(account: chosen, category: kind)) == true else {
+            error = tr("Der Entwurf ließ sich nicht speichern.")
+            return
+        }
+        saved()
         dismiss()
     }
 }

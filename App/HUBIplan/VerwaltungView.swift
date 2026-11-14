@@ -158,11 +158,11 @@ private struct VerwaltungStart: View {
     @State private var open: Int?
     @State private var confirmLock = false
     /// Vorführmodus: für das Bildschirmfoto gleich in die Mitglieder
-    @State private var showMembers = Demo.active && ["mitglieder", "mitglied", "stammdaten"].contains(Demo.section)
+    @State private var showMembers = Demo.active && (["mitglieder"] + Demo.akteAbschnitte + Demo.aufnahmeAbschnitte).contains(Demo.section)
     @State private var showTasks = Demo.active && ["offen", "meldungen"].contains(Demo.section)
     @State private var showOccasions = Demo.active && Demo.section == "anlaesse"
     @State private var showEvents = Demo.active && ["vtermine", "vtermin", "neuertermin"].contains(Demo.section)
-    @State private var showFinance = Demo.active && ["kasse", "buchung", "neuebuchung", "quittung"].contains(Demo.section)
+    @State private var showFinance = Demo.active && ["kasse", "buchung", "neuebuchung", "quittung", "entwuerfe"].contains(Demo.section)
     @State private var showTodos = Demo.active && ["vaufgaben", "vaufgabe", "neueaufgabe"].contains(Demo.section)
     @State private var showPartners = Demo.active && Demo.section == "partner"
     @State private var showQualifications = Demo.active && Demo.section == "qualifikationen"
@@ -441,8 +441,9 @@ struct MitgliederView: View {
     @State private var count = 0
     @State private var page = 1
     @State private var more = false
+    @State private var admitting = Demo.active && Demo.aufnahmeAbschnitte.contains(Demo.section)
     /// Vorführmodus: für das Bildschirmfoto gleich in eine Akte
-    @State private var shown: Int? = Demo.active && ["mitglied", "stammdaten"].contains(Demo.section) ? 1 : nil
+    @State private var shown: Int? = Demo.active && Demo.akteAbschnitte.contains(Demo.section) ? 1 : nil
 
     var body: some View {
         VerwaltungSchutz {
@@ -490,6 +491,24 @@ struct MitgliederView: View {
                 if !Task.isCancelled { await load(reset: true) }
             }
             .navigationDestination(item: $shown) { MitgliedView(unit: unit, id: $0) }
+            .toolbar {
+                if unit.canAdmitMembers {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            admitting = true
+                        } label: {
+                            Label(tr("Neues Mitglied"), systemImage: "plus")
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: $admitting) {
+                AufnahmeBlatt(unit: unit) { member in
+                    // Neue Akte gleich zeigen, Liste auffrischen
+                    shown = member.id
+                    Task { await load(reset: true) }
+                }
+            }
         }
         .navigationTitle(tr("Mitglieder"))
         .navigationBarTitleDisplayMode(.inline)
@@ -518,12 +537,19 @@ struct MitgliedView: View {
     @State private var pending: UIImage?
     @State private var busy = false
     @State private var editing = false
+    @State private var vorgang: MitgliedVorgang?
+    @State private var daten = AkteDaten()
+    @State private var blatt: AkteBlatt?
+    /// Vorführmodus: für das Bildschirmfoto nur die unteren Abschnitte der Akte
+    private let nurMehr = Demo.active && Demo.section == "akte"
 
     var body: some View {
         VerwaltungSchutz {
             List {
                 VerwaltungMeldung { await load() }
-                if let member {
+                if let member, nurMehr {
+                    AkteMehr(unit: unit, member: member, daten: daten, blatt: $blatt) { await load(full: true) }
+                } else if let member {
                     if let pending, unit.canEditPhotos {
                         Section {
                             HStack(alignment: .top, spacing: 12) {
@@ -573,9 +599,25 @@ struct MitgliedView: View {
                         if unit.canEditMembers, !member.isFormer {
                             Button(unit.isDepartment ? tr("Kontaktdaten bearbeiten") : tr("Stammdaten und Kontakt ändern")) { editing = true }
                         }
+                        if unit.canManageMembers, !member.isFormer {
+                            Button(tr("Mitgliedsart wechseln")) { vorgang = .art }
+                            Button(tr("Untereinheit wechseln")) { vorgang = .untereinheit }
+                            // Schalter zeigt den Stand der Akte; umgelegt wird erst nach der Bestätigung
+                            Toggle(tr("Zahlt Beitrag selbst"), isOn: Binding(
+                                get: { member.paysFeeSelf },
+                                set: { vorgang = $0 ? .beitragSelbst : .beitragFremd }
+                            ))
+                            Button(tr("Austritt eintragen"), role: .destructive) { vorgang = .austritt }
+                        }
+                        if unit.canManageMembers, member.isFormer {
+                            Button(tr("Wiedereintritt eintragen")) { vorgang = .wiedereintritt }
+                        }
                     } footer: {
-                        Text(tr("Mitgliedsart, Untereinheiten, Austritt und alles Weitere änderst du zurzeit im Browser."))
+                        Text(unit.isDepartment
+                            ? tr("Alles Weitere ändert der Verein.")
+                            : tr("Rechtsform, Ansprechpartner, Haushalte und alles Weitere änderst du zurzeit im Browser."))
                     }
+                    AkteMehr(unit: unit, member: member, daten: daten, blatt: $blatt) { await load(full: true) }
                 } else if model.adminError == nil {
                     ProgressView()
                 }
@@ -584,6 +626,25 @@ struct MitgliedView: View {
                 await load()
                 // Vorführmodus: für das Bildschirmfoto gleich das Blatt zum Ändern
                 if Demo.active, Demo.section == "stammdaten", member != nil { editing = true }
+                if Demo.active, ["austritt", "folgen"].contains(Demo.section), member != nil { vorgang = .austritt }
+                if Demo.active, member != nil {
+                    switch Demo.section {
+                    case "ehrung": blatt = .ehrung
+                    case "zusatzfelder": blatt = .felder
+                    case "bank": blatt = .bank
+                    default: break
+                    }
+                }
+            }
+            .sheet(item: $blatt) { wanted in
+                if let member {
+                    AkteBlattView(unit: unit, member: member, blatt: wanted, fields: daten.fields) { await load() }
+                }
+            }
+            .sheet(item: $vorgang) { wanted in
+                if let member {
+                    VorgangBlatt(unit: unit, member: member, vorgang: wanted) { updated in self.member = updated }
+                }
             }
             .sheet(isPresented: $editing) {
                 if let member {
@@ -614,10 +675,12 @@ struct MitgliedView: View {
         }
     }
 
-    private func load() async {
+    private func load(full: Bool = false) async {
         let wanted = id
         guard let loaded = await model.verwaltung(unit, { try await $0.member(wanted) }) else { return }
         member = loaded
+        // Ganze IBAN bleibt sichtbar, bis die Akte verlassen wird
+        if let mehr = await AkteDaten.load(model, unit, member: wanted, full: full || daten.full) { daten = mehr }
         let paths = (loaded.photo, loaded.pendingPhoto)
         let images = await model.verwaltung(unit) { client -> (Data?, Data?) in
             var approved: Data?

@@ -95,6 +95,13 @@ final class AppModel: ObservableObject {
         return StandStore(store: Konten.secrets(account.id))
     }
 
+    /// Buchungen der Kasse, die noch nicht gesendet sind (verschlüsselt auf diesem iPhone)
+    var draftBox: DraftBox? {
+        if Demo.active { return Demo.box }
+        guard let account else { return nil }
+        return DraftBox(files: EntwurfsOrdner(account: account.id), secrets: Konten.secrets(account.id))
+    }
+
     private func makeSession(server: String, id: String) -> DeviceSession {
         let store: SecretStore = Demo.active ? DemoStore() : Konten.secrets(id)
         return DeviceSession(server: server, store: store, transport: transport)
@@ -212,6 +219,7 @@ final class AppModel: ObservableObject {
         await session?.forget()
         if !Demo.active { VerwaltungTresor(account: account.id).clear() }
         if !Demo.active { StandStore(store: Konten.secrets(account.id)).clear() }
+        if !Demo.active { DraftBox(files: EntwurfsOrdner(account: account.id), secrets: Konten.secrets(account.id)).clear() }
         cards.clear()
         Self.clearViews()
         preview = nil

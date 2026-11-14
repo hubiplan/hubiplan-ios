@@ -12,7 +12,7 @@ permissions:
 jobs:
   bauen:
     runs-on: macos-15
-    timeout-minutes: 20
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Werkzeuge
@@ -76,6 +76,7 @@ jobs:
             foto kasse "$SPRACHE" -demo 1 -reiter ausweis -abschnitt kasse
             foto buchung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt buchung
             foto neuebuchung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt neuebuchung
+            foto entwuerfe "$SPRACHE" -demo 1 -reiter ausweis -abschnitt entwuerfe
             foto quittung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt quittung
             foto vrechnungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vrechnungen
             foto vrechnung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vrechnung
@@ -90,6 +91,14 @@ jobs:
             foto standcode "$SPRACHE" -demo 1 -reiter ausweis -abschnitt standcode
             foto mitglieder "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglieder
             foto mitglied "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglied
+            foto austritt "$SPRACHE" -demo 1 -reiter ausweis -abschnitt austritt
+            foto folgen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt folgen
+            foto akte "$SPRACHE" -demo 1 -reiter ausweis -abschnitt akte
+            foto ehrung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt ehrung
+            foto zusatzfelder "$SPRACHE" -demo 1 -reiter ausweis -abschnitt zusatzfelder
+            foto bank "$SPRACHE" -demo 1 -reiter ausweis -abschnitt bank
+            foto aufnahme "$SPRACHE" -demo 1 -reiter ausweis -abschnitt aufnahme
+            foto dubletten "$SPRACHE" -demo 1 -reiter ausweis -abschnitt dubletten
             foto konto "$SPRACHE" -demo 1 -reiter konto
             foto kalender "$SPRACHE" -demo 1 -reiter konto -abschnitt kalender
           done

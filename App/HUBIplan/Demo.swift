@@ -9,14 +9,63 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `akte`, `ehrung`, `zusatzfelder`, `bank`, `aufnahme`, `dubletten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `entwuerfe`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
+    /// Abschnitte, die eine Mitgliedsakte öffnen, und solche für „Neues Mitglied“
+    static let akteAbschnitte = ["mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank"]
+    static let aufnahmeAbschnitte = ["aufnahme", "dubletten"]
+    /// Ablage für Buchungsentwürfe im Vorführmodus (nur im Speicher)
+    static let box = DraftBox(files: DemoDateien(), secrets: DemoStore())
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
     static let accounts = AccountList(accounts: [
         AccountEntry(id: "", server: "https://verein.example.de", display: "Erika Musterfrau", email: "erika@example.org"),
         AccountEntry(id: "kapelle", server: "https://kapelle.example.org", display: "Erika Musterfrau", email: "erika@example.org"),
     ])
+}
+
+/// Entwürfe im Vorführmodus: nur im Speicher.
+final class DemoDateien: DraftFiles, @unchecked Sendable {
+    private let lock = NSLock()
+    private var order: [String] = []
+    private var data: [String: Data] = [:]
+
+    func names() -> [String] { lock.withLock { order } }
+    func read(_ name: String) -> Data? { lock.withLock { data[name] } }
+    func write(_ name: String, _ value: Data) -> Bool {
+        lock.withLock {
+            if data[name] == nil { order.append(name) }
+            data[name] = value
+            return true
+        }
+    }
+    func delete(_ name: String) {
+        lock.withLock {
+            data[name] = nil
+            order.removeAll { $0 == name }
+        }
+    }
+}
+
+extension Demo {
+    /// Zwei Entwürfe für das Bildschirmfoto: einer wartet auf Verbindung, einen hat der Server abgelehnt.
+    static func fillDrafts(_ box: DraftBox, unit: AdminUnit) {
+        let english = Texte.language == "en"
+        let rows: [(String, String, String?)] = english
+            ? [("Stamps", "12,80", nil), ("Flowers for the anniversary", "18,00", "This category no longer exists.")]
+            : [("Briefmarken", "12,80", nil), ("Blumen zum Jubiläum", "18,00", "Diese Kategorie gibt es nicht mehr.")]
+        for (index, row) in rows.enumerated() {
+            var draft = BookingDraft(key: "demo-\(index)")
+            draft.text = row.0
+            draft.amount = row.1
+            draft.date = Zeit.day(Date())
+            draft.account = 1
+            guard var stored = StoredBooking(draft, unit: unit, accounts: [], categories: [], jpeg: Data([0xFF, 0xD8, 0xFF, 0xD9])) else { continue }
+            stored.accountName = english ? "Cash box" : "Barkasse"
+            stored.error = row.2
+            _ = box.save(stored)
+        }
+    }
 }
 
 final class DemoStore: SecretStore, @unchecked Sendable {
@@ -290,6 +339,8 @@ struct DemoTransport: Transport {
             return nachschlagen(path, english: english)
         } else if path.contains("/admin/"), path.contains("/competitions/") {
             return wettbewerbe(path, request.method, english: english)
+        } else if path.hasSuffix("/billing/mandates/") {
+            body = #"[{"id":1,"reference":"M-0042-1","holder":"Erika Musterfrau","iban_masked":"DE02 •••• •••• •••• •••• 51","signed_on":"2023-02-01","status":"active"}]"#
         } else if path.contains("/admin/"), path.contains("/billing/") {
             return rechnungen(path, request.method, english: english)
         } else if path.contains("/admin/"), path.contains("/todos/") {
@@ -335,6 +386,28 @@ struct DemoTransport: Transport {
             {"results":[{"member_id":1,"first_name":"Erika","last_name":"Musterfrau","kind":"membership","years":25,"date":"\(day(40, "00:00").prefix(10))","organization_short":""},
             {"member_id":5,"first_name":"Jonas","last_name":"Probe","kind":"membership","years":10,"date":"\(day(71, "00:00").prefix(10))","organization_short":""}]}
             """
+        } else if path.contains("/members/duplicates/") {
+            body = #"[{"id":55,"last_name":"Beispiel","first_name":"Lena","birth_date":"2008-03-07"},{"id":4,"last_name":"Beispiel","first_name":"Lena","birth_date":"2008-03-07","already_member_here":true}]"#
+        } else if path.hasSuffix("/honorary-titles/") {
+            let t = english ? ["Honorary member", "Platoon king", "Golden badge of honour"] : ["Ehrenmitglied", "Zugkönig", "Goldene Ehrennadel"]
+            body = path.contains("/members/")
+                ? #"[{"id":1,"title":1,"title_name":"\#(t[0])","valid_from":"2020-01-11"},{"id":2,"title":2,"title_name":"\#(t[1])","valid_from":"2018-09-01","valid_until":"2019-08-31"}]"#
+                : #"[{"id":1,"name":"\#(t[0])"},{"id":2,"name":"\#(t[1])"},{"id":3,"name":"\#(t[2])"}]"#
+        } else if path.hasSuffix("/fields/") {
+            let t = english
+                ? ["Shooting log no.", "Uniform received", "First aider", "Instrument", "Drum", "Flute", "Courses"]
+                : ["Schießbuch-Nr.", "Uniform erhalten", "Ersthelfer", "Instrument", "Trommel", "Flöte", "Lehrgänge"]
+            body = #"[{"definition":{"id":1,"label":"\#(t[0])","field_type":"text"},"value":"A-17"},{"definition":{"id":2,"label":"\#(t[1])","field_type":"date"},"value":"2024-05-03"},{"definition":{"id":3,"label":"\#(t[2])","field_type":"bool"},"value":true},{"definition":{"id":4,"label":"\#(t[3])","field_type":"choice","choices":["\#(t[4])","\#(t[5])"]},"value":"\#(t[4])"},{"definition":{"id":5,"label":"\#(t[6])","field_type":"text","repeatable":true},"value":["A"]}]"#
+        } else if path.hasSuffix("/member-types/") {
+            let t = english ? ["Full member", "Supporting member", "Youth"] : ["Vollmitglied", "Fördermitglied", "Jugend"]
+            body = #"[{"id":1,"name":"\#(t[0])"},{"id":2,"name":"\#(t[1])"},{"id":3,"name":"\#(t[2])"}]"#
+        } else if path.contains("/admin/"), path.hasSuffix("/departments/") {
+            let t = english ? ["Platoon 1", "Platoon 2"] : ["Zug 1", "Zug 2"]
+            body = #"[{"id":1,"name":"\#(t[0])"},{"id":2,"name":"\#(t[1])"}]"#
+        } else if path.hasSuffix("/preview/") {
+            body = english
+                ? #"{"title":"Record leaving","consequences":["Erika Musterfrau leaves the club on \#(Zeit.plainDate(String(day(0, "00:00").prefix(10)))).","The membership in Platoon 1 ends on the same day.","Open invoices remain.","The membership card becomes invalid."]}"#
+                : #"{"title":"Austritt eintragen","consequences":["Erika Musterfrau tritt zum \#(Zeit.plainDate(String(day(0, "00:00").prefix(10)))) aus dem Verein aus.","Die Zugehörigkeit zu Zug 1 endet am selben Tag.","Offene Rechnungen bleiben bestehen.","Der Mitgliedsausweis wird ungültig."]}"#
         } else if path.hasSuffix("/members/") {
             let t = english ? ["Full member", "Platoon 1", "Platoon 2", "Supporting member", "Youth"] : ["Vollmitglied", "Zug 1", "Zug 2", "Fördermitglied", "Jugend"]
             body = """
@@ -353,6 +426,7 @@ struct DemoTransport: Transport {
             "photo":{"approved":{"url":"/api/orgs/1/members/1/photo/"},"pending":{"url":"/api/orgs/1/members/1/photo/pending/"}},
             "current_type":{"member_type":1,"member_type_name":"\(t[0])"},"periods":[{"id":1,"entry_date":"2010-01-01"}],
             "departments":[{"id":1,"department":1,"department_name":"\(t[1])","valid_from":"2010-01-01"}],
+            "pays_fee_self":true,"exit_reasons":[{"value":"resignation","label":"\(english ? "Resignation" : "Kündigung")"},{"value":"death","label":"\(english ? "Deceased" : "Verstorben")"}],
             "contact":{"email":"erika@example.org","phone":"02131 000000","street":"Musterweg 1","postal_code":"41468","city":"Musterstadt"}}
             """
         } else if path.hasSuffix("/events/") {
