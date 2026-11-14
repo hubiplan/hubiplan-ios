@@ -42,7 +42,7 @@ final class VerwaltungQuittungEntwurfTests: XCTestCase {
     }
 
     private func quittung(_ key: String, unit: Int = 4) throws -> StoredReceipt {
-        try XCTUnwrap(StoredReceipt(blatt(key), unit: AdminUnit(id: unit, name: "Verein"), choices: try auswahl()))
+        try XCTUnwrap(StoredReceipt(blatt(key), unit: AdminUnit(id: unit, name: "Verein"), choices: try auswahl(), date: "2026-11-14"))
     }
 
     func testQuittungAusBlatt() throws {
@@ -51,7 +51,13 @@ final class VerwaltungQuittungEntwurfTests: XCTestCase {
         XCTAssertEqual(stored.unitId, 4)
         XCTAssertEqual(stored.accountName, "Barkasse")
         XCTAssertEqual(stored.categoryName, "Feste")
-        XCTAssertEqual(stored.line, "Quittung · 25,00\u{00A0}€ · Max Mustermann")
+        XCTAssertEqual(stored.line, "14.11.2026 · 25,00\u{00A0}€ · Quittung · Max Mustermann")
+        // Ohne Angabe gilt der heutige Tag; alte Dateien ohne Tag bleiben lesbar
+        XCTAssertEqual(StoredReceipt(blatt("q-0"), unit: AdminUnit(id: 4, name: "Verein"), choices: try auswahl())?.date, Zeit.day(Date()))
+        var alt = stored
+        alt.date = nil
+        XCTAssertEqual(alt.line, "25,00\u{00A0}€ · Quittung · Max Mustermann")
+        XCTAssertEqual(try JSONDecoder().decode(StoredReceipt.self, from: try JSONEncoder().encode(alt)), alt)
         let unit = AdminUnit(id: 4, name: "Verein")
         // Ohne hinterlegte Unterschrift muss der Kassierer selbst unterschrieben haben
         XCTAssertNil(StoredReceipt(blatt("q-2"), unit: unit, choices: try auswahl(unterschrift: false)))
