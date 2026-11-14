@@ -50,7 +50,7 @@ final class Geraetekalender {
         return (try? await store.requestFullAccessToEvents()) ?? false
     }
 
-    private func calendar(name: String, title: String) throws -> EKCalendar {
+    private func ensure(name: String, title: String) throws -> EKCalendar {
         let shown = "HUBIplan: " + title
         if let id = ids[name], let found = store.calendar(withIdentifier: id) {
             if found.title != shown {
@@ -73,7 +73,7 @@ final class Geraetekalender {
     /// Termine einer Einheit abgleichen: Neues anlegen, Geändertes ändern, Entfallenes löschen.
     func sync(name: String, title: String, wanted: [CalendarEntry]) throws {
         guard Self.allowed else { return }
-        let calendar = try calendar(name: name, title: title)
+        let calendar = try ensure(name: name, title: title)
         let now = Date()
         let from = now.addingTimeInterval(-366 * 86400)
         let to = now.addingTimeInterval(3 * 366 * 86400)

@@ -273,7 +273,9 @@ final class AppModel: ObservableObject {
 
     func setCalendar(on: Bool) async {
         if on {
-            guard Demo.active || (await Geraetekalender.shared.request()) else {
+            var granted = Demo.active
+            if !granted { granted = await Geraetekalender.shared.request() }
+            guard granted else {
                 calendarDenied = true
                 return
             }
