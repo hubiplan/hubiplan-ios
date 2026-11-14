@@ -34,7 +34,6 @@
  "Noch keine Mitteilungen.": "No messages yet.",
  "Anhänge im Browser öffnen": "Open attachments in the browser",
  "QR-Code scannen": "Scan QR code",
- "Ausweis": "Card",
  "Mitgliedsausweis": "Membership card",
  "Ohne Netz ist noch kein Ausweis gespeichert. Er erscheint, sobald die App einmal online war.": "No card has been saved for offline use yet. It appears once the app has been online.",
  "Ausweis wird geladen …": "Loading card …",
@@ -49,5 +48,17 @@
  "QR-Code zur Prüfung": "QR code for checking",
  "Organisationsmitglied": "Organisation member",
  "Schließen": "Close",
- "Der QR-Code führt zur Prüfseite deines Vereins. Sie zeigt immer den aktuellen Stand.": "The QR code leads to your club's check page. It always shows the current status."
+ "Der QR-Code führt zur Prüfseite deines Vereins. Sie zeigt immer den aktuellen Stand.": "The QR code leads to your club's check page. It always shows the current status.",
+ "Ich": "Me",
+ "Meine Daten": "My data",
+ "Rechnungen": "Invoices",
+ "Keine Rechnungen": "No invoices",
+ "Offen: {betrag}, fällig am {datum}": "Open: {betrag}, due on {datum}",
+ "Offen insgesamt: {betrag}": "Open in total: {betrag}",
+ "Geburtsdatum": "Date of birth",
+ "Mitglied seit": "Member since",
+ "Anschrift": "Postal address",
+ "E-Mail": "Email",
+ "Telefon": "Phone",
+ "Stimmt etwas nicht? Ändern kannst du deine Daten im Mitgliederbereich im Browser.": "Something wrong? You can change your data in the members' area in the browser."
 }
