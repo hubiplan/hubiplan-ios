@@ -58,6 +58,8 @@ jobs:
             foto helfer "$SPRACHE" -demo 1 -reiter aufgaben -abschnitt helfer
             foto ausweis "$SPRACHE" -demo 1 -reiter ausweis
             foto rechnungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt rechnungen
+            foto versammlungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt versammlungen
+            foto dokumente "$SPRACHE" -demo 1 -reiter ausweis -abschnitt dokumente
             foto konto "$SPRACHE" -demo 1 -reiter konto
             foto kalender "$SPRACHE" -demo 1 -reiter konto -abschnitt kalender
           done

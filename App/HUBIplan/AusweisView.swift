@@ -58,6 +58,9 @@ private func farbe(_ hex: String?, sonst: Color) -> Color {
 struct AusweisView: View {
     @EnvironmentObject private var model: AppModel
     @State private var big = false
+    /// Vorführmodus: für das Bildschirmfoto gleich in Versammlungen oder Dokumente
+    @State private var showMeetings = Demo.active && Demo.section == "versammlungen"
+    @State private var showDocuments = Demo.active && Demo.section == "dokumente"
 
     var body: some View {
         NavigationStack {
@@ -100,6 +103,12 @@ struct AusweisView: View {
                     if let invoices = model.invoices {
                         MeineRechnungen(list: invoices).id("rechnungen")
                     }
+                    if let meetings = model.meetings {
+                        IchVerweis(title: tr("Versammlungen"), detail: versammlungenKurz(meetings)) { VersammlungenView() }
+                    }
+                    if let documents = model.documents {
+                        IchVerweis(title: tr("Dokumente"), detail: trn("1 Dokument", "{n} Dokumente", documents.count)) { DokumenteView() }
+                    }
                 }
                 .frame(maxWidth: 520, alignment: .leading)
                 .frame(maxWidth: .infinity)
@@ -111,6 +120,8 @@ struct AusweisView: View {
             }
             }
             .navigationTitle(tr("Ich"))
+            .navigationDestination(isPresented: $showMeetings) { VersammlungenView() }
+            .navigationDestination(isPresented: $showDocuments) { DokumenteView() }
             .refreshable { await model.refreshIch() }
             .task(id: model.accessId) { await model.refreshIch() }
             .fullScreenCover(isPresented: $big) {
@@ -252,6 +263,34 @@ struct IchAbschnitt<Content: View>: View {
         .background(Color(.secondarySystemBackground))
         .clipShape(RoundedRectangle(cornerRadius: 12))
         .padding(.top, 8)
+    }
+}
+
+/// Zeile, die zu einem eigenen Bildschirm führt (Versammlungen, Dokumente).
+struct IchVerweis<Ziel: View>: View {
+    let title: String
+    let detail: String
+    @ViewBuilder let ziel: () -> Ziel
+
+    var body: some View {
+        NavigationLink {
+            ziel()
+        } label: {
+            HStack {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.headline).foregroundStyle(Color.primary)
+                    if !detail.isEmpty { Text(detail).font(.footnote).foregroundStyle(Color.secondary) }
+                }
+                Spacer(minLength: 8)
+                Image(systemName: "chevron.right").foregroundStyle(Color.secondary)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(12)
+            .background(Color(.secondarySystemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .padding(.top, 8)
+        }
+        .buttonStyle(.plain)
     }
 }
 

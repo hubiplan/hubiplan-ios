@@ -18,7 +18,7 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 | I1 | Kern `HubiplanKern`: Schnittstelle, Verbinden, Formate, Push-Entschlüsselung | fertig |
 | I2 | Oberfläche: Verbinden, Termine, Mitteilungen, mehrere Konten | fertig |
 | I3 | Push über Apple (APNs) als verschlüsseltes Wecksignal | in Arbeit (Kern: Anmelden und Entschlüsseln; App-Teil braucht das Apple-Entwicklerkonto) |
-| I4 | „Ich“: Ausweis, Daten, Rechnungen, Versammlungen, Foto | in Arbeit (Ausweis mit QR-Code, auch ohne Netz; eigene Daten, Rechnungen) |
+| I4 | „Ich“: Ausweis, Daten, Rechnungen, Versammlungen, Dokumente, Foto | in Arbeit (Ausweis mit QR-Code, auch ohne Netz; eigene Daten, Rechnungen; Versammlungen mit Anträgen und Protokollen; Dokumente) |
 | I5 | Kalender, Aufgaben, Helferdienste, Noten | in Arbeit (Gerätekalender, Aufgaben, Helferdienste) |
 | I6 | Verwaltung | offen |
 | I7 | TestFlight und App Store | offen |

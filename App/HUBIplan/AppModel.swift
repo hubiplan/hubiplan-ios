@@ -19,6 +19,12 @@ final class AppModel: ObservableObject {
     /// Eigene Daten und Rechnungen des gewählten Zugangs
     @Published var profile: Profile?
     @Published var invoices: MyInvoices?
+    /// Versammlungen und Dokumente des gewählten Zugangs (soweit eingeschaltet)
+    @Published var meetings: MyMeetings?
+    @Published var documents: MyDocuments?
+    /// Datei, die gerade zum Ansehen offen ist (liegt nur kurz im Zwischenspeicher)
+    @Published var preview: URL?
+    @Published var previewBusy = false
     /// Aufgaben und Helferdienste des gewählten Zugangs; Hinweis nach einer Aktion
     @Published var todos: [MemberTodo] = []
     @Published var helpers: HelperOverview?
@@ -49,6 +55,7 @@ final class AppModel: ObservableObject {
 
     init() {
         Texte.language = Texte.pick(preferred: Locale.preferredLanguages)
+        Self.clearViews()
         accounts = Demo.active ? Demo.accounts : Konten.load()
         activate()
     }
@@ -81,6 +88,8 @@ final class AppModel: ObservableObject {
         card = nil
         profile = nil
         invoices = nil
+        meetings = nil
+        documents = nil
         todos = []
         helpers = nil
         taskNotice = nil
@@ -158,6 +167,8 @@ final class AppModel: ObservableObject {
         guard let account else { return }
         await session?.forget()
         cards.clear()
+        Self.clearViews()
+        preview = nil
         if !Demo.active { Geraetekalender.shared.remove(prefix: CalendarMark.prefix(server: account.server)) }
         calendarSynced[account.id] = nil
         accounts.remove(account.id)
@@ -231,9 +242,83 @@ final class AppModel: ObservableObject {
         if access.has(module: "billing", fallback: true) {
             invoices = try? await api.myInvoices(accessId: id)
         }
+        var meetings: MyMeetings?
+        if access.hasMeetings { meetings = try? await api.myMeetings(accessId: id) }
+        var documents: MyDocuments?
+        if access.hasDocs { documents = try? await api.myDocuments(accessId: id) }
         guard epoch == self.epoch, self.access?.id == id else { return }
         if let profile { self.profile = profile }
         self.invoices = invoices ?? self.invoices
+        self.meetings = access.hasMeetings ? (meetings ?? self.meetings) : nil
+        self.documents = access.hasDocs ? (documents ?? self.documents) : nil
+    }
+
+    // MARK: Versammlungen und Dokumente
+
+    /// Antrag zu einer Versammlung einreichen; `true`, wenn er angekommen ist.
+    func submitMotion(_ meeting: UpcomingMeeting, title: String, text: String) async -> Bool {
+        guard let access else { return false }
+        var sent = false
+        taskNotice = nil
+        await run { api in
+            let motions = try await api.submitMotion(accessId: access.id, meetingId: meeting.id, title: title, text: text)
+            if let index = self.meetings?.upcoming.firstIndex(where: { $0.id == meeting.id }) {
+                self.meetings?.upcoming[index].motions = motions
+            }
+            self.taskNotice = tr("Antrag eingereicht. Der Vorstand entscheidet, ob er auf die Tagesordnung kommt.")
+            sent = true
+        }
+        return sent
+    }
+
+    func withdraw(_ motion: OwnMotion) async {
+        guard let session, let access else { return }
+        taskNotice = nil
+        await run { api in
+            try await api.withdrawMotion(accessId: access.id, motionId: motion.id)
+            self.taskNotice = tr("Antrag zurückgezogen.")
+        }
+        if let fresh = try? await session.api().myMeetings(accessId: access.id), self.access?.id == access.id {
+            meetings = fresh
+        }
+    }
+
+    /// Ordner für Dateien zum Ansehen; wird bei jedem Öffnen, beim Start und beim Trennen geleert.
+    private static var viewDir: URL { FileManager.default.temporaryDirectory.appendingPathComponent("ansicht", isDirectory: true) }
+
+    static func clearViews() { try? FileManager.default.removeItem(at: viewDir) }
+
+    /// Datei laden und zum Ansehen öffnen. Die App behält sie nicht.
+    private func view(name: String, _ load: @escaping (Api) async throws -> Data) async {
+        guard !previewBusy else { return }
+        previewBusy = true
+        defer { previewBusy = false }
+        await run { api in
+            let data = try await load(api)
+            Self.clearViews()
+            try? FileManager.default.createDirectory(at: Self.viewDir, withIntermediateDirectories: true)
+            let file = Self.viewDir.appendingPathComponent(Ansicht.safeName(name))
+            do {
+                try data.write(to: file, options: [.atomic, .completeFileProtection])
+            } catch {
+                throw ApiError(status: 0, code: "format")
+            }
+            self.preview = file
+        }
+    }
+
+    func openMinutes(_ meeting: PastMeeting) async {
+        guard let access else { return }
+        await view(name: "protokoll-\(meeting.id).pdf") { api in
+            try await api.minutesPdf(accessId: access.id, meetingId: meeting.id)
+        }
+    }
+
+    func openDocument(_ document: MyDocument) async {
+        guard let access, let version = document.current else { return }
+        await view(name: version.name) { api in
+            try await api.documentFile(accessId: access.id, path: version.url)
+        }
     }
 
     func choose(access id: Int) async {
@@ -241,6 +326,8 @@ final class AppModel: ObservableObject {
         card = nil
         profile = nil
         invoices = nil
+        meetings = nil
+        documents = nil
         todos = []
         helpers = nil
         taskNotice = nil
