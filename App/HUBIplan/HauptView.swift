@@ -3,7 +3,8 @@ import SwiftUI
 
 struct HauptView: View {
     @EnvironmentObject private var model: AppModel
-    @State private var tab = Demo.tab
+    /// „Mein Konto“ liegt im Reiter „Ich“ (das iPhone zeigt höchstens fünf Reiter)
+    @State private var tab = Demo.tab == "konto" ? "ausweis" : Demo.tab
 
     var body: some View {
         TabView(selection: $tab) {
@@ -18,12 +19,14 @@ struct HauptView: View {
                     .tabItem { Label(tr("Aufgaben"), systemImage: "checklist") }
                     .tag("aufgaben")
             }
+            if model.accesses.contains(where: { $0.hasScores }) {
+                NotenView()
+                    .tabItem { Label(tr("Noten"), systemImage: "music.note.list") }
+                    .tag("noten")
+            }
             AusweisView()
                 .tabItem { Label(tr("Ich"), systemImage: "person.text.rectangle") }
                 .tag("ausweis")
-            KontoView()
-                .tabItem { Label(tr("Mein Konto"), systemImage: "person.crop.circle") }
-                .tag("konto")
         }
         .task { await model.refresh() }
         .onChange(of: model.showEvents) { _, _ in tab = "termine" }
@@ -132,11 +135,11 @@ struct TerminZeile: View {
     }
 }
 
+/// „Mein Konto“: Konten, Trennen, Gerätekalender. Erreichbar über den Knopf im Reiter „Ich“.
 struct KontoView: View {
     @EnvironmentObject private var model: AppModel
 
     var body: some View {
-        NavigationStack {
             ScrollViewReader { scroll in
             Form {
                 Section(tr("Verbunden als")) {
@@ -211,6 +214,7 @@ struct KontoView: View {
                 }
             }
             .navigationTitle(tr("Mein Konto"))
+            .navigationBarTitleDisplayMode(.inline)
             .task {
                 // Vorführmodus: für das Bildschirmfoto zum Gerätekalender springen
                 if Demo.active, Demo.section == "kalender" {
@@ -225,6 +229,5 @@ struct KontoView: View {
             }) {
                 VerbindenView()
             }
-        }
     }
 }

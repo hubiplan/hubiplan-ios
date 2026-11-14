@@ -56,6 +56,9 @@ jobs:
             foto neues "$SPRACHE" -demo 1 -reiter mitteilungen
             foto aufgaben "$SPRACHE" -demo 1 -reiter aufgaben
             foto helfer "$SPRACHE" -demo 1 -reiter aufgaben -abschnitt helfer
+            foto noten "$SPRACHE" -demo 1 -reiter noten
+            foto mappe "$SPRACHE" -demo 1 -reiter noten -abschnitt mappe
+            foto pult "$SPRACHE" -demo 1 -reiter noten -abschnitt pult
             foto ausweis "$SPRACHE" -demo 1 -reiter ausweis
             foto rechnungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt rechnungen
             foto versammlungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt versammlungen

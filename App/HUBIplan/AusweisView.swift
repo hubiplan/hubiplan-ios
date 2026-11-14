@@ -61,6 +61,7 @@ struct AusweisView: View {
     /// Vorführmodus: für das Bildschirmfoto gleich in Versammlungen oder Dokumente
     @State private var showMeetings = Demo.active && Demo.section == "versammlungen"
     @State private var showDocuments = Demo.active && Demo.section == "dokumente"
+    @State private var showAccount = Demo.active && Demo.tab == "konto"
 
     var body: some View {
         NavigationStack {
@@ -122,6 +123,16 @@ struct AusweisView: View {
             .navigationTitle(tr("Ich"))
             .navigationDestination(isPresented: $showMeetings) { VersammlungenView() }
             .navigationDestination(isPresented: $showDocuments) { DokumenteView() }
+            .navigationDestination(isPresented: $showAccount) { KontoView() }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAccount = true
+                    } label: {
+                        Label(tr("Mein Konto"), systemImage: "person.crop.circle")
+                    }
+                }
+            }
             .refreshable { await model.refreshIch() }
             .task(id: model.accessId) { await model.refreshIch() }
             .fullScreenCover(isPresented: $big) {

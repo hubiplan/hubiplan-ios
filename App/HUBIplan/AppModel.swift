@@ -29,6 +29,8 @@ final class AppModel: ObservableObject {
     @Published var todos: [MemberTodo] = []
     @Published var helpers: HelperOverview?
     @Published var taskNotice: String?
+    /// Notenmappen des gewählten Zugangs (nur mit Musikerprofil)
+    @Published var scores: ScoreFolders?
     @Published var loading = false
     @Published var error: String?
     /// Link, den die App zum Verbinden bekommen hat und der noch bestätigt werden muss
@@ -48,6 +50,8 @@ final class AppModel: ObservableObject {
     private var epoch = 0
     /// Letzter Abgleich mit dem Gerätekalender je Konto
     private var calendarSynced: [String: Date] = [:]
+    /// Geladene Notenblätter, nur im Arbeitsspeicher (Schlüssel: Datei und Fassung)
+    private var sheetCache: [String: Data] = [:]
 
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
@@ -90,6 +94,8 @@ final class AppModel: ObservableObject {
         invoices = nil
         meetings = nil
         documents = nil
+        scores = nil
+        sheetCache = [:]
         todos = []
         helpers = nil
         taskNotice = nil
@@ -328,6 +334,8 @@ final class AppModel: ObservableObject {
         invoices = nil
         meetings = nil
         documents = nil
+        scores = nil
+        sheetCache = [:]
         todos = []
         helpers = nil
         taskNotice = nil
@@ -425,6 +433,58 @@ final class AppModel: ObservableObject {
             self.taskNotice = tr("Dienst abgesagt.")
         }
         await refreshTasks()
+    }
+
+    // MARK: Noten
+
+    func refreshScores() async {
+        guard let access, access.hasScores else {
+            scores = nil
+            return
+        }
+        let id = access.id
+        let epoch = self.epoch
+        await run { api in
+            let fresh = try await api.scoreFolders(accessId: id)
+            guard epoch == self.epoch, self.access?.id == id else { return }
+            self.scores = fresh
+        }
+    }
+
+    /// Notenblätter eines Stücks in Spielreihenfolge (PDF oder Bild); `nil`, wenn eines fehlt.
+    /// Die App behält sie nur im Arbeitsspeicher, bis das Konto oder der Verein wechselt.
+    func sheets(of piece: FolderItem) async -> [Data]? {
+        guard let session, let access else { return nil }
+        let epoch = self.epoch
+        let api = session.api()
+        var result: [Data] = []
+        for file in piece.sheets {
+            let key = "\(access.id)-\(file.id)-\(file.version)"
+            if let known = sheetCache[key] {
+                result.append(known)
+                continue
+            }
+            do {
+                let data = try await api.scoreFile(accessId: access.id, file: file)
+                guard epoch == self.epoch else { return nil }
+                if sheetCache.count >= 60 { sheetCache = [:] }
+                sheetCache[key] = data
+                result.append(data)
+                error = nil
+            } catch let failure as ApiError {
+                if failure.mustReconnect {
+                    await disconnect()
+                    linkError = failure.text
+                } else {
+                    error = failure.text
+                }
+                return nil
+            } catch {
+                self.error = ApiError(status: 0, code: "offline").text
+                return nil
+            }
+        }
+        return result
     }
 
     // MARK: Gerätekalender

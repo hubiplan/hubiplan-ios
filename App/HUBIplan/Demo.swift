@@ -1,11 +1,12 @@
 import Foundation
 import HubiplanKern
+import UIKit
 
 /// Vorführmodus für Bildschirmfotos und Prüfungen im Simulator: Start mit `-demo 1`.
 /// Die App spricht dann mit keinem Server; alle Daten sind erfunden (Demoverein).
 enum Demo {
     static var active: Bool { UserDefaults.standard.bool(forKey: "demo") }
-    /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `ausweis`, `konto`).
+    /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
     /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
@@ -47,7 +48,7 @@ struct DemoTransport: Transport {
         let english = Texte.language == "en"
         let body: String
         if path.hasSuffix("/me/") {
-            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers","meetings","docs"]}]}"#
+            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers","meetings","docs","music","scores"],"musician":true}]}"#
         } else if path.hasSuffix("/events/") {
             let titles = english
                 ? ["Platoon meeting", "Shooting practice", "Christmas party", "General assembly"]
@@ -84,6 +85,24 @@ struct DemoTransport: Transport {
             {"id":2,"number":"R-2026-0031","status":"open","status_label":"\(labels[1])","date":"\(day(-12, "00:00").prefix(10))","due_date":"\(day(9, "00:00").prefix(10))","subject":"\(labels[3])","total":"36.00","outstanding":"36.00","issuer_name":"Schützenverein Musterstadt"},
             {"id":1,"number":"R-2026-0007","status":"paid","status_label":"\(labels[0])","date":"2026-01-15","subject":"\(labels[2])","total":"60.00","outstanding":"0.00","issuer_name":"Schützenverein Musterstadt"}
             ]}
+            """
+        } else if path.contains("/music/files/") {
+            return HttpResponse(status: 200, body: DemoNoten.pdf(pages: path.contains("/files/1/") ? 2 : 1))
+        } else if path.hasSuffix("/music/folders/") {
+            let t = english
+                ? ["March book", "Rehearsal", "Clubhouse", "Christmas concert", "Break"]
+                : ["Marschbuch", "Probe", "Vereinsheim", "Weihnachtskonzert", "Pause"]
+            let pieces = """
+            {"arrangement":1,"title":"Gruß an Musterstadt","composer":"E. Beispiel","number":"1","scores":[{"id":1,"content_type":"application/pdf","url":"/api/portal/1/music/files/1/"}]},
+            {"arrangement":2,"title":"Musterstädter Schützenmarsch","composer":"M. Muster","number":"2","scores":[{"id":2,"content_type":"application/pdf","url":"/api/portal/1/music/files/2/"}]},
+            {"arrangement":3,"title":"Unter der Vereinsfahne","composer":"E. Beispiel","number":"3","scores":[]}
+            """
+            body = """
+            {"folders":[{"id":1,"key":"folder-1","kind":"marchbook","name":"\(t[0])","items":[\(pieces)]}],
+            "events":[{"key":"rehearsal-1","type":"rehearsal","title":"\(t[1])","starts_at":"\(day(3, "19:30"))","location":"\(t[2])","focus":"\(t[3])","items":[
+            {"arrangement":2,"title":"Musterstädter Schützenmarsch","scores":[{"id":2,"content_type":"application/pdf","url":"/api/portal/1/music/files/2/"}]},
+            {"kind":"pause","title":"\(t[4])"},
+            {"arrangement":1,"title":"Gruß an Musterstadt","scores":[{"id":1,"content_type":"application/pdf","url":"/api/portal/1/music/files/1/"}]}]}]}
             """
         } else if path.hasSuffix("/meetings/") {
             let t = english
@@ -141,5 +160,37 @@ struct DemoTransport: Transport {
             body = "{}"
         }
         return HttpResponse(status: 200, body: Data(body.utf8))
+    }
+}
+
+/// Erfundene Notenblätter für den Vorführmodus: leere Notenzeilen mit Seitenzahl.
+enum DemoNoten {
+    static func pdf(pages: Int) -> Data {
+        let bounds = CGRect(x: 0, y: 0, width: 595, height: 842)
+        return UIGraphicsPDFRenderer(bounds: bounds).pdfData { context in
+            for page in 1...max(pages, 1) {
+                context.beginPage()
+                let lines = context.cgContext
+                lines.setStrokeColor(UIColor.black.cgColor)
+                lines.setLineWidth(0.8)
+                for staff in 0..<9 {
+                    let top = 90 + CGFloat(staff) * 80
+                    for line in 0..<5 {
+                        let y = top + CGFloat(line) * 8
+                        lines.move(to: CGPoint(x: 45, y: y))
+                        lines.addLine(to: CGPoint(x: 550, y: y))
+                    }
+                    lines.move(to: CGPoint(x: 45, y: top))
+                    lines.addLine(to: CGPoint(x: 45, y: top + 32))
+                    lines.move(to: CGPoint(x: 550, y: top))
+                    lines.addLine(to: CGPoint(x: 550, y: top + 32))
+                }
+                lines.strokePath()
+                ("\(page)" as NSString).draw(
+                    at: CGPoint(x: 292, y: 805),
+                    withAttributes: [.font: UIFont.systemFont(ofSize: 11)]
+                )
+            }
+        }
     }
 }
