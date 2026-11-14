@@ -63,6 +63,7 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
     public var sections: [AdminSection] {
         var list: [AdminSection] = []
         if !isDepartment { list.append(.tasks) }
+        if showsTodos { list.append(.todos) }
         if showsMembers { list.append(.members) }
         if showsEvents { list.append(.events) }
         if showsFinance { list.append(.finance) }
@@ -79,7 +80,7 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
 }
 
 public enum AdminSection: String, Sendable, CaseIterable {
-    case tasks, members, events, finance, billing, occasions
+    case tasks, todos, members, events, finance, billing, occasions
 }
 
 /// Untereinheit mit Rollen nur dort (z. B. Zugführung).
@@ -586,11 +587,13 @@ public struct AdminClient: Sendable {
     }
 
     /// Änderung zurücknehmen (Kennung aus `AdminChange.changeSet`).
-    public func undo(_ changeSet: String) async throws {
+    /// `task`: Aufgabe, zu der die Änderung gehört (`AdminChange.task`); sie hat ihren eigenen Rückweg.
+    public func undo(_ changeSet: String, task: Int? = nil) async throws {
         guard !changeSet.isEmpty, changeSet.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }) else {
             throw ApiError(status: 0, code: "format")
         }
-        _ = try await change("POST", "changes/\(changeSet)/undo/", [:])
+        let prefix = task.map { "todos/\($0)/" } ?? ""
+        _ = try await change("POST", "\(prefix)changes/\(changeSet)/undo/", [:])
     }
 
     /// Ausweis am Einlass prüfen; `code`: Inhalt des QR-Codes.
@@ -626,11 +629,14 @@ public struct AdminClient: Sendable {
 public struct AdminChange: Equatable, Sendable {
     public var changeSet: String?
     public var label: String
+    /// Aufgabe, zu der die Änderung gehört (Kopfzeile `X-Change-Task`); nur für „Rückgängig“
+    public var task: Int?
 
     init(_ response: HttpResponse) {
         let undoable = response.header("X-Change-Undoable") == "1"
         changeSet = undoable ? response.header("X-Change-Set").flatMap { $0.isEmpty ? nil : $0 } : nil
         label = response.header("X-Change-Label").flatMap { $0.replacingOccurrences(of: "+", with: " ").removingPercentEncoding } ?? ""
+        task = changeSet == nil ? nil : response.header("X-Change-Task").flatMap { Int($0) }.flatMap { $0 > 0 ? $0 : nil }
     }
 }
 

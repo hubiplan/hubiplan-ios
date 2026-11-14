@@ -79,6 +79,9 @@ jobs:
             foto quittung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt quittung
             foto vrechnungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vrechnungen
             foto vrechnung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vrechnung
+            foto vaufgaben "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vaufgaben
+            foto vaufgabe "$SPRACHE" -demo 1 -reiter ausweis -abschnitt vaufgabe
+            foto neueaufgabe "$SPRACHE" -demo 1 -reiter ausweis -abschnitt neueaufgabe
             foto mitglieder "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglieder
             foto mitglied "$SPRACHE" -demo 1 -reiter ausweis -abschnitt mitglied
             foto konto "$SPRACHE" -demo 1 -reiter konto

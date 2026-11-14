@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
 
     /// Zwei erfundene Konten: der Verein und die Kapelle mit eigener Instanz.
@@ -75,6 +75,36 @@ struct DemoTransport: Transport {
             """
         } else {
             body = erste
+        }
+        return HttpResponse(status: 200, body: Data(body.utf8))
+    }
+
+    /// „Aufgaben verteilen“ in der Verwaltung: Liste, eine Aufgabe, erledigen, anlegen.
+    private func aufgaben(_ path: String, _ method: String, english: Bool) -> HttpResponse {
+        let t = english
+            ? ["Order the marquee", "Ask three suppliers for a quote and compare prices by the board meeting.", "due 27 Nov 2026, 6:00 pm", "Invite the guests of honour", "due 4 Dec 2026", "Renew the liability insurance", "Quote from last year is in the shared folder.", "Book the band"]
+            : ["Festzelt bestellen", "Drei Angebote einholen und bis zur Vorstandssitzung vergleichen.", "bis 27.11.2026, 18:00 Uhr", "Ehrengäste einladen", "bis 04.12.2026", "Haftpflichtversicherung verlängern", "Das Angebot vom letzten Jahr liegt in der Ablage.", "Kapelle buchen"]
+        func eine(_ status: String, _ version: Int) -> String {
+            """
+            {"id":1,"title":"\(t[0])","description":"\(t[1])","due_date":"2026-11-27","due_time":"18:00","timezone":"Europe/Berlin","status":"\(status)","shared":true,"version":\(version),"can_edit":true,"can_complete":true,"local_note":"\(t[6])","due_label":"\(t[2])","highlight":true}
+            """
+        }
+        if method == "PATCH" {
+            return HttpResponse(status: 200, body: Data(eine("done", 4).utf8), headers: ["X-Change-Set": "demo", "X-Change-Undoable": "1", "X-Change-Task": "1"])
+        } else if method != "GET" {
+            return HttpResponse(status: path.hasSuffix("/undo/") ? 200 : 201, body: Data(eine("open", 3).utf8))
+        }
+        let body: String
+        if path.hasSuffix("/todos/") {
+            body = """
+            {"items":[\(eine("open", 3)),
+            {"id":2,"title":"\(t[3])","status":"open","shared":true,"version":1,"can_edit":true,"due_label":"\(t[4])"},
+            {"id":3,"title":"\(t[5])","status":"open","version":2,"can_edit":true},
+            {"id":4,"title":"\(t[7])","status":"done","shared":true,"version":5,"can_edit":true}
+            ]}
+            """
+        } else {
+            body = eine("open", 3)
         }
         return HttpResponse(status: 200, body: Data(body.utf8))
     }
@@ -179,7 +209,7 @@ struct DemoTransport: Transport {
             let unlocked = Demo.section != "freischalten"
             let zug = english ? "Platoon 1" : "Zug 1"
             body = """
-            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit","finance.view","finance.edit","billing.view","billing.edit"],"stufen":true}],
+            {"units":[{"id":1,"name":"Schützenverein Musterstadt","type":"club","permissions":["members.view","members.edit","photos.edit","events.view","events.edit","finance.view","finance.edit","billing.view","billing.edit","todos.view","todos.edit"],"stufen":true}],
             "departments":[{"id":9,"name":"\(zug)","permissions":["members.view"],"stufen":true}],
             "two_factor":true,"unlocked":\(unlocked),"until":"\(day(21, "10:00"))"}
             """
@@ -191,6 +221,8 @@ struct DemoTransport: Transport {
             return kasse(path, request.method, english: english)
         } else if path.contains("/admin/"), path.contains("/billing/") {
             return rechnungen(path, request.method, english: english)
+        } else if path.contains("/admin/"), path.contains("/todos/") {
+            return aufgaben(path, request.method, english: english)
         } else if path.hasSuffix("/tasks/") {
             let t = english
                 ? ["Data change", "New address and phone number", "Photo", "New photo for the membership card", "Event", "Christmas party", "4 replies, 2 open"]

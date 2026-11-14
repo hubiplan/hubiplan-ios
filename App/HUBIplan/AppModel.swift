@@ -7,6 +7,8 @@ import UIKit
 struct AdminUndo: Equatable {
     let unit: AdminUnit
     let changeSet: String
+    /// Aufgabe, zu der die Änderung gehört (eigener Rückweg)
+    var task: Int?
 }
 
 @MainActor
@@ -397,7 +399,7 @@ final class AppModel: ObservableObject {
     /// Nach einer Änderung: Hinweis zeigen und „Rückgängig“ anbieten, soweit möglich.
     func adminChanged(_ unit: AdminUnit, text: String, change: AdminChange) {
         adminNotice = text
-        adminUndo = change.changeSet.map { AdminUndo(unit: unit, changeSet: $0) }
+        adminUndo = change.changeSet.map { AdminUndo(unit: unit, changeSet: $0, task: change.task) }
     }
 
     /// Erledigt, ohne „Rückgängig“ (z. B. gebucht: Ändern und Storno im Browser).
@@ -410,7 +412,7 @@ final class AppModel: ObservableObject {
     func undoAdmin() async -> Bool {
         guard let undo = adminUndo else { return false }
         let done: Bool? = await verwaltung(undo.unit) { client in
-            try await client.undo(undo.changeSet)
+            try await client.undo(undo.changeSet, task: undo.task)
             return true
         }
         guard done == true else { return false }
