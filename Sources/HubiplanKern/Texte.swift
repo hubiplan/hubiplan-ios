@@ -22,6 +22,10 @@ public enum Texte {
         set { lock.withLock { current = languages.contains(newValue) ? newValue : "de" } }
     }
 
+    /// Formate der Sprache (Datum, Zahlen): Deutsch wie in Deutschland, Englisch britisch
+    /// (wie in der Android-App).
+    public static var locale: Locale { Locale(identifier: language == "en" ? "en_GB" : "de_DE") }
+
     /// Sprache aus den bevorzugten Sprachen des Geräts (z. B. "en-GB" → "en").
     public static func pick(preferred: [String]) -> String {
         for entry in preferred {

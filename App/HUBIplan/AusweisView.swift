@@ -87,7 +87,7 @@ struct AusweisView: View {
                         if note {
                             Text(tr(
                                 "Ohne Netz angezeigt, Stand {stand}. Wer den QR-Code prüft, sieht immer den aktuellen Stand.",
-                                ["stand": stored.savedAt.formatted(.dateTime.day().month().year().hour().minute().locale(Locale(identifier: Texte.language)))]
+                                ["stand": stored.savedAt.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale))]
                             ))
                             .font(.footnote)
                             .foregroundStyle(.secondary)

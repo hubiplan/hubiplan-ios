@@ -8,7 +8,7 @@ func mappeZeile(_ mappe: Mappe) -> String {
     var parts: [String] = []
     var head = mappe.kindText
     if mappe.isEvent, let start = Zeit.parse(mappe.startsAt) {
-        let day = start.formatted(.dateTime.weekday(.abbreviated).day().month().locale(Locale(identifier: Texte.language)))
+        let day = start.formatted(.dateTime.weekday(.abbreviated).day().month().locale(Texte.locale))
         head = head.isEmpty ? day : head + " · " + day
     }
     if !head.isEmpty { parts.append(head) }

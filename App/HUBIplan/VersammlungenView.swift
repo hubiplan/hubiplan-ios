@@ -5,13 +5,13 @@ import SwiftUI
 /// Tag und Uhrzeit einer Versammlung oder Frist.
 func tagUndZeit(_ date: Date?) -> String {
     guard let date else { return "" }
-    return date.formatted(.dateTime.weekday(.abbreviated).day().month().year().hour().minute().locale(Locale(identifier: Texte.language)))
+    return date.formatted(.dateTime.weekday(.abbreviated).day().month().year().hour().minute().locale(Texte.locale))
 }
 
 /// Kurzstand neben „Versammlungen“: die nächste mit Datum, sonst die Zahl der Protokolle.
 func versammlungenKurz(_ list: MyMeetings) -> String {
     if let next = list.upcoming.first {
-        let day = next.start?.formatted(.dateTime.day().month().year().locale(Locale(identifier: Texte.language))) ?? ""
+        let day = next.start?.formatted(.dateTime.day().month().year().locale(Texte.locale)) ?? ""
         return [next.title, day].filter { !$0.isEmpty }.joined(separator: " · ")
     }
     if !list.minutes.isEmpty { return trn("1 Protokoll", "{n} Protokolle", list.minutes.count) }

@@ -300,6 +300,9 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertNil(MasterData.parseDate("29.02.1900"))
         XCTAssertNil(MasterData.parseDate("1.13.2000"))
         XCTAssertNil(MasterData.parseDate("heute"))
+        XCTAssertEqual(MasterData.parseDate("7/3/2008"), "2008-03-07")
+        XCTAssertEqual(MasterData.parseDate("07/03/2008"), "2008-03-07")
+        XCTAssertNil(MasterData.parseDate("07/03.2008"))
         XCTAssertEqual(MasterData.label("last_name", organization: true), "Name der Organisation")
         XCTAssertEqual(MasterData.label("last_name", organization: false), "Nachname")
     }

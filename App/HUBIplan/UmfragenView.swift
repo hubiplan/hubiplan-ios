@@ -5,7 +5,7 @@ import SwiftUI
 func umfrageOption(label: String, startsAt: String?, allDay: Bool) -> String {
     if !label.isEmpty { return label }
     guard let date = startsAt.flatMap(Zeit.parse) else { return "" }
-    let locale = Locale(identifier: Texte.language)
+    let locale = Texte.locale
     if allDay { return date.formatted(.dateTime.weekday(.abbreviated).day().month().year().locale(locale)) }
     return tagUndZeit(date)
 }
@@ -78,7 +78,7 @@ struct UmfragenView: View {
             if let event = s.followEvent {
                 Text(tr("Termin steht fest: {title} am {day}.", [
                     "title": event.title,
-                    "day": event.start?.formatted(.dateTime.day().month().year().locale(Locale(identifier: Texte.language))) ?? "",
+                    "day": event.start?.formatted(.dateTime.day().month().year().locale(Texte.locale)) ?? "",
                 ]))
                 if event.response == "yes" {
                     Text(tr("Du hast zugesagt.")).font(.footnote).foregroundStyle(.secondary)
