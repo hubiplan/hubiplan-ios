@@ -1,0 +1,12 @@
+.build/
+.swiftpm/
+*.xcuserstate
+xcuserdata/
+DerivedData/
+.DS_Store
+Package.resolved.orig
+# Signaturschlüssel und Apple-Zugänge nie ins Repo
+*.p8
+*.p12
+*.mobileprovision
+*.cer
