@@ -237,7 +237,7 @@ struct QuittungBlatt: View {
                 .keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
-            Picker(tr("Barkasse"), selection: $draft.account) {
+            Picker(tr("Konto"), selection: $draft.account) {
                 ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
             }
             Picker(tr("Kategorie"), selection: $draft.category) {
@@ -364,7 +364,7 @@ struct QuittungBlatt: View {
             draft.name = "Max Mustermann"
             draft.amount = "25,00"
             draft.purpose = Texte.language == "en" ? "Expenses for flowers" : "Auslagen Blumen"
-            draft.category = fitting.first?.id
+            draft.category = fitting.last?.id
             // Erst nach dem Zurücksetzen durch die geänderten Angaben
             try? await Task.sleep(for: .milliseconds(400))
             draft.counterparty = SignatureStrokes(width: 300, height: 100, strokes: [[[20, 70], [50, 30], [70, 75], [95, 35], [120, 70], [160, 55], [210, 60], [270, 45]]])
