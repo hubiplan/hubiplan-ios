@@ -65,6 +65,7 @@ jobs:
             foto versammlungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt versammlungen
             foto live "$SPRACHE" -demo 1 -reiter ausweis -abschnitt live
             foto dokumente "$SPRACHE" -demo 1 -reiter ausweis -abschnitt dokumente
+            foto ergebnisse "$SPRACHE" -demo 1 -reiter ausweis -abschnitt ergebnisse
             foto verwaltung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt verwaltung
             foto freischalten "$SPRACHE" -demo 1 -reiter ausweis -abschnitt freischalten
             foto offen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt offen

@@ -72,11 +72,13 @@ public struct UpcomingMeeting: Decodable, Equatable, Identifiable, Sendable {
     public var motionUntil: String?
     /// Anmeldung im Saal läuft (Ansicht „Versammlung läuft“)
     public var checkinOpen: Bool
+    /// Teilnahme und Abstimmung aus der Ferne erlaubt (hybride Versammlung)
+    public var remote: Bool
     public var motions: [OwnMotion]
     public var agenda: [AgendaPoint]
 
     enum CodingKeys: String, CodingKey {
-        case id, title, unit, location, address, motions, agenda
+        case id, title, unit, location, address, motions, agenda, remote
         case kindName = "kind_name"
         case startsAt = "starts_at"
         case motionUntil = "motion_until"
@@ -94,6 +96,7 @@ public struct UpcomingMeeting: Decodable, Equatable, Identifiable, Sendable {
         address = try c.decodeIfPresent(String.self, forKey: .address) ?? ""
         motionUntil = try c.decodeIfPresent(String.self, forKey: .motionUntil)
         checkinOpen = try c.decodeIfPresent(Bool.self, forKey: .checkinOpen) ?? false
+        remote = try c.decodeIfPresent(Bool.self, forKey: .remote) ?? false
         motions = try c.decodeIfPresent([OwnMotion].self, forKey: .motions) ?? []
         agenda = try c.decodeIfPresent([AgendaPoint].self, forKey: .agenda) ?? []
     }

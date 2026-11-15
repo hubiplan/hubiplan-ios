@@ -91,9 +91,12 @@ public struct MyInvoice: Decodable, Equatable, Identifiable, Sendable {
     public var overdue: Bool
     public var issuerName: String
     public var departmentName: String?
+    /// Zur Rechnung gibt es eine Stornorechnung als PDF
+    public var hasCancellationPdf: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, number, status, date, subject, total, outstanding, overdue
+        case hasCancellationPdf = "has_cancellation_pdf"
         case statusLabel = "status_label"
         case dueDate = "due_date"
         case issuerName = "issuer_name"
@@ -114,6 +117,7 @@ public struct MyInvoice: Decodable, Equatable, Identifiable, Sendable {
         overdue = try c.decodeIfPresent(Bool.self, forKey: .overdue) ?? false
         issuerName = try c.decodeIfPresent(String.self, forKey: .issuerName) ?? ""
         departmentName = try c.decodeIfPresent(String.self, forKey: .departmentName)
+        hasCancellationPdf = try c.decodeIfPresent(Bool.self, forKey: .hasCancellationPdf) ?? false
     }
 
     public var open: Bool { status == "open" }
@@ -130,14 +134,50 @@ public struct MyInvoice: Decodable, Equatable, Identifiable, Sendable {
     }
 }
 
+/// Beitrag, den die eigene Einheit über eine Sammelrechnung zahlt (die Rechnung bekommt sie).
+public struct CollectiveLine: Decodable, Equatable, Identifiable, Sendable {
+    public var id: Int
+    public var number: String
+    public var date: String?
+    public var subject: String
+    public var departmentName: String
+    public var amount: String
+    public var statusLabel: String
+
+    enum CodingKeys: String, CodingKey {
+        case id, number, date, subject, amount
+        case departmentName = "department_name"
+        case statusLabel = "status_label"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(Int.self, forKey: .id)
+        number = try c.decodeIfPresent(String.self, forKey: .number) ?? ""
+        date = try c.decodeIfPresent(String.self, forKey: .date)
+        subject = try c.decodeIfPresent(String.self, forKey: .subject) ?? ""
+        departmentName = try c.decodeIfPresent(String.self, forKey: .departmentName) ?? ""
+        amount = try c.decodeIfPresent(String.self, forKey: .amount) ?? "0"
+        statusLabel = try c.decodeIfPresent(String.self, forKey: .statusLabel) ?? ""
+    }
+
+    public var title: String { subject.isEmpty ? number : subject }
+    /// Einheit, Datum, Betrag und Stand.
+    public var line: String {
+        [departmentName, Zeit.plainDate(date), Geld.format(amount), statusLabel].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+}
+
 public struct MyInvoices: Decodable, Equatable, Sendable {
     public var invoices: [MyInvoice]
+    public var collective: [CollectiveLine]
 
-    enum CodingKeys: String, CodingKey { case invoices }
+    enum CodingKeys: String, CodingKey { case invoices, collective }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         invoices = try c.decodeIfPresent([MyInvoice].self, forKey: .invoices) ?? []
+        collective = try c.decodeIfPresent([CollectiveLine].self, forKey: .collective) ?? []
     }
 
     /// Offene zuerst, sonst wie geliefert (neueste oben).

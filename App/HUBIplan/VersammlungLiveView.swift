@@ -193,7 +193,7 @@ private struct AbstimmungKarte: View {
 }
 
 /// QR-Code der Versammlungsleitung mit der Kamera lesen.
-private struct VersammlungScan: View {
+struct VersammlungScan: View {
     @Environment(\.dismiss) private var dismiss
     let found: (String) -> Void
 

@@ -29,6 +29,8 @@ final class AppModel: ObservableObject {
     /// Eigene Daten und Rechnungen des gewählten Zugangs
     @Published var profile: Profile?
     @Published var invoices: MyInvoices?
+    /// Lastschriftmandat (nur ansehen); `nil` ohne Rechnungen oder bei älteren Ständen
+    @Published var mandate: MandateState?
     /// Versammlungen und Dokumente des gewählten Zugangs (soweit eingeschaltet)
     @Published var meetings: MyMeetings?
     @Published var documents: MyDocuments?
@@ -132,6 +134,7 @@ final class AppModel: ObservableObject {
         card = nil
         profile = nil
         invoices = nil
+        mandate = nil
         meetings = nil
         documents = nil
         surveys = nil
@@ -300,8 +303,10 @@ final class AppModel: ObservableObject {
         let api = session.api()
         let profile = try? await api.profile(accessId: id)
         var invoices: MyInvoices?
+        var mandate: MandateState?
         if access.has(module: "billing", fallback: true) {
             invoices = try? await api.myInvoices(accessId: id)
+            mandate = try? await api.myMandate(accessId: id)
         }
         var meetings: MyMeetings?
         if access.hasMeetings { meetings = try? await api.myMeetings(accessId: id) }
@@ -312,6 +317,7 @@ final class AppModel: ObservableObject {
         guard epoch == self.epoch, self.access?.id == id else { return }
         if let profile { self.profile = profile }
         self.invoices = invoices ?? self.invoices
+        self.mandate = mandate ?? self.mandate
         self.meetings = access.hasMeetings ? (meetings ?? self.meetings) : nil
         self.documents = access.hasDocs ? (documents ?? self.documents) : nil
         self.surveys = access.hasSurveys ? (surveys ?? self.surveys) : nil
@@ -598,11 +604,22 @@ final class AppModel: ObservableObject {
 
     /// Vorschau (`confirm` false) oder Senden; Fehlertext bei Problemen.
     func sendShort(_ sender: Sender, subject: String, body: String, confirm: Bool) async -> Result<SendResult, ApiError>? {
-        guard let session else { return nil }
+        await portalCall { api, _ in
+            try await api.sendShort(sender, subject: subject, body: body, confirm: confirm)
+        }
+    }
+
+    // MARK: Versammlung live
+
+    /// Aufruf im eigenen Mitgliederbereich ohne die Ladeanzeige der ganzen App (z. B. die
+    /// laufende Versammlung, die alle paar Sekunden nachfragt). `nil`, wenn das Konto inzwischen
+    /// gewechselt oder getrennt wurde.
+    func portalCall<T: Sendable>(_ work: @escaping (Api, Int) async throws -> T) async -> Result<T, ApiError>? {
+        guard let session, let access else { return nil }
         let epoch = self.epoch
         do {
-            let result = try await session.api().sendShort(sender, subject: subject, body: body, confirm: confirm)
-            return epoch == self.epoch ? .success(result) : nil
+            let value = try await work(session.api(), access.id)
+            return epoch == self.epoch && self.access?.id == access.id ? .success(value) : nil
         } catch let failure as ApiError {
             guard epoch == self.epoch else { return nil }
             if failure.mustReconnect {
@@ -616,27 +633,8 @@ final class AppModel: ObservableObject {
         }
     }
 
-    // MARK: Versammlung live
-
-    /// Aufruf zur laufenden Versammlung, ohne die Ladeanzeige der ganzen App (die Ansicht fragt
-    /// alle paar Sekunden nach). `nil`, wenn das Konto inzwischen gewechselt oder getrennt wurde.
     func liveCall(_ work: @escaping (Api, Int) async throws -> MeetingLive) async -> Result<MeetingLive, ApiError>? {
-        guard let session, let access else { return nil }
-        let epoch = self.epoch
-        do {
-            let state = try await work(session.api(), access.id)
-            return epoch == self.epoch && self.access?.id == access.id ? .success(state) : nil
-        } catch let failure as ApiError {
-            guard epoch == self.epoch else { return nil }
-            if failure.mustReconnect {
-                await disconnect()
-                linkError = failure.text
-                return nil
-            }
-            return .failure(failure)
-        } catch {
-            return epoch == self.epoch ? .failure(ApiError(status: 0, code: "offline")) : nil
-        }
+        await portalCall(work)
     }
 
     // MARK: Umfragen
@@ -740,11 +738,21 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Rechnung oder Stornorechnung als PDF ansehen (nur online, wird nicht gespeichert).
+    func openInvoice(_ invoice: MyInvoice, cancellation: Bool = false) async {
+        guard let access else { return }
+        let name = Ansicht.safeName((cancellation ? "storno-" : "rechnung-") + invoice.number + ".pdf", fallback: "rechnung.pdf")
+        await view(name: name) { api in
+            try await api.invoicePdf(accessId: access.id, invoiceId: invoice.id, cancellation: cancellation)
+        }
+    }
+
     func choose(access id: Int) async {
         accessId = id
         card = nil
         profile = nil
         invoices = nil
+        mandate = nil
         meetings = nil
         documents = nil
         surveys = nil
