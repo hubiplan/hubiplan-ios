@@ -243,6 +243,20 @@ struct KontoView: View {
                     Text(tr("Je Verein ein eigener Kalender „HUBIplan“. Er liegt dort, wo dein Kalender neue Termine ablegt (zum Beispiel in iCloud), und wird aktualisiert, wenn du die App öffnest, und nach jeder Rückmeldung."))
                 }
                 Section {
+                    Toggle(tr("Hinweis, wenn eine Rückmeldung fehlt"), isOn: Binding(
+                        get: { model.hintsOn && !model.hintsDenied },
+                        set: { on in Task { await model.setHints(on: on) } }
+                    ))
+                    if model.hintsDenied {
+                        Text(tr("Mitteilungen sind für HUBIplan ausgeschaltet. Du kannst sie in den Einstellungen des Geräts unter HUBIplan erlauben."))
+                            .foregroundStyle(.red)
+                    }
+                } header: {
+                    Text(tr("Hinweise"))
+                } footer: {
+                    Text(tr("Etwa einen Tag vor dem Anmeldeschluss, mit den Knöpfen Zusage und Absage."))
+                }
+                Section {
                     Text(tr("Version {version}", ["version": AppModel.version]))
                         .font(.footnote)
                         .foregroundStyle(.secondary)

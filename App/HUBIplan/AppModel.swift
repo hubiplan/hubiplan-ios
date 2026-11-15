@@ -65,6 +65,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var calendarOn = KalenderEinstellung.on
     @Published private(set) var reminder = KalenderEinstellung.reminder
     @Published var calendarDenied = false
+    /// Hinweis „Rückmeldung fehlt“ an; Mitteilungen in den Geräteeinstellungen verboten
+    @Published private(set) var hintsOn = Hinweise.on
+    @Published var hintsDenied = false
     /// Zählt hoch, wenn die App über einen Kalendereintrag geöffnet wurde (dann Reiter „Termine“)
     @Published var showEvents = 0
 
@@ -233,6 +236,7 @@ final class AppModel: ObservableObject {
         Self.clearViews()
         preview = nil
         if !Demo.active { Geraetekalender.shared.remove(prefix: CalendarMark.prefix(server: account.server)) }
+        if !Demo.active { await Hinweise.clear(account: account.id) }
         calendarSynced[account.id] = nil
         accounts.remove(account.id)
         save()
@@ -288,6 +292,7 @@ final class AppModel: ObservableObject {
             self.events = events
             self.circulars = circulars
         }
+        if epoch == self.epoch { await planHints() }
         if epoch == self.epoch { await refreshSenders() }
         if epoch == self.epoch { await refreshIch() }
         if epoch == self.epoch { await refreshTasks() }
@@ -785,6 +790,43 @@ final class AppModel: ObservableObject {
             }
         } catch {
             if epoch == self.epoch { cardOffline = true }
+        }
+    }
+
+    // MARK: Hinweis „Rückmeldung fehlt“
+
+    /// Hinweise für den gezeigten Zugang neu planen (nach jedem Abgleich und jeder Rückmeldung).
+    func planHints() async {
+        guard !Demo.active, let account, let access else { return }
+        let hints = RueckmeldeHinweis.plan(events, accessId: access.id, account: account.id)
+        await Hinweise.plan(hints, account: account.id, unit: access.clubName)
+    }
+
+    /// Schalter in „Mein Konto“; beim Einschalten fragt das Gerät einmal nach der Erlaubnis.
+    func setHints(on: Bool) async {
+        Hinweise.on = on
+        hintsOn = on
+        if on {
+            hintsDenied = !(await Hinweise.erlauben())
+            await planHints()
+        } else if let account {
+            await Hinweise.clear(account: account.id)
+        }
+    }
+
+    /// Zusage oder Absage aus der Mitteilung; nur für das gezeigte Konto (sonst öffnet sich nur die App).
+    func respondFromHint(account id: String, accessId: Int, eventId: Int, status: String) async {
+        guard let session, account?.id == id else { return }
+        let epoch = self.epoch
+        do {
+            try await session.api().respond(accessId: accessId, eventId: eventId, status: status)
+        } catch {
+            if epoch == self.epoch { self.error = (error as? ApiError)?.text ?? ApiError(status: 0, code: "offline").text }
+            return
+        }
+        if epoch == self.epoch {
+            calendarSynced[id] = nil
+            await refresh()
         }
     }
 

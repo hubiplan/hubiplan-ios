@@ -815,5 +815,11 @@
  "Leitung": "Leader",
  "Live getrennt": "Live disconnected",
  "Nr. {number}": "No. {number}",
- "{sender}: {piece}": "{sender}: {piece}"
+ "{sender}: {piece}": "{sender}: {piece}",
+ "Etwa einen Tag vor dem Anmeldeschluss, mit den Knöpfen Zusage und Absage.": "About one day before the registration deadline, with the buttons Yes and No.",
+ "Hinweis, wenn eine Rückmeldung fehlt": "Notice when a response is missing",
+ "Hinweise": "Notifications",
+ "Rückmeldung fehlt: {title}": "Response missing: {title}",
+ "{x1} · {unit}. Anmeldeschluss ist bald.": "{x1} · {unit}. The registration deadline is soon.",
+ "Mitteilungen sind für HUBIplan ausgeschaltet. Du kannst sie in den Einstellungen des Geräts unter HUBIplan erlauben.": "Notifications are turned off for HUBIplan. You can allow them in the device settings under HUBIplan."
 }
