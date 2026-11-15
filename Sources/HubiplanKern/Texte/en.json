@@ -736,5 +736,21 @@
  "offene Abstimmung": "open vote",
  "Halte die Kamera auf den QR-Code, den die Versammlungsleitung zeigt.": "Point the camera at the QR code shown by the chair of the meeting.",
  "Versammlung läuft": "Meeting in progress",
- "Versammlung läuft: anmelden und abstimmen": "Meeting in progress: check in and vote"
+ "Versammlung läuft: anmelden und abstimmen": "Meeting in progress: check in and vote",
+ "An": "To",
+ "Betreff": "Subject",
+ "Geht an alle Mitglieder dieser Einheit: per App, sonst per E-Mail.": "Goes to all members of this unit: via the app, otherwise by email.",
+ "Jetzt senden": "Send now",
+ "Kurzmitteilung an {name} ist unterwegs.": "Short message to {name} is on its way.",
+ "Kurzmitteilung senden": "Send a short message",
+ "Kurzmitteilung senden?": "Send short message?",
+ "Text": "Text",
+ "Weiter bearbeiten": "Continue editing",
+ "geht an niemanden": "goes to nobody",
+ "geht an {who}, davon {parts}": "goes to {who}, of which {parts}",
+ "{app} per App": "{app} via app",
+ "{length} von {maxBody} Zeichen": "{length} of {maxBody} characters",
+ "{mail} per E-Mail": "{mail} by email",
+ "{portal} nur im Mitgliederbereich": "{portal} in the member area only",
+ "„{x1}“ {x2}. Gesendete Mitteilungen lassen sich nicht zurückholen.": "“{x1}” {x2}. Sent messages cannot be recalled."
 }

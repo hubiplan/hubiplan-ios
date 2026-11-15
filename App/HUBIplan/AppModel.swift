@@ -20,6 +20,8 @@ final class AppModel: ObservableObject {
     @Published var accessId: Int?
     @Published var events: [Occurrence] = []
     @Published var circulars: [CircularItem] = []
+    /// Einheiten, an die dieses Konto Kurzmitteilungen senden darf (leer: kein Knopf)
+    @Published var senders: Senders?
     /// Ausweis des gewählten Zugangs, wie er zuletzt kam (auch ohne Netz)
     @Published var card: StoredCard?
     /// Der Ausweis ließ sich zuletzt nicht abrufen
@@ -126,6 +128,7 @@ final class AppModel: ObservableObject {
         accessId = nil
         events = []
         circulars = []
+        senders = nil
         card = nil
         profile = nil
         invoices = nil
@@ -282,6 +285,7 @@ final class AppModel: ObservableObject {
             self.events = events
             self.circulars = circulars
         }
+        if epoch == self.epoch { await refreshSenders() }
         if epoch == self.epoch { await refreshIch() }
         if epoch == self.epoch { await refreshTasks() }
         if epoch == self.epoch { await syncCalendar() }
@@ -579,6 +583,36 @@ final class AppModel: ObservableObject {
         }
         if let fresh = try? await session.api().myMeetings(accessId: access.id), self.access?.id == access.id {
             meetings = fresh
+        }
+    }
+
+    // MARK: Kurzmitteilung senden
+
+    /// Ob und wohin dieses Konto Kurzmitteilungen senden darf; Fehler lassen den Knopf weg.
+    func refreshSenders() async {
+        guard let session else { return }
+        let epoch = self.epoch
+        let fresh = try? await session.api().senders()
+        if epoch == self.epoch { senders = fresh }
+    }
+
+    /// Vorschau (`confirm` false) oder Senden; Fehlertext bei Problemen.
+    func sendShort(_ sender: Sender, subject: String, body: String, confirm: Bool) async -> Result<SendResult, ApiError>? {
+        guard let session else { return nil }
+        let epoch = self.epoch
+        do {
+            let result = try await session.api().sendShort(sender, subject: subject, body: body, confirm: confirm)
+            return epoch == self.epoch ? .success(result) : nil
+        } catch let failure as ApiError {
+            guard epoch == self.epoch else { return nil }
+            if failure.mustReconnect {
+                await disconnect()
+                linkError = failure.text
+                return nil
+            }
+            return .failure(failure)
+        } catch {
+            return epoch == self.epoch ? .failure(ApiError(status: 0, code: "offline")) : nil
         }
     }
 
