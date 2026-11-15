@@ -118,11 +118,13 @@ public struct AdminOverview: Decodable, Equatable, Sendable {
     public var units: [AdminUnit]
     public var departments: [AdminDepartment]
     public var twoFactor: Bool
+    /// Passkey für diese Adresse eingerichtet: Freischalten über den Browser möglich.
+    public var passkey: Bool
     public var unlocked: Bool
     public var until: String?
 
     enum CodingKeys: String, CodingKey {
-        case units, departments, unlocked, until
+        case units, departments, unlocked, until, passkey
         case twoFactor = "two_factor"
     }
 
@@ -131,12 +133,35 @@ public struct AdminOverview: Decodable, Equatable, Sendable {
         units = try c.decodeIfPresent([AdminUnit].self, forKey: .units) ?? []
         departments = try c.decodeIfPresent([AdminDepartment].self, forKey: .departments) ?? []
         twoFactor = try c.decodeIfPresent(Bool.self, forKey: .twoFactor) ?? false
+        passkey = try c.decodeIfPresent(Bool.self, forKey: .passkey) ?? false
         unlocked = try c.decodeIfPresent(Bool.self, forKey: .unlocked) ?? false
         until = try c.decodeIfPresent(String.self, forKey: .until)
     }
 
     /// Einheiten und Untereinheiten (Zugführung) zusammen, für die Auswahl.
     public var allUnits: [AdminUnit] { units + departments.map(\.asUnit) }
+}
+
+/// Ticket zum Freischalten der Verwaltung im Browser (`admin/unlock/` mit `browser`).
+public struct BrowserUnlockStart: Decodable, Equatable, Sendable {
+    public var ticket: String
+    public var path: String
+
+    /// Seite der Instanz; das Ticket steht im Fragment (nie in einem Server-Protokoll).
+    public func url(server: String) -> URL? {
+        guard let origin = normalizeServer(server), path.hasPrefix("/"), !path.contains("#") else { return nil }
+        var allowed = CharacterSet.alphanumerics
+        allowed.insert(charactersIn: "-_")
+        guard let encoded = ticket.addingPercentEncoding(withAllowedCharacters: allowed) else { return nil }
+        return URL(string: origin + path + "#t=" + encoded)
+    }
+
+    /// Rückruf `hubiplan://freischalten?ticket=…`: nur mit genau diesem Ticket.
+    public func matches(callback: URL) -> Bool {
+        guard let parts = URLComponents(url: callback, resolvingAgainstBaseURL: false),
+              parts.scheme == PairingLink.scheme, parts.host == "freischalten" else { return false }
+        return parts.queryItems?.first(where: { $0.name == "ticket" })?.value == ticket
+    }
 }
 
 public struct AdminUnlock: Decodable, Equatable, Sendable {
@@ -518,6 +543,19 @@ extension Api {
     public func unlockAdmin(password: String, code: String, adminKey: String) async throws -> AdminUnlock {
         try await expect("POST", "/api/app/v1/admin/unlock/", json: [
             "password": password, "code": code, "admin_key": adminKey,
+        ])
+    }
+
+    /// Freischalten über den Browser beginnen (Passkey, docs/app.md in hubiplan): liefert ein
+    /// Ticket für `/app/freischalten`, gebunden an dieses Gerät und `adminKey`.
+    public func startBrowserUnlock(adminKey: String) async throws -> BrowserUnlockStart {
+        try await expect("POST", "/api/app/v1/admin/unlock/", json: ["browser": true, "admin_key": adminKey])
+    }
+
+    /// Im Browser bestätigtes Ticket einlösen; derselbe `adminKey` wie beim Beginnen.
+    public func unlockAdmin(browserTicket: String, adminKey: String) async throws -> AdminUnlock {
+        try await expect("POST", "/api/app/v1/admin/unlock/", json: [
+            "browser_ticket": browserTicket, "admin_key": adminKey,
         ])
     }
 

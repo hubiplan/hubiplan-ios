@@ -352,6 +352,30 @@ final class AppModel: ObservableObject {
 
     /// Freischalten mit Passwort und Zwei-Faktor-Code; der neue Schlüssel kommt in den Tresor.
     func unlockAdmin(password: String, code: String) async {
+        await unlockAdminWith { api, adminKey in
+            try await api.unlockAdmin(
+                password: password, code: code.trimmingCharacters(in: .whitespaces), adminKey: adminKey
+            )
+        }
+    }
+
+    /// Freischalten mit Passkey über den eingebetteten Browser (`/app/freischalten`).
+    /// `authenticate` öffnet die Seite und liefert den Rückruf `hubiplan://freischalten…`;
+    /// nil heißt abgebrochen.
+    func unlockAdminInBrowser(authenticate: @escaping (URL) async throws -> URL?) async {
+        guard let server = account?.server else { return }
+        await unlockAdminWith { api, adminKey in
+            let start = try await api.startBrowserUnlock(adminKey: adminKey)
+            guard let url = start.url(server: server) else { throw ApiError(status: 0, code: "offline") }
+            guard let callback = try await authenticate(url) else { return nil }
+            guard start.matches(callback: callback) else {
+                throw ApiError(status: 400, code: "", message: tr("Die Freischaltung kam nicht von dieser Adresse zurück. Bitte erneut versuchen."))
+            }
+            return try await api.unlockAdmin(browserTicket: start.ticket, adminKey: adminKey)
+        }
+    }
+
+    private func unlockAdminWith(_ call: (Api, String) async throws -> AdminUnlock?) async {
         guard let session, let tresor, !adminBusy else { return }
         let epoch = self.epoch
         adminBusy = true
@@ -361,10 +385,7 @@ final class AppModel: ObservableObject {
         // Härtung H7: neues Vorstands-Schlüsselpaar, liegt nur im Tresor
         let key = P256.Signing.PrivateKey()
         do {
-            let result = try await api.unlockAdmin(
-                password: password, code: code.trimmingCharacters(in: .whitespaces),
-                adminKey: SignedFormat.publicKey(key.publicKey)
-            )
+            guard let result = try await call(api, SignedFormat.publicKey(key.publicKey)) else { return }
             let access = AdminAccess(token: result.token, key: result.signed ? key : nil)
             guard epoch == self.epoch else {
                 // Inzwischen anderes Konto: den neuen Schlüssel gleich wieder sperren

@@ -68,6 +68,29 @@ func httpsOrigin(_ parts: URLComponents) -> String? {
     return "https://\(host.lowercased())"
 }
 
+/// Anmelden mit Passkey im eingebetteten Browser (`ASWebAuthenticationSession`).
+///
+/// iOS gibt Passkeys an Apps nur für Adressen heraus, die beim Bauen fest eingetragen sind;
+/// selbst betriebene Instanzen gehen so nicht. Die App öffnet deshalb die Seite
+/// `/app/anmelden` der Instanz. Dort gilt der Passkey wie auf der Webseite; nach „Verbinden“
+/// kommt `hubiplan://verbinden?server=…&code=…` zurück, und die App verbindet sich wie beim
+/// QR-Code (docs/app.md in hubiplan).
+public enum BrowserLogin {
+    /// Seite zum Anmelden; nil bei ungültiger Adresse.
+    public static func url(server input: String) -> URL? {
+        guard let origin = normalizeServer(input) else { return nil }
+        return URL(string: origin + "/app/anmelden")
+    }
+
+    /// Rückruf der Seite: nur ein Link zum Verbinden mit genau der aufgerufenen Instanz.
+    public static func pairing(callback: URL, server input: String) -> PairingLink? {
+        guard let origin = normalizeServer(input),
+              let link = PairingLink.parse(callback.absoluteString),
+              link.server == origin else { return nil }
+        return link
+    }
+}
+
 /// Eingegebene Serveradresse vereinheitlichen; nur HTTPS.
 public func normalizeServer(_ input: String) -> String? {
     var text = input.trimmingCharacters(in: .whitespacesAndNewlines)

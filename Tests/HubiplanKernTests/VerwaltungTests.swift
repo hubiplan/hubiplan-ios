@@ -367,4 +367,23 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertFalse(AdminPause.lockedAfterBackground(60))
         XCTAssertTrue(AdminPause.lockedAfterBackground(61))
     }
+
+    // Verwaltung über den Browser freischalten (Passkey, docs/app.md in hubiplan)
+    func testBrowserFreischaltenSeiteUndRueckruf() throws {
+        let start = try JSONDecoder().decode(BrowserUnlockStart.self, from: Data(#"{"ticket":"T1ck-et_9","path":"/app/freischalten","expires_in":600}"#.utf8))
+        XCTAssertEqual(start.url(server: "https://verein.example.de")?.absoluteString, "https://verein.example.de/app/freischalten#t=T1ck-et_9")
+        XCTAssertTrue(start.matches(callback: URL(string: "hubiplan://freischalten?ticket=T1ck-et_9")!))
+        // Fremdes Ticket oder anderer Link: nicht übernehmen
+        XCTAssertFalse(start.matches(callback: URL(string: "hubiplan://freischalten?ticket=anderes")!))
+        XCTAssertFalse(start.matches(callback: URL(string: "hubiplan://verbinden?ticket=T1ck-et_9")!))
+        let fremd = try JSONDecoder().decode(BrowserUnlockStart.self, from: Data(#"{"ticket":"x","path":"https://boese.example/"}"#.utf8))
+        XCTAssertNil(fremd.url(server: "https://verein.example.de"))
+    }
+
+    func testUebersichtMitPasskey() throws {
+        let o = try JSONDecoder().decode(AdminOverview.self, from: Data(#"{"two_factor":false,"passkey":true}"#.utf8))
+        XCTAssertTrue(o.passkey)
+        XCTAssertFalse(o.twoFactor)
+        XCTAssertFalse(try JSONDecoder().decode(AdminOverview.self, from: Data(#"{"two_factor":true}"#.utf8)).passkey)
+    }
 }
