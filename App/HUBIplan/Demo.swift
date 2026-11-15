@@ -334,7 +334,7 @@ struct DemoTransport: Transport {
         let english = Texte.language == "en"
         let body: String
         if path.hasSuffix("/me/") {
-            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers","meetings","docs","music","scores","competitions"],"musician":true}]}"#
+            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers","meetings","docs","music","scores","competitions","entries"],"musician":true,"bookings_enabled":true}]}"#
         } else if path.hasSuffix("/api/app/v1/send/") {
             body = #"{"senders":[{"key":"org-1","name":"Schützenverein Musterstadt","type":"org","id":1},{"key":"dept-9","name":"\#(english ? "Platoon 1" : "Zug 1")","type":"dept","id":9,"club":"Schützenverein Musterstadt"}],"max_body":500}"#
         } else if path.hasSuffix("/api/app/v1/admin/") {
@@ -443,7 +443,9 @@ struct DemoTransport: Transport {
             "current_type":{"member_type":1,"member_type_name":"\(t[0])"},"periods":[{"id":1,"entry_date":"2010-01-01"}],
             "departments":[{"id":1,"department":1,"department_name":"\(t[1])","valid_from":"2010-01-01"}],
             "pays_fee_self":true,"exit_reasons":[{"value":"resignation","label":"\(english ? "Resignation" : "Kündigung")"},{"value":"death","label":"\(english ? "Deceased" : "Verstorben")"}],
-            "contact":{"email":"erika@example.org","phone":"02131 000000","street":"Musterweg 1","postal_code":"41468","city":"Musterstadt"}}
+            "contact":{"email":"erika@example.org","phone":"02131 000000","street":"Musterweg 1","postal_code":"41468","city":"Musterstadt"},
+            "cancellation":{"enabled":true,"possible":true,"earliest_date":"\(Calendar.current.component(.year, from: Date()) + 1)-12-31",
+            "rule":"\(english ? "with three months' notice to the end of the financial year" : "mit einer Frist von 3 Monaten zum Ende des Geschäftsjahres")","planned_exit":null,"requests":[]}}
             """
         } else if path.hasSuffix("/events/") {
             let titles = english
@@ -464,6 +466,28 @@ struct DemoTransport: Transport {
             body = english
                 ? #"[{"id":2,"subject":"Fall in tonight","sender":"Platoon 1","kind_label":"Short message","sent_at":"\#(day(0, "09:00"))","body":"Tonight at **6 pm** at the tent – please be on time.\n\n- Uniform\n- Good mood","channel":"app"},{"id":1,"subject":"Invitation to the general assembly","sender":"Schützenverein Musterstadt","kind_label":"Circular","sent_at":"\#(day(-9, "10:00"))","body":"Dear members,\n\nwe cordially invite you to the general assembly. The agenda is in the members' area.","attachments":[{"id":1,"name":"Agenda.pdf","size":48213}],"channel":"mail"}]"#
                 : #"[{"id":2,"subject":"Antreten heute Abend","sender":"Zug 1","kind_label":"Kurzmitteilung","sent_at":"\#(day(0, "09:00"))","body":"Heute um **18 Uhr** am Zelt – bitte pünktlich.\n\n- Uniform\n- Gute Laune","channel":"app"},{"id":1,"subject":"Einladung zur Jahreshauptversammlung","sender":"Schützenverein Musterstadt","kind_label":"Rundschreiben","sent_at":"\#(day(-9, "10:00"))","body":"Liebe Mitglieder,\n\nwir laden herzlich zur Jahreshauptversammlung ein. Die Tagesordnung steht im Mitgliederbereich.","attachments":[{"id":1,"name":"Tagesordnung.pdf","size":48213}],"channel":"mail"}]"#
+        } else if path.hasSuffix("/api/portal/1/bookings/") {
+            let t = english
+                ? ["Clubhouse", "Shooting range", "Booked", "Birthday party", "Practice evening", "requested", "confirmed"]
+                : ["Schützenhaus", "Schießstand", "Belegt", "Geburtstagsfeier", "Übungsabend", "angefragt", "bestätigt"]
+            body = """
+            {"items":[{"id":1,"kind":"facility","title":"\(t[0])","horizon_days":365},{"id":2,"kind":"facility","title":"\(t[1])","horizon_days":90}],
+            "occurrences":[{"item":1,"title":"\(t[2])","starts_at":"\(day(2, "00:00"))","ends_at":"\(day(3, "00:00"))","all_day":true,"own":false},
+            {"item":2,"title":"\(t[4])","starts_at":"\(day(1, "19:00"))","ends_at":"\(day(1, "21:00"))","all_day":false,"own":true}],
+            "own":[{"id":5,"item":1,"item_title":"\(t[0])","title":"\(t[3])","note":"","starts_at":"\(day(12, "17:00"))","ends_at":"\(day(12, "23:00"))","all_day":false,"status":"requested","version":1},
+            {"id":4,"item":2,"item_title":"\(t[1])","title":"\(t[4])","note":"","starts_at":"\(day(1, "19:00"))","ends_at":"\(day(1, "21:00"))","all_day":false,"status":"confirmed","version":2}]}
+            """
+        } else if path.hasSuffix("/api/portal/1/entries/") {
+            let t = english
+                ? ["District championship", "District association Example", "Team 1", "Shooter 2", "Musterdorf"]
+                : ["Kreismeisterschaft", "Kreisverband Beispiel", "Mannschaft 1", "Schütze 2", "Musterdorf"]
+            body = """
+            [{"id":1,"title":"\(t[0])","organizer":"\(t[1])","date":"\(day(20, "00:00").prefix(10))","location":"\(t[4])","group":"\(t[2])","position":"\(t[3])","substitute":false,"confirmed":true}]
+            """
+        } else if path.hasSuffix("/api/portal/1/music/absences/") {
+            body = """
+            {"enabled":true,"items":[{"id":1,"musician":1,"starts_at":"\(day(14, "00:00"))","ends_at":"\(day(21, "23:59"))"}]}
+            """
         } else if path.hasSuffix("/mandate/") {
             let t = english ? ["SEPA core direct debit", "active"] : ["SEPA-Basislastschrift", "aktiv"]
             body = #"{"available":true,"club_name":"Schützenverein Musterstadt","creditor_id":"DE98ZZZ09999999999","mandate":{"reference":"MSV-0042","scheme_label":"\#(t[0])","status_label":"\#(t[1])","holder":"Erika Musterfrau","iban_masked":"DE89 •••• •••• •••• •••• 00","signed_on":"2019-03-01"}}"#

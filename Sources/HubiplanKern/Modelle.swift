@@ -128,10 +128,16 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
     public var competitionsEnabled: Bool
     /// Ansprechpartner einer Organisation, die für Mitarbeiter zahlt (Bereich „Mitarbeiter“)
     public var company: Bool
+    /// Modul Meldungen eingeschaltet (nur für Instanzen ohne Modulliste)
+    public var entriesEnabled: Bool
+    /// Es gibt Objekte, die Mitglieder anfragen dürfen (Bereich „Belegung“)
+    public var bookingsEnabled: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, modules, musician, company
         case competitionsEnabled = "competitions_enabled"
+        case entriesEnabled = "entries_enabled"
+        case bookingsEnabled = "bookings_enabled"
         case clubName = "club_name"
         case clubId = "club_id"
         case clubDisplayName = "club_display_name"
@@ -167,7 +173,18 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         musician = try c.decodeIfPresent(Bool.self, forKey: .musician) ?? false
         competitionsEnabled = try c.decodeIfPresent(Bool.self, forKey: .competitionsEnabled) ?? false
         company = try c.decodeIfPresent(Bool.self, forKey: .company) ?? false
+        entriesEnabled = try c.decodeIfPresent(Bool.self, forKey: .entriesEnabled) ?? false
+        bookingsEnabled = try c.decodeIfPresent(Bool.self, forKey: .bookingsEnabled) ?? false
     }
+
+    /// Meldungen zu Wettbewerben und Anlässen („Gemeldet“ unter „Wettbewerbe“)
+    public var hasEntries: Bool { has(module: "entries", fallback: entriesEnabled) }
+
+    /// Bereich „Belegung“: nur, wenn der Server anfragbare Objekte meldet
+    public var hasBookings: Bool { bookingsEnabled }
+
+    /// Bereich „Abwesenheiten“: aktives Musikerprofil
+    public var hasAbsences: Bool { musician && has(module: "music", fallback: true) }
 
     /// Modul eingeschaltet? Ohne Modulliste (ältere Instanz) gilt der einzelne Schalter.
     public func has(module: String, fallback: Bool = false) -> Bool {

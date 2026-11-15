@@ -37,6 +37,7 @@ struct ErgebnisseView: View {
     @EnvironmentObject private var model: AppModel
     @State private var results: MyResults?
     @State private var rankings: Rankings?
+    @State private var entries: [MyEntry]?
     @State private var error: String?
     @State private var all = false
     @State private var open: String?
@@ -49,6 +50,10 @@ struct ErgebnisseView: View {
                     Button(tr("Erneut laden")) { Task { await load() } }
                 }
             }
+            if model.access?.hasEntries == true {
+                GemeldetAbschnitt(entries: entries)
+            }
+            if model.access?.hasResults != false {
             Section(tr("Meine Ergebnisse")) {
                 if let results {
                     if results.isEmpty {
@@ -75,6 +80,7 @@ struct ErgebnisseView: View {
                     ProgressView()
                 }
             }
+            }
             // Ohne veröffentlichte Wettbewerbe bleibt der Abschnitt weg
             if let rankings, !rankings.competitions.isEmpty {
                 Section(tr("Ranglisten")) {
@@ -95,13 +101,21 @@ struct ErgebnisseView: View {
                 }
             }
         }
-        .navigationTitle(tr("Ergebnisse"))
+        .navigationTitle(tr("Wettbewerbe"))
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task(id: model.accessId) { await load() }
     }
 
     private func load() async {
+        if model.access?.hasEntries == true {
+            switch await model.portalCall({ api, access in try await api.myEntries(accessId: access) }) {
+            case .success(let fresh): entries = fresh
+            case .failure(let failure): error = failure.text
+            case nil: return
+            }
+        }
+        guard model.access?.hasResults != false else { return }
         switch await model.portalCall({ api, access in try await api.myResults(accessId: access) }) {
         case .success(let fresh):
             results = fresh

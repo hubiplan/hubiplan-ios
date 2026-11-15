@@ -66,6 +66,8 @@ jobs:
             foto live "$SPRACHE" -demo 1 -reiter ausweis -abschnitt live
             foto dokumente "$SPRACHE" -demo 1 -reiter ausweis -abschnitt dokumente
             foto ergebnisse "$SPRACHE" -demo 1 -reiter ausweis -abschnitt ergebnisse
+            foto belegung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt belegung
+            foto abwesenheiten "$SPRACHE" -demo 1 -reiter ausweis -abschnitt abwesenheiten
             foto verwaltung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt verwaltung
             foto freischalten "$SPRACHE" -demo 1 -reiter ausweis -abschnitt freischalten
             foto offen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt offen

@@ -43,9 +43,11 @@ public struct Profile: Decodable, Equatable, Sendable {
     public var departments: [String]
     public var contact: Contact?
     public var status: String
+    /// Kündigung im Mitgliederbereich (HUBIplan #402; ältere Stände: fehlt)
+    public var cancellation: CancellationInfo?
 
     enum CodingKeys: String, CodingKey {
-        case kind, departments, contact, status
+        case kind, departments, contact, status, cancellation
         case displayName = "display_name"
         case firstName = "first_name"
         case lastName = "last_name"
@@ -68,6 +70,7 @@ public struct Profile: Decodable, Equatable, Sendable {
         departments = try c.decodeIfPresent([String].self, forKey: .departments) ?? []
         contact = try c.decodeIfPresent(Contact.self, forKey: .contact)
         status = try c.decodeIfPresent(String.self, forKey: .status) ?? ""
+        cancellation = try c.decodeIfPresent(CancellationInfo.self, forKey: .cancellation)
     }
 
     public var isOrganization: Bool { kind == "organization" }
