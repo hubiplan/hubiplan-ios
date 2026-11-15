@@ -59,7 +59,7 @@ struct AusweisView: View {
     @EnvironmentObject private var model: AppModel
     @State private var big = false
     /// Vorführmodus: für das Bildschirmfoto gleich in Versammlungen oder Dokumente
-    @State private var showMeetings = Demo.active && Demo.section == "versammlungen"
+    @State private var showMeetings = Demo.active && ["versammlungen", "live"].contains(Demo.section)
     @State private var showDocuments = Demo.active && Demo.section == "dokumente"
     @State private var showAccount = Demo.active && Demo.tab == "konto"
     @State private var showAdmin = Demo.active && ["verwaltung", "freischalten", "offen", "meldungen", "mitglieder", "mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank", "aufnahme", "dubletten", "anlaesse", "ausweispruefung", "vtermine", "vtermin", "neuertermin", "kasse", "buchung", "neuebuchung", "quittung", "entwuerfe", "vrechnungen", "vrechnung", "vaufgaben", "vaufgabe", "neueaufgabe", "partner", "qualifikationen", "fristen", "frist", "wettbewerbe", "standcode"].contains(Demo.section)

@@ -62,6 +62,7 @@ jobs:
             foto ausweis "$SPRACHE" -demo 1 -reiter ausweis
             foto rechnungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt rechnungen
             foto versammlungen "$SPRACHE" -demo 1 -reiter ausweis -abschnitt versammlungen
+            foto live "$SPRACHE" -demo 1 -reiter ausweis -abschnitt live
             foto dokumente "$SPRACHE" -demo 1 -reiter ausweis -abschnitt dokumente
             foto verwaltung "$SPRACHE" -demo 1 -reiter ausweis -abschnitt verwaltung
             foto freischalten "$SPRACHE" -demo 1 -reiter ausweis -abschnitt freischalten

@@ -70,7 +70,7 @@ public struct UpcomingMeeting: Decodable, Equatable, Identifiable, Sendable {
     public var address: String
     /// Letzter Zeitpunkt für Anträge; `nil`, wenn die Art keine Anträge vorsieht
     public var motionUntil: String?
-    /// Anmeldung im Saal läuft (Anmelden und Abstimmen gehen vorerst im Browser)
+    /// Anmeldung im Saal läuft (Ansicht „Versammlung läuft“)
     public var checkinOpen: Bool
     public var motions: [OwnMotion]
     public var agenda: [AgendaPoint]

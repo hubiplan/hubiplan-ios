@@ -582,6 +582,29 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: Versammlung live
+
+    /// Aufruf zur laufenden Versammlung, ohne die Ladeanzeige der ganzen App (die Ansicht fragt
+    /// alle paar Sekunden nach). `nil`, wenn das Konto inzwischen gewechselt oder getrennt wurde.
+    func liveCall(_ work: @escaping (Api, Int) async throws -> MeetingLive) async -> Result<MeetingLive, ApiError>? {
+        guard let session, let access else { return nil }
+        let epoch = self.epoch
+        do {
+            let state = try await work(session.api(), access.id)
+            return epoch == self.epoch && self.access?.id == access.id ? .success(state) : nil
+        } catch let failure as ApiError {
+            guard epoch == self.epoch else { return nil }
+            if failure.mustReconnect {
+                await disconnect()
+                linkError = failure.text
+                return nil
+            }
+            return .failure(failure)
+        } catch {
+            return epoch == self.epoch ? .failure(ApiError(status: 0, code: "offline")) : nil
+        }
+    }
+
     // MARK: Umfragen
 
     /// Umfragen neu laden (nach einer Aktion oder beim Öffnen).

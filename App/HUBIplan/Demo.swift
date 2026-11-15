@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `akte`, `ehrung`, `zusatzfelder`, `bank`, `aufnahme`, `dubletten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `entwuerfe`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `live`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `akte`, `ehrung`, `zusatzfelder`, `bank`, `aufnahme`, `dubletten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `entwuerfe`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
     /// Abschnitte, die eine Mitgliedsakte öffnen, und solche für „Neues Mitglied“
     static let akteAbschnitte = ["mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank"]
@@ -498,12 +498,23 @@ struct DemoTransport: Transport {
             {"kind":"pause","title":"\(t[4])"},
             {"arrangement":1,"title":"Gruß an Musterstadt","scores":[{"id":1,"content_type":"application/pdf","url":"/api/portal/1/music/files/1/"}]}]}]}
             """
+        } else if path.contains("/meetings/1/") {
+            // Laufende Versammlung: angemeldet mit einer Vollmacht, eine Abstimmung offen, eine beendet
+            let t = english
+                ? ["General assembly", "Clubhouse", "Discharge of the board", "Yes", "No", "Abstention", "Treasurer", "Elections"]
+                : ["Jahreshauptversammlung", "Vereinsheim", "Entlastung des Vorstands", "Ja", "Nein", "Enthaltung", "Kassiererin", "Wahlen"]
+            body = """
+            {"id":1,"title":"\(t[0])","unit":"Schützenverein Musterstadt","location":"\(t[1])","checkin_open":true,"remote":false,"voter":true,"is_organization":false,"status":"present","mode":"onsite","votes":2,
+            "polls":[{"id":2,"agenda_position":3,"agenda_number":"2.1","question":"\(t[2])","secret":false,"status":"open","options":[{"id":1,"label":"\(t[3])"},{"id":2,"label":"\(t[4])"},{"id":3,"label":"\(t[5])"}],
+            "votes":[{"attendance":1,"name":"Erika Musterfrau","how":"own"},{"attendance":2,"name":"Max Mustermann","how":"proxy"}]},
+            {"id":1,"agenda_position":4,"agenda_number":"3","question":"\(t[7])","candidate":"Petra Beispiel","office":"\(t[6])","secret":true,"status":"closed","result":[{"id":1,"label":"\(t[3])","votes":41},{"id":2,"label":"\(t[4])","votes":3},{"id":3,"label":"\(t[5])","votes":2}]}]}
+            """
         } else if path.hasSuffix("/meetings/") {
             let t = english
                 ? ["General assembly", "Clubhouse", "Welcome", "Report of the board", "Treasurer's report", "Elections", "New flag", "General assembly last year"]
                 : ["Jahreshauptversammlung", "Vereinsheim", "Begrüßung", "Bericht des Vorstands", "Kassenbericht", "Wahlen", "Neue Fahne", "Jahreshauptversammlung im Vorjahr"]
             body = """
-            {"upcoming":[{"id":1,"title":"\(t[0])","unit":"Schützenverein Musterstadt","starts_at":"\(day(63, "19:30"))","location":"\(t[1])","address":"Musterweg 1, 41468 Musterstadt","motion_until":"\(day(49, "23:59"))",
+            {"upcoming":[{"id":1,"title":"\(t[0])","unit":"Schützenverein Musterstadt","starts_at":"\(day(63, "19:30"))","location":"\(t[1])","address":"Musterweg 1, 41468 Musterstadt","motion_until":"\(day(49, "23:59"))","checkin_open":true,
             "motions":[{"id":1,"title":"\(t[6])","status":"submitted"}],
             "agenda":[{"position":1,"title":"\(t[2])","number":"1"},{"position":2,"title":"\(t[3])","number":"2"},{"position":3,"title":"\(t[4])","number":"2.1","level":1},{"position":4,"title":"\(t[5])","number":"3"}]}],
             "minutes":[{"id":2,"title":"\(t[7])","starts_at":"\(day(-300, "19:30"))"}]}

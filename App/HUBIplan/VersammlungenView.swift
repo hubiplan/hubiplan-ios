@@ -38,9 +38,10 @@ private struct Meldungen: View {
 /// „Ich“ › Versammlungen: Einladungen mit Tagesordnung, eigene Anträge, freigegebene Protokolle.
 struct VersammlungenView: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.openURL) private var openURL
     @State private var motionFor: UpcomingMeeting?
     @State private var withdraw: OwnMotion?
+    /// Vorführmodus `-abschnitt live`: gleich die laufende Versammlung
+    @State private var live: LiveTarget? = Demo.active && Demo.section == "live" ? LiveTarget(meetingId: 1) : nil
 
     var body: some View {
         List {
@@ -111,6 +112,7 @@ struct VersammlungenView: View {
         .refreshable { await model.refreshIch() }
         .quickLookPreview($model.preview)
         .onDisappear { model.taskNotice = nil }
+        .navigationDestination(item: $live) { target in VersammlungLiveView(target: target) }
         .sheet(item: $motionFor) { meeting in AntragBlatt(meeting: meeting) }
         .alert(
             tr("Antrag zurückziehen?"),
@@ -136,11 +138,10 @@ struct VersammlungenView: View {
         }
         .padding(.vertical, 4)
         if meeting.checkinOpen {
-            Text(tr("Die Versammlung läuft. Anmelden und Abstimmen gehen zurzeit im Mitgliederbereich im Browser."))
-                .font(.footnote)
-            if let access = model.access, let server = model.account?.server,
-               let url = URL(string: "\(server)/mein-bereich/versammlungen?zugang=\(access.id)") {
-                Button(tr("Im Mitgliederbereich öffnen")) { openURL(url) }
+            NavigationLink {
+                VersammlungLiveView(target: LiveTarget(meetingId: meeting.id))
+            } label: {
+                Label(tr("Versammlung läuft: anmelden und abstimmen"), systemImage: "checkmark.seal")
             }
         }
     }
