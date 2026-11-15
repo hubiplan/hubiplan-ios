@@ -705,5 +705,9 @@
  "Öffnet die Anmeldeseite deines Vereins. Melde dich dort mit deinem Passkey an und tippe auf „Verbinden“.": "Opens your club’s sign-in page. Sign in there with your passkey and tap “Connect”.",
  "Bitte die Adresse von HUBIplan angeben, z. B. verein.example.de.": "Please enter the HUBIplan address, e.g. club.example.org.",
  "Die Anmeldung kam nicht von dieser Adresse zurück. Bitte erneut versuchen.": "The sign-in did not come back from this address. Please try again.",
- "Die Anmeldeseite ließ sich nicht öffnen. Bitte erneut versuchen.": "The sign-in page could not be opened. Please try again."
+ "Die Anmeldeseite ließ sich nicht öffnen. Bitte erneut versuchen.": "The sign-in page could not be opened. Please try again.",
+ "Mit Passkey freischalten": "Unlock with passkey",
+ "Öffnet die Anmeldeseite deines Vereins. Melde dich dort mit deinem Passkey an und tippe auf „Freischalten“.": "Opens your club’s sign-in page. Sign in there with your passkey and tap “Unlock”.",
+ "Die Freischaltung kam nicht von dieser Adresse zurück. Bitte erneut versuchen.": "The unlock did not come back from this address. Please try again.",
+ "Oder mit Passwort und Code": "Or with password and code"
 }

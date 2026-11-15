@@ -1,3 +1,4 @@
+import AuthenticationServices
 import HubiplanKern
 import SwiftUI
 import UIKit
@@ -12,7 +13,7 @@ struct VerwaltungView: View {
     var body: some View {
         Group {
             if let overview = model.adminOverview, !overview.allUnits.isEmpty {
-                if !overview.twoFactor {
+                if !overview.twoFactor && !overview.passkey {
                     VerwaltungHinweis(
                         text: tr("Für die Verwaltung in der App ist die Zwei-Faktor-Anmeldung nötig. Bitte im Browser unter „Mein Konto › Anmeldung & Sicherheit“ einrichten, danach hier freischalten."),
                         action: tr("Mein Konto öffnen")
@@ -20,7 +21,7 @@ struct VerwaltungView: View {
                         if let server = model.account?.server, let url = URL(string: server + "/mein-konto/anmeldung") { openURL(url) }
                     }
                 } else if !model.adminSealed {
-                    Freischalten()
+                    Freischalten(withCode: overview.twoFactor, withPasskey: overview.passkey)
                 } else {
                     VerwaltungSchutz {
                         VerwaltungStart(units: overview.allUnits, until: overview.until, unitKey: $unitKey)
@@ -111,25 +112,57 @@ struct VerwaltungSchutz<Inhalt: View>: View {
 
 private struct Freischalten: View {
     @EnvironmentObject private var model: AppModel
+    @Environment(\.webAuthenticationSession) private var webAuthentication
+    let withCode: Bool
+    let withPasskey: Bool
     @State private var password = ""
     @State private var code = ""
 
     var body: some View {
         Form {
-            Section {
-                SecureField(tr("Passwort"), text: $password)
-                    .textContentType(.password)
-                TextField(tr("Code aus der Authenticator-App"), text: $code)
-                    .keyboardType(.numberPad)
-                    .textContentType(.oneTimeCode)
-                    .onChange(of: code) { _, value in
-                        let digits = String(value.filter { $0.isASCII && $0.isNumber }.prefix(8))
-                        if digits != value { code = digits }
+            if withPasskey {
+                // Passkey über den eingebetteten Browser (iOS gibt ihn Apps nur für feste Adressen)
+                Section {
+                    Button {
+                        Task {
+                            await model.unlockAdminInBrowser { url in
+                                do {
+                                    return try await webAuthentication.authenticate(
+                                        using: url,
+                                        callbackURLScheme: PairingLink.scheme,
+                                        preferredBrowserSession: .ephemeral
+                                    )
+                                } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+                                    return nil
+                                }
+                            }
+                        }
+                    } label: {
+                        if model.adminBusy { ProgressView() } else { Label(tr("Mit Passkey freischalten"), systemImage: "person.badge.key") }
                     }
-            } header: {
-                Text(tr("Verwaltung freischalten"))
-            } footer: {
-                Text(tr("Für Mitglieder und offene Punkte in der App bitte mit Passwort und Zwei-Faktor-Code bestätigen. Die Freischaltung gilt 30 Tage auf diesem iPhone; geöffnet wird jedes Mal mit Face ID, Touch ID oder Gerätecode."))
+                    .disabled(model.adminBusy)
+                } header: {
+                    Text(tr("Verwaltung freischalten"))
+                } footer: {
+                    Text(tr("Öffnet die Anmeldeseite deines Vereins. Melde dich dort mit deinem Passkey an und tippe auf „Freischalten“."))
+                }
+            }
+            if withCode {
+                Section {
+                    SecureField(tr("Passwort"), text: $password)
+                        .textContentType(.password)
+                    TextField(tr("Code aus der Authenticator-App"), text: $code)
+                        .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
+                        .onChange(of: code) { _, value in
+                            let digits = String(value.filter { $0.isASCII && $0.isNumber }.prefix(8))
+                            if digits != value { code = digits }
+                        }
+                } header: {
+                    Text(withPasskey ? tr("Oder mit Passwort und Code") : tr("Verwaltung freischalten"))
+                } footer: {
+                    Text(tr("Für Mitglieder und offene Punkte in der App bitte mit Passwort und Zwei-Faktor-Code bestätigen. Die Freischaltung gilt 30 Tage auf diesem iPhone; geöffnet wird jedes Mal mit Face ID, Touch ID oder Gerätecode."))
+                }
             }
             if let message = model.adminError {
                 Section { Text(message).foregroundStyle(.red) }
@@ -140,16 +173,18 @@ private struct Freischalten: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            Section {
-                Button {
-                    let entered = (password, code)
-                    password = ""
-                    code = ""
-                    Task { await model.unlockAdmin(password: entered.0, code: entered.1) }
-                } label: {
-                    if model.adminBusy { ProgressView() } else { Text(tr("Freischalten")) }
+            if withCode {
+                Section {
+                    Button {
+                        let entered = (password, code)
+                        password = ""
+                        code = ""
+                        Task { await model.unlockAdmin(password: entered.0, code: entered.1) }
+                    } label: {
+                        if model.adminBusy { ProgressView() } else { Text(tr("Freischalten")) }
+                    }
+                    .disabled(model.adminBusy || password.isEmpty || code.count < 6)
                 }
-                .disabled(model.adminBusy || password.isEmpty || code.count < 6)
             }
         }
     }
