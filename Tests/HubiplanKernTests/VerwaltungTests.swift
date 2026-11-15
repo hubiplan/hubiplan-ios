@@ -16,8 +16,8 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertTrue(overview.twoFactor)
         XCTAssertFalse(overview.unlocked)
         XCTAssertEqual(overview.allUnits.map(\.key), ["u:1", "d:9"])
-        XCTAssertEqual(overview.allUnits[0].sections, [.tasks, .members, .events, .occasions])
-        XCTAssertEqual(overview.allUnits[1].sections, [.members, .events])
+        XCTAssertEqual(overview.allUnits[0].sections, [.tasks, .events, .members, .occasions])
+        XCTAssertEqual(overview.allUnits[1].sections, [.events, .members])
         XCTAssertTrue(overview.allUnits[1].isDepartment)
     }
 
@@ -276,8 +276,8 @@ final class VerwaltungTests: XCTestCase {
         XCTAssertNil(MasterData.values(member, department: true)["last_name"])
         XCTAssertFalse(AdminUnit(id: 1, name: "A", permissions: ["dept.members.edit"]).canEditMembers)
         XCTAssertTrue(AdminUnit(id: 1, name: "A", permissions: ["members.edit"]).canEditMembers)
-        XCTAssertEqual(AdminUnit(id: 1, name: "A", permissions: ["members.view"]).sections, [.tasks, .members, .events, .occasions])
-        XCTAssertEqual(unit.sections, [.members, .events])
+        XCTAssertEqual(AdminUnit(id: 1, name: "A", permissions: ["members.view"]).sections, [.tasks, .events, .members, .occasions])
+        XCTAssertEqual(unit.sections, [.events, .members])
     }
 
     func testStammdatenNurGeaenderteFelder() throws {
