@@ -4,10 +4,15 @@ import SwiftUI
 /// Reiter „Neues“: Mitteilungen des Vereins.
 struct MitteilungenView: View {
     @EnvironmentObject private var model: AppModel
+    @State private var sending = Demo.active && Demo.section == "senden"
+    @State private var notice: String?
 
     var body: some View {
         NavigationStack {
             List {
+                if let notice {
+                    Section { Text(notice).foregroundStyle(.green) }
+                }
                 if let message = model.error {
                     Section {
                         Text(message).foregroundStyle(.red)
@@ -30,6 +35,26 @@ struct MitteilungenView: View {
                 }
             }
             .navigationTitle(tr("Neues"))
+            .toolbar {
+                if let senders = model.senders, !senders.senders.isEmpty {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            notice = nil
+                            sending = true
+                        } label: {
+                            Label(tr("Kurzmitteilung senden"), systemImage: "square.and.pencil")
+                        }
+                    }
+                }
+            }
+            .sheet(isPresented: Binding(get: { sending && !(model.senders?.senders.isEmpty ?? true) }, set: { sending = $0 })) {
+                if let senders = model.senders {
+                    SendenView(senders: senders) { text in
+                        notice = text
+                        Task { await model.refresh() }
+                    }
+                }
+            }
             .refreshable { await model.refresh() }
             .overlay { if model.loading && model.circulars.isEmpty { ProgressView() } }
         }

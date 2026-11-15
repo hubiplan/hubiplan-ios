@@ -20,6 +20,8 @@ final class AppModel: ObservableObject {
     @Published var accessId: Int?
     @Published var events: [Occurrence] = []
     @Published var circulars: [CircularItem] = []
+    /// Einheiten, an die dieses Konto Kurzmitteilungen senden darf (leer: kein Knopf)
+    @Published var senders: Senders?
     /// Ausweis des gewählten Zugangs, wie er zuletzt kam (auch ohne Netz)
     @Published var card: StoredCard?
     /// Der Ausweis ließ sich zuletzt nicht abrufen
@@ -27,6 +29,8 @@ final class AppModel: ObservableObject {
     /// Eigene Daten und Rechnungen des gewählten Zugangs
     @Published var profile: Profile?
     @Published var invoices: MyInvoices?
+    /// Lastschriftmandat (nur ansehen); `nil` ohne Rechnungen oder bei älteren Ständen
+    @Published var mandate: MandateState?
     /// Versammlungen und Dokumente des gewählten Zugangs (soweit eingeschaltet)
     @Published var meetings: MyMeetings?
     @Published var documents: MyDocuments?
@@ -61,6 +65,9 @@ final class AppModel: ObservableObject {
     @Published private(set) var calendarOn = KalenderEinstellung.on
     @Published private(set) var reminder = KalenderEinstellung.reminder
     @Published var calendarDenied = false
+    /// Hinweis „Rückmeldung fehlt“ an; Mitteilungen in den Geräteeinstellungen verboten
+    @Published private(set) var hintsOn = Hinweise.on
+    @Published var hintsDenied = false
     /// Zählt hoch, wenn die App über einen Kalendereintrag geöffnet wurde (dann Reiter „Termine“)
     @Published var showEvents = 0
 
@@ -126,9 +133,11 @@ final class AppModel: ObservableObject {
         accessId = nil
         events = []
         circulars = []
+        senders = nil
         card = nil
         profile = nil
         invoices = nil
+        mandate = nil
         meetings = nil
         documents = nil
         surveys = nil
@@ -227,6 +236,7 @@ final class AppModel: ObservableObject {
         Self.clearViews()
         preview = nil
         if !Demo.active { Geraetekalender.shared.remove(prefix: CalendarMark.prefix(server: account.server)) }
+        if !Demo.active { await Hinweise.clear(account: account.id) }
         calendarSynced[account.id] = nil
         accounts.remove(account.id)
         save()
@@ -282,6 +292,8 @@ final class AppModel: ObservableObject {
             self.events = events
             self.circulars = circulars
         }
+        if epoch == self.epoch { await planHints() }
+        if epoch == self.epoch { await refreshSenders() }
         if epoch == self.epoch { await refreshIch() }
         if epoch == self.epoch { await refreshTasks() }
         if epoch == self.epoch { await syncCalendar() }
@@ -296,8 +308,10 @@ final class AppModel: ObservableObject {
         let api = session.api()
         let profile = try? await api.profile(accessId: id)
         var invoices: MyInvoices?
+        var mandate: MandateState?
         if access.has(module: "billing", fallback: true) {
             invoices = try? await api.myInvoices(accessId: id)
+            mandate = try? await api.myMandate(accessId: id)
         }
         var meetings: MyMeetings?
         if access.hasMeetings { meetings = try? await api.myMeetings(accessId: id) }
@@ -308,6 +322,7 @@ final class AppModel: ObservableObject {
         guard epoch == self.epoch, self.access?.id == id else { return }
         if let profile { self.profile = profile }
         self.invoices = invoices ?? self.invoices
+        self.mandate = mandate ?? self.mandate
         self.meetings = access.hasMeetings ? (meetings ?? self.meetings) : nil
         self.documents = access.hasDocs ? (documents ?? self.documents) : nil
         self.surveys = access.hasSurveys ? (surveys ?? self.surveys) : nil
@@ -582,6 +597,51 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: Kurzmitteilung senden
+
+    /// Ob und wohin dieses Konto Kurzmitteilungen senden darf; Fehler lassen den Knopf weg.
+    func refreshSenders() async {
+        guard let session else { return }
+        let epoch = self.epoch
+        let fresh = try? await session.api().senders()
+        if epoch == self.epoch { senders = fresh }
+    }
+
+    /// Vorschau (`confirm` false) oder Senden; Fehlertext bei Problemen.
+    func sendShort(_ sender: Sender, subject: String, body: String, confirm: Bool) async -> Result<SendResult, ApiError>? {
+        await portalCall { api, _ in
+            try await api.sendShort(sender, subject: subject, body: body, confirm: confirm)
+        }
+    }
+
+    // MARK: Versammlung live
+
+    /// Aufruf im eigenen Mitgliederbereich ohne die Ladeanzeige der ganzen App (z. B. die
+    /// laufende Versammlung, die alle paar Sekunden nachfragt). `nil`, wenn das Konto inzwischen
+    /// gewechselt oder getrennt wurde.
+    func portalCall<T: Sendable>(_ work: @escaping (Api, Int) async throws -> T) async -> Result<T, ApiError>? {
+        guard let session, let access else { return nil }
+        let epoch = self.epoch
+        do {
+            let value = try await work(session.api(), access.id)
+            return epoch == self.epoch && self.access?.id == access.id ? .success(value) : nil
+        } catch let failure as ApiError {
+            guard epoch == self.epoch else { return nil }
+            if failure.mustReconnect {
+                await disconnect()
+                linkError = failure.text
+                return nil
+            }
+            return .failure(failure)
+        } catch {
+            return epoch == self.epoch ? .failure(ApiError(status: 0, code: "offline")) : nil
+        }
+    }
+
+    func liveCall(_ work: @escaping (Api, Int) async throws -> MeetingLive) async -> Result<MeetingLive, ApiError>? {
+        await portalCall(work)
+    }
+
     // MARK: Umfragen
 
     /// Umfragen neu laden (nach einer Aktion oder beim Öffnen).
@@ -683,11 +743,21 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Rechnung oder Stornorechnung als PDF ansehen (nur online, wird nicht gespeichert).
+    func openInvoice(_ invoice: MyInvoice, cancellation: Bool = false) async {
+        guard let access else { return }
+        let name = Ansicht.safeName((cancellation ? "storno-" : "rechnung-") + invoice.number + ".pdf", fallback: "rechnung.pdf")
+        await view(name: name) { api in
+            try await api.invoicePdf(accessId: access.id, invoiceId: invoice.id, cancellation: cancellation)
+        }
+    }
+
     func choose(access id: Int) async {
         accessId = id
         card = nil
         profile = nil
         invoices = nil
+        mandate = nil
         meetings = nil
         documents = nil
         surveys = nil
@@ -720,6 +790,43 @@ final class AppModel: ObservableObject {
             }
         } catch {
             if epoch == self.epoch { cardOffline = true }
+        }
+    }
+
+    // MARK: Hinweis „Rückmeldung fehlt“
+
+    /// Hinweise für den gezeigten Zugang neu planen (nach jedem Abgleich und jeder Rückmeldung).
+    func planHints() async {
+        guard !Demo.active, let account, let access else { return }
+        let hints = RueckmeldeHinweis.plan(events, accessId: access.id, account: account.id)
+        await Hinweise.plan(hints, account: account.id, unit: access.clubName)
+    }
+
+    /// Schalter in „Mein Konto“; beim Einschalten fragt das Gerät einmal nach der Erlaubnis.
+    func setHints(on: Bool) async {
+        Hinweise.on = on
+        hintsOn = on
+        if on {
+            hintsDenied = !(await Hinweise.erlauben())
+            await planHints()
+        } else if let account {
+            await Hinweise.clear(account: account.id)
+        }
+    }
+
+    /// Zusage oder Absage aus der Mitteilung; nur für das gezeigte Konto (sonst öffnet sich nur die App).
+    func respondFromHint(account id: String, accessId: Int, eventId: Int, status: String) async {
+        guard let session, account?.id == id else { return }
+        let epoch = self.epoch
+        do {
+            try await session.api().respond(accessId: accessId, eventId: eventId, status: status)
+        } catch {
+            if epoch == self.epoch { self.error = (error as? ApiError)?.text ?? ApiError(status: 0, code: "offline").text }
+            return
+        }
+        if epoch == self.epoch {
+            calendarSynced[id] = nil
+            await refresh()
         }
     }
 

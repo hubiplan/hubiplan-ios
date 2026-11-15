@@ -38,13 +38,19 @@ private struct Meldungen: View {
 /// „Ich“ › Versammlungen: Einladungen mit Tagesordnung, eigene Anträge, freigegebene Protokolle.
 struct VersammlungenView: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.openURL) private var openURL
     @State private var motionFor: UpcomingMeeting?
     @State private var withdraw: OwnMotion?
+    /// Vorführmodus `-abschnitt live`: gleich die laufende Versammlung
+    @State private var live: LiveTarget? = Demo.active && Demo.section == "live" ? LiveTarget(meetingId: 1) : nil
+    @State private var scanning = false
+    @State private var scanProblem: String?
 
     var body: some View {
         List {
             Meldungen()
+            if let scanProblem {
+                Section { Text(scanProblem).foregroundStyle(.red) }
+            }
             if model.meetings?.isEmpty ?? true {
                 Text(tr("Zurzeit gibt es keine Einladung und kein Protokoll für dich.")).foregroundStyle(.secondary)
             }
@@ -111,6 +117,15 @@ struct VersammlungenView: View {
         .refreshable { await model.refreshIch() }
         .quickLookPreview($model.preview)
         .onDisappear { model.taskNotice = nil }
+        .navigationDestination(item: $live) { target in VersammlungLiveView(target: target) }
+        .sheet(isPresented: $scanning) {
+            VersammlungScan { text in
+                scanning = false
+                let found = LiveTarget.from(scan: text, server: model.account?.server ?? "", clubId: model.access?.clubId ?? 0)
+                scanProblem = found.problem
+                if let target = found.target { live = target }
+            }
+        }
         .sheet(item: $motionFor) { meeting in AntragBlatt(meeting: meeting) }
         .alert(
             tr("Antrag zurückziehen?"),
@@ -136,12 +151,13 @@ struct VersammlungenView: View {
         }
         .padding(.vertical, 4)
         if meeting.checkinOpen {
-            Text(tr("Die Versammlung läuft. Anmelden und Abstimmen gehen zurzeit im Mitgliederbereich im Browser."))
-                .font(.footnote)
-            if let access = model.access, let server = model.account?.server,
-               let url = URL(string: "\(server)/mein-bereich/versammlungen?zugang=\(access.id)") {
-                Button(tr("Im Mitgliederbereich öffnen")) { openURL(url) }
+            Text(tr("Die Versammlung läuft: Melde dich mit dem QR-Code im Saal an."))
+            Button(tr("QR-Code scannen: Ich bin da")) { scanning = true }
+                .buttonStyle(.borderedProminent)
+            Button(meeting.remote ? tr("Online teilnehmen und abstimmen") : tr("Anmeldung und Abstimmungen")) {
+                live = LiveTarget(meetingId: meeting.id)
             }
+            .buttonStyle(.bordered)
         }
     }
 }

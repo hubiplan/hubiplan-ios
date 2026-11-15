@@ -124,9 +124,14 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
     public var surveysOpen: Int
     /// Hat ein Musikerprofil (für den Bereich „Noten“)
     public var musician: Bool
+    /// Wettbewerbe eingeschaltet (nur für Instanzen ohne Modulliste)
+    public var competitionsEnabled: Bool
+    /// Ansprechpartner einer Organisation, die für Mitarbeiter zahlt (Bereich „Mitarbeiter“)
+    public var company: Bool
 
     enum CodingKeys: String, CodingKey {
-        case id, modules, musician
+        case id, modules, musician, company
+        case competitionsEnabled = "competitions_enabled"
         case clubName = "club_name"
         case clubId = "club_id"
         case clubDisplayName = "club_display_name"
@@ -160,6 +165,8 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         surveysEnabled = try c.decodeIfPresent(Bool.self, forKey: .surveysEnabled) ?? false
         surveysOpen = try c.decodeIfPresent(Int.self, forKey: .surveysOpen) ?? 0
         musician = try c.decodeIfPresent(Bool.self, forKey: .musician) ?? false
+        competitionsEnabled = try c.decodeIfPresent(Bool.self, forKey: .competitionsEnabled) ?? false
+        company = try c.decodeIfPresent(Bool.self, forKey: .company) ?? false
     }
 
     /// Modul eingeschaltet? Ohne Modulliste (ältere Instanz) gilt der einzelne Schalter.

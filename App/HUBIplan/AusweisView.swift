@@ -58,9 +58,11 @@ private func farbe(_ hex: String?, sonst: Color) -> Color {
 struct AusweisView: View {
     @EnvironmentObject private var model: AppModel
     @State private var big = false
+    @State private var onTop = true
     /// Vorführmodus: für das Bildschirmfoto gleich in Versammlungen oder Dokumente
-    @State private var showMeetings = Demo.active && Demo.section == "versammlungen"
+    @State private var showMeetings = Demo.active && ["versammlungen", "live"].contains(Demo.section)
     @State private var showDocuments = Demo.active && Demo.section == "dokumente"
+    @State private var showResults = Demo.active && Demo.section == "ergebnisse"
     @State private var showAccount = Demo.active && Demo.tab == "konto"
     @State private var showAdmin = Demo.active && ["verwaltung", "freischalten", "offen", "meldungen", "mitglieder", "mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank", "aufnahme", "dubletten", "anlaesse", "ausweispruefung", "vtermine", "vtermin", "neuertermin", "kasse", "buchung", "neuebuchung", "quittung", "entwuerfe", "vrechnungen", "vrechnung", "vaufgaben", "vaufgabe", "neueaufgabe", "partner", "qualifikationen", "fristen", "frist", "wettbewerbe", "standcode"].contains(Demo.section)
 
@@ -98,6 +100,9 @@ struct AusweisView: View {
                         }
                         Button(tr("QR-Code groß zeigen")) { big = true }
                             .buttonStyle(.bordered)
+                        if !note, stored.card.wallet?.apple == true {
+                            WalletKnopf()
+                        }
                     }
                     if let profile = model.profile {
                         MeineDaten(profile: profile)
@@ -105,11 +110,20 @@ struct AusweisView: View {
                     if let invoices = model.invoices {
                         MeineRechnungen(list: invoices).id("rechnungen")
                     }
+                    if let mandate = model.mandate {
+                        MeinMandat(state: mandate)
+                    }
                     if let meetings = model.meetings {
                         IchVerweis(title: tr("Versammlungen"), detail: versammlungenKurz(meetings)) { VersammlungenView() }
                     }
                     if let surveys = model.surveys {
                         IchVerweis(title: tr("Umfragen"), detail: surveys.summary) { UmfragenView() }
+                    }
+                    if let access = model.access, access.hasResults {
+                        IchVerweis(title: tr("Ergebnisse"), detail: tr("Meine Ergebnisse und Ranglisten")) { ErgebnisseView() }
+                    }
+                    if let access = model.access, access.company {
+                        IchVerweis(title: tr("Mitarbeiter"), detail: tr("Für wen die Firma zahlt")) { MitarbeiterView() }
                     }
                     if let documents = model.documents {
                         IchVerweis(title: tr("Dokumente"), detail: trn("1 Dokument", "{n} Dokumente", documents.count)) { DokumenteView() }
@@ -130,6 +144,7 @@ struct AusweisView: View {
             .navigationTitle(tr("Ich"))
             .navigationDestination(isPresented: $showMeetings) { VersammlungenView() }
             .navigationDestination(isPresented: $showDocuments) { DokumenteView() }
+            .navigationDestination(isPresented: $showResults) { ErgebnisseView() }
             .navigationDestination(isPresented: $showAccount) { KontoView() }
             .navigationDestination(isPresented: $showAdmin) { VerwaltungView() }
             .toolbar {
@@ -143,6 +158,10 @@ struct AusweisView: View {
             }
             .refreshable { await model.refreshIch() }
             .task(id: model.accessId) { await model.refreshIch() }
+            // Rechnungen als PDF; nur solange diese Ansicht oben liegt (die anderen haben ihre eigene)
+            .onAppear { onTop = true }
+            .onDisappear { onTop = false }
+            .quickLookPreview(onTop ? $model.preview : .constant(nil))
             .fullScreenCover(isPresented: $big) {
                 if let stored = model.card, let url = stored.card.url, let display = stored.card.display {
                     GrosserQrCode(url: url, name: display.name, club: display.club) { big = false }
@@ -348,15 +367,21 @@ struct MeineDaten: View {
 }
 
 struct MeineRechnungen: View {
+    @EnvironmentObject private var model: AppModel
     let list: MyInvoices
 
     var body: some View {
         IchAbschnitt(title: tr("Rechnungen")) {
-            if list.invoices.isEmpty {
+            if list.invoices.isEmpty && list.collective.isEmpty {
                 Text(tr("Keine Rechnungen")).foregroundStyle(.secondary)
             }
             if let sum = list.openSum {
                 Text(tr("Offen insgesamt: {betrag}", ["betrag": sum])).font(.body.weight(.semibold))
+            }
+            if model.previewBusy {
+                Text(tr("Datei wird geladen …")).font(.footnote).foregroundStyle(.secondary)
+            } else if let message = model.error {
+                Text(message).font(.footnote).foregroundStyle(.red)
             }
             ForEach(list.sorted) { invoice in
                 VStack(alignment: .leading, spacing: 2) {
@@ -369,8 +394,34 @@ struct MeineRechnungen: View {
                         Spacer(minLength: 8)
                         Text(Geld.format(invoice.total)).font(.footnote)
                     }
+                    HStack(spacing: 12) {
+                        Button(tr("PDF ansehen")) { Task { await model.openInvoice(invoice) } }
+                            .buttonStyle(.bordered)
+                        if invoice.hasCancellationPdf {
+                            Button(tr("Stornorechnung")) { Task { await model.openInvoice(invoice, cancellation: true) } }
+                                .buttonStyle(.borderless)
+                        }
+                    }
+                    .font(.footnote)
+                    .disabled(model.previewBusy)
                 }
                 .padding(.vertical, 4)
+            }
+            if !list.collective.isEmpty {
+                Text(tr("Über eine Sammelrechnung")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                Text(tr("Diese Beiträge zahlt deine Einheit gesammelt; die Rechnung bekommt sie."))
+                    .font(.footnote).foregroundStyle(.secondary)
+                ForEach(list.collective) { line in
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(line.title)
+                        Text(line.line).font(.footnote).foregroundStyle(.secondary)
+                    }
+                    .accessibilityElement(children: .combine)
+                }
+            }
+            if !list.invoices.isEmpty {
+                Text(tr("Rechnungen öffnet die App nur online und speichert sie nicht."))
+                    .font(.footnote).foregroundStyle(.secondary)
             }
         }
     }

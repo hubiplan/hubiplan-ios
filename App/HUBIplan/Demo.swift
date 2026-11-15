@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `akte`, `ehrung`, `zusatzfelder`, `bank`, `aufnahme`, `dubletten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `entwuerfe`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `live`, `ergebnisse`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `akte`, `ehrung`, `zusatzfelder`, `bank`, `aufnahme`, `dubletten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `entwuerfe`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`), im Reiter „Neues“ das Senden (`-abschnitt senden`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
     /// Abschnitte, die eine Mitgliedsakte öffnen, und solche für „Neues Mitglied“
     static let akteAbschnitte = ["mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank"]
@@ -334,7 +334,9 @@ struct DemoTransport: Transport {
         let english = Texte.language == "en"
         let body: String
         if path.hasSuffix("/me/") {
-            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers","meetings","docs","music","scores"],"musician":true}]}"#
+            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers","meetings","docs","music","scores","competitions"],"musician":true}]}"#
+        } else if path.hasSuffix("/api/app/v1/send/") {
+            body = #"{"senders":[{"key":"org-1","name":"Schützenverein Musterstadt","type":"org","id":1},{"key":"dept-9","name":"\#(english ? "Platoon 1" : "Zug 1")","type":"dept","id":9,"club":"Schützenverein Musterstadt"}],"max_body":500}"#
         } else if path.hasSuffix("/api/app/v1/admin/") {
             let unlocked = Demo.section != "freischalten"
             let zug = english ? "Platoon 1" : "Zug 1"
@@ -462,6 +464,29 @@ struct DemoTransport: Transport {
             body = english
                 ? #"[{"id":2,"subject":"Fall in tonight","sender":"Platoon 1","kind_label":"Short message","sent_at":"\#(day(0, "09:00"))","body":"Tonight at **6 pm** at the tent – please be on time.\n\n- Uniform\n- Good mood","channel":"app"},{"id":1,"subject":"Invitation to the general assembly","sender":"Schützenverein Musterstadt","kind_label":"Circular","sent_at":"\#(day(-9, "10:00"))","body":"Dear members,\n\nwe cordially invite you to the general assembly. The agenda is in the members' area.","attachments":[{"id":1,"name":"Agenda.pdf","size":48213}],"channel":"mail"}]"#
                 : #"[{"id":2,"subject":"Antreten heute Abend","sender":"Zug 1","kind_label":"Kurzmitteilung","sent_at":"\#(day(0, "09:00"))","body":"Heute um **18 Uhr** am Zelt – bitte pünktlich.\n\n- Uniform\n- Gute Laune","channel":"app"},{"id":1,"subject":"Einladung zur Jahreshauptversammlung","sender":"Schützenverein Musterstadt","kind_label":"Rundschreiben","sent_at":"\#(day(-9, "10:00"))","body":"Liebe Mitglieder,\n\nwir laden herzlich zur Jahreshauptversammlung ein. Die Tagesordnung steht im Mitgliederbereich.","attachments":[{"id":1,"name":"Tagesordnung.pdf","size":48213}],"channel":"mail"}]"#
+        } else if path.hasSuffix("/mandate/") {
+            let t = english ? ["SEPA core direct debit", "active"] : ["SEPA-Basislastschrift", "aktiv"]
+            body = #"{"available":true,"club_name":"Schützenverein Musterstadt","creditor_id":"DE98ZZZ09999999999","mandate":{"reference":"MSV-0042","scheme_label":"\#(t[0])","status_label":"\#(t[1])","holder":"Erika Musterfrau","iban_masked":"DE89 •••• •••• •••• •••• 00","signed_on":"2019-03-01"}}"#
+        } else if path.hasSuffix("/results/") {
+            let t = english
+                ? ["King shooting", "Club championship", "Single", "Rings", "final", "Club champion 2025"]
+                : ["Königsschießen", "Vereinsmeisterschaft", "Einzel", "Ringe", "endgültig", "Vereinsmeisterin 2025"]
+            body = """
+            {"starts":[{"competition":2,"title":"\(t[1]) 2026","date":"2026-09-12","status":"endgueltig","status_label":"\(t[4])","unit_name":"Schützenverein Musterstadt","results":[{"scoring":"\(t[2])","place":2,"field":14,"value_text":"287","unit_label":"\(t[3])"}]},
+            {"competition":1,"title":"\(t[0]) 2026","date":"2026-06-14","status":"endgueltig","unit_name":"Schützenverein Musterstadt","results":[{"scoring":"\(t[2])","place":5,"field":31,"value_text":"28","unit_label":"\(t[3])"}]}],
+            "grants":[{"id":1,"year":2025,"full_title":"\(t[5])"}]}
+            """
+        } else if path.hasSuffix("/rankings/") {
+            let t = english ? ["Club championship 2026", "Shooting range"] : ["Vereinsmeisterschaft 2026", "Schießstand"]
+            body = #"{"competitions":[{"id":"msv-2","title":"\#(t[0])","date":"2026-09-12","location":"\#(t[1])","own":true,"final":true}],"poll_seconds":15}"#
+        } else if path.contains("/rankings/") {
+            let t = english ? ["Club championship 2026", "Single", "Rings"] : ["Vereinsmeisterschaft 2026", "Einzel", "Ringe"]
+            body = """
+            {"id":"msv-2","title":"\(t[0])","final":true,"version":"1","scorings":[{"name":"\(t[1])","complete":false,"rows":[
+            {"place":1,"name":"Max M.","unit":"\(english ? "Platoon 2" : "Zug 2")","value":"291 \(t[2])","prize":true},
+            {"place":2,"name":"Erika M.","unit":"\(english ? "Platoon 1" : "Zug 1")","value":"287 \(t[2])","prize":true},
+            {"place":3,"name":"Petra B.","value":"280 \(t[2])","prize":true}]}]}
+            """
         } else if path.hasSuffix("/card/") {
             let labels = english
                 ? ["Active member", "Full member", "Platoon", "Platoon 1, Band"]
@@ -470,14 +495,14 @@ struct DemoTransport: Transport {
             {"state":"active","url":"https://verein.example.de/ausweis/pruefen/demo-0042",
             "display":{"first_name":"Erika","last_name":"Musterfrau","status":"active","status_label":"\(labels[0])",
             "member_type":"\(labels[1])","club":"Schützenverein Musterstadt","department_label":"\(labels[2])",
-            "departments":["\(labels[3])"],"club_number":"0042","theme":{"primary":"0E7C66","on_primary":"FFFFFF"}}}
+            "departments":["\(labels[3])"],"club_number":"0042","theme":{"primary":"0E7C66","on_primary":"FFFFFF"}},"wallet":{"apple":true,"google":false}}
             """
         } else if path.hasSuffix("/invoices/") {
             let labels = english ? ["Paid", "Open", "Annual fee 2026", "Summer festival tickets"] : ["Bezahlt", "Offen", "Jahresbeitrag 2026", "Karten Sommerfest"]
             body = """
             {"invoices":[
             {"id":2,"number":"R-2026-0031","status":"open","status_label":"\(labels[1])","date":"\(day(-12, "00:00").prefix(10))","due_date":"\(day(9, "00:00").prefix(10))","subject":"\(labels[3])","total":"36.00","outstanding":"36.00","issuer_name":"Schützenverein Musterstadt"},
-            {"id":1,"number":"R-2026-0007","status":"paid","status_label":"\(labels[0])","date":"2026-01-15","subject":"\(labels[2])","total":"60.00","outstanding":"0.00","issuer_name":"Schützenverein Musterstadt"}
+            {"id":1,"number":"R-2026-0007","status":"paid","status_label":"\(labels[0])","date":"2026-01-15","subject":"\(labels[2])","total":"60.00","outstanding":"0.00","issuer_name":"Schützenverein Musterstadt","has_cancellation_pdf":false}
             ]}
             """
         } else if path.contains("/music/files/") {
@@ -492,18 +517,29 @@ struct DemoTransport: Transport {
             {"arrangement":3,"title":"Unter der Vereinsfahne","composer":"E. Beispiel","number":"3","scores":[]}
             """
             body = """
-            {"folders":[{"id":1,"key":"folder-1","kind":"marchbook","name":"\(t[0])","items":[\(pieces)]}],
+            {"folders":[{"id":1,"key":"folder-1","can_lead":true,"kind":"marchbook","name":"\(t[0])","items":[\(pieces)]}],
             "events":[{"key":"rehearsal-1","type":"rehearsal","title":"\(t[1])","starts_at":"\(day(3, "19:30"))","location":"\(t[2])","focus":"\(t[3])","items":[
             {"arrangement":2,"title":"Musterstädter Schützenmarsch","scores":[{"id":2,"content_type":"application/pdf","url":"/api/portal/1/music/files/2/"}]},
             {"kind":"pause","title":"\(t[4])"},
             {"arrangement":1,"title":"Gruß an Musterstadt","scores":[{"id":1,"content_type":"application/pdf","url":"/api/portal/1/music/files/1/"}]}]}]}
+            """
+        } else if path.contains("/meetings/1/") {
+            // Laufende Versammlung: angemeldet mit einer Vollmacht, eine Abstimmung offen, eine beendet
+            let t = english
+                ? ["General assembly", "Clubhouse", "Discharge of the board", "Yes", "No", "Abstention", "Treasurer", "Elections"]
+                : ["Jahreshauptversammlung", "Vereinsheim", "Entlastung des Vorstands", "Ja", "Nein", "Enthaltung", "Kassiererin", "Wahlen"]
+            body = """
+            {"id":1,"title":"\(t[0])","unit":"Schützenverein Musterstadt","location":"\(t[1])","checkin_open":true,"remote":false,"voter":true,"is_organization":false,"status":"present","mode":"onsite","votes":2,
+            "polls":[{"id":2,"agenda_position":3,"agenda_number":"2.1","question":"\(t[2])","secret":false,"status":"open","options":[{"id":1,"label":"\(t[3])"},{"id":2,"label":"\(t[4])"},{"id":3,"label":"\(t[5])"}],
+            "votes":[{"attendance":1,"name":"Erika Musterfrau","how":"own"},{"attendance":2,"name":"Max Mustermann","how":"proxy"}]},
+            {"id":1,"agenda_position":4,"agenda_number":"3","question":"\(t[7])","candidate":"Petra Beispiel","office":"\(t[6])","secret":true,"status":"closed","result":[{"id":1,"label":"\(t[3])","votes":41},{"id":2,"label":"\(t[4])","votes":3},{"id":3,"label":"\(t[5])","votes":2}]}]}
             """
         } else if path.hasSuffix("/meetings/") {
             let t = english
                 ? ["General assembly", "Clubhouse", "Welcome", "Report of the board", "Treasurer's report", "Elections", "New flag", "General assembly last year"]
                 : ["Jahreshauptversammlung", "Vereinsheim", "Begrüßung", "Bericht des Vorstands", "Kassenbericht", "Wahlen", "Neue Fahne", "Jahreshauptversammlung im Vorjahr"]
             body = """
-            {"upcoming":[{"id":1,"title":"\(t[0])","unit":"Schützenverein Musterstadt","starts_at":"\(day(63, "19:30"))","location":"\(t[1])","address":"Musterweg 1, 41468 Musterstadt","motion_until":"\(day(49, "23:59"))",
+            {"upcoming":[{"id":1,"title":"\(t[0])","unit":"Schützenverein Musterstadt","starts_at":"\(day(63, "19:30"))","location":"\(t[1])","address":"Musterweg 1, 41468 Musterstadt","motion_until":"\(day(49, "23:59"))","checkin_open":true,
             "motions":[{"id":1,"title":"\(t[6])","status":"submitted"}],
             "agenda":[{"position":1,"title":"\(t[2])","number":"1"},{"position":2,"title":"\(t[3])","number":"2"},{"position":3,"title":"\(t[4])","number":"2.1","level":1},{"position":4,"title":"\(t[5])","number":"3"}]}],
             "minutes":[{"id":2,"title":"\(t[7])","starts_at":"\(day(-300, "19:30"))"}]}
