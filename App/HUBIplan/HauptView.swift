@@ -160,6 +160,7 @@ struct KontoView: View {
     @EnvironmentObject private var model: AppModel
     @State private var unsent = 0
     @State private var confirmDisconnect = false
+    @Environment(\.openURL) private var openURL
 
     var body: some View {
             ScrollViewReader { scroll in
@@ -170,6 +171,10 @@ struct KontoView: View {
                 }
                 Section(tr("Instanz")) {
                     Text(model.account?.server ?? "")
+                    // Hilfe der Instanz (wie in der Android-App unter „Mein Konto“)
+                    if let server = model.account?.server, let url = URL(string: server + "/hilfe") {
+                        Button(tr("Hilfe und Anleitungen im Browser")) { openURL(url) }
+                    }
                 }
                 Section {
                     ForEach(model.accounts.accounts) { entry in
