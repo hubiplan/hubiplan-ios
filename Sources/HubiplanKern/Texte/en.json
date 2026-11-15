@@ -806,5 +806,14 @@
  "Rechnungen öffnet die App nur online und speichert sie nicht.": "The app opens invoices only online and does not store them.",
  "Stornorechnung": "Cancellation invoice",
  "Über eine Sammelrechnung": "Via a collective invoice",
- "Meine Ergebnisse und Ranglisten": "My results and rankings"
+ "Meine Ergebnisse und Ranglisten": "My results and rankings",
+ "An alle gesendet": "Sent to everyone",
+ "An alle senden": "Send to everyone",
+ "Bleiben": "Stay",
+ "Dieses Stück ist nicht in deinen Noten.": "This piece is not in your sheet music.",
+ "Jetzt öffnen": "Open now",
+ "Leitung": "Leader",
+ "Live getrennt": "Live disconnected",
+ "Nr. {number}": "No. {number}",
+ "{sender}: {piece}": "{sender}: {piece}"
 }

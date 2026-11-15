@@ -95,17 +95,22 @@ public struct FolderItem: Decodable, Equatable, Sendable {
 struct ScoreFolder: Decodable {
     var id: Int
     var key: String
+    var canLead: Bool
     var kind: String
     var name: String
     var note: String
     var items: [FolderItem]
 
-    enum CodingKeys: String, CodingKey { case id, key, kind, name, note, items }
+    enum CodingKeys: String, CodingKey {
+        case id, key, kind, name, note, items
+        case canLead = "can_lead"
+    }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decode(Int.self, forKey: .id)
         key = try c.decode(String.self, forKey: .key)
+        canLead = try c.decodeIfPresent(Bool.self, forKey: .canLead) ?? false
         kind = try c.decodeIfPresent(String.self, forKey: .kind) ?? "other"
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
         note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
@@ -115,6 +120,8 @@ struct ScoreFolder: Decodable {
 
 struct ScoreEvent: Decodable {
     var key: String
+    var liveKey: String
+    var canLead: Bool
     var type: String
     var title: String
     var startsAt: String
@@ -126,11 +133,15 @@ struct ScoreEvent: Decodable {
     enum CodingKeys: String, CodingKey {
         case key, type, title, location, cancelled, focus, items
         case startsAt = "starts_at"
+        case liveKey = "live_key"
+        case canLead = "can_lead"
     }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         key = try c.decode(String.self, forKey: .key)
+        liveKey = try c.decodeIfPresent(String.self, forKey: .liveKey) ?? ""
+        canLead = try c.decodeIfPresent(Bool.self, forKey: .canLead) ?? false
         type = try c.decodeIfPresent(String.self, forKey: .type) ?? "rehearsal"
         title = try c.decodeIfPresent(String.self, forKey: .title) ?? ""
         startsAt = try c.decodeIfPresent(String.self, forKey: .startsAt) ?? ""
@@ -152,6 +163,10 @@ public struct Mappe: Equatable, Identifiable, Sendable {
     public var cancelled: Bool
     public var note: String
     public var items: [FolderItem]
+    /// Ziel für die Live-Vorgabe der Leitung (folder-…, performance-…, rehearsal-…)
+    public var liveKey: String = ""
+    /// Darf Stücke an alle senden (Dirigent, Leitung)
+    public var canLead: Bool = false
 
     public var id: String { key }
     public var isEvent: Bool { kind == "performance" || kind == "rehearsal" }
@@ -183,9 +198,11 @@ public struct ScoreFolders: Decodable, Equatable, Sendable {
         let folders = try c.decodeIfPresent([ScoreFolder].self, forKey: .folders) ?? []
         let events = try c.decodeIfPresent([ScoreEvent].self, forKey: .events) ?? []
         mappen = folders.map {
-            Mappe(key: $0.key, name: $0.name, kind: $0.kind, startsAt: "", location: "", cancelled: false, note: $0.note, items: $0.items)
+            Mappe(key: $0.key, name: $0.name, kind: $0.kind, startsAt: "", location: "", cancelled: false, note: $0.note, items: $0.items,
+                  liveKey: $0.key, canLead: $0.canLead)
         } + events.map {
-            Mappe(key: $0.key, name: $0.title, kind: $0.type, startsAt: $0.startsAt, location: $0.location, cancelled: $0.cancelled, note: $0.focus, items: $0.items)
+            Mappe(key: $0.key, name: $0.title, kind: $0.type, startsAt: $0.startsAt, location: $0.location, cancelled: $0.cancelled, note: $0.focus, items: $0.items,
+                  liveKey: $0.liveKey.isEmpty ? $0.key : $0.liveKey, canLead: $0.canLead)
         }
     }
 

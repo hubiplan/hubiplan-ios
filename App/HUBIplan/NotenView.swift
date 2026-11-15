@@ -220,7 +220,8 @@ private struct PdfSeite: UIViewRepresentable {
 struct NotenPult: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
-    let mappe: Mappe
+    /// Offene Mappe; eine Vorgabe der Leitung kann in eine andere führen
+    @State private var mappe: Mappe
     @State private var at: PultStelle
     @State private var document: PDFDocument?
     @State private var failed: String?
@@ -228,10 +229,25 @@ struct NotenPult: View {
     /// Nach dem Zurückblättern in das vorige Stück auf dessen letzte Seite
     @State private var toLast = false
     @FocusState private var focused: Bool
+    // Live-Vorgabe der Leitung (wie Android, Noten N6)
+    @State private var canSend = false
+    @State private var liveOk: Bool?
+    @State private var vorgabe: Vorgabe?
+    @State private var ownSeq: Int64 = 0
+    @State private var choosing = false
+    @State private var hint: String?
+
+    /// Vorgabe mit dem Ort des Stücks in den eigenen Noten (nil: nicht dabei).
+    struct Vorgabe: Equatable {
+        let cue: LiveCue
+        let mappe: Mappe?
+        let piece: Int
+    }
 
     init(mappe: Mappe, first: Int) {
-        self.mappe = mappe
+        _mappe = State(initialValue: mappe)
         _at = State(initialValue: PultStelle(piece: first, page: 0))
+        _canSend = State(initialValue: mappe.canLead)
     }
 
     private var pieces: [FolderItem] { mappe.playable }
@@ -286,6 +302,72 @@ struct NotenPult: View {
         document = whole
     }
 
+    /// Zu einem Stück springen, auch in eine andere Mappe.
+    private func jump(_ target: Mappe, _ index: Int) {
+        if target.key != mappe.key { mappe = target }
+        document = nil
+        toLast = false
+        header = false
+        at = PultStelle(piece: index, page: 0)
+    }
+
+    /// Fragt alle paar Sekunden nach einer Vorgabe der Leitung, solange das Pult offen ist.
+    private func followLive() async {
+        let target = mappe.liveKey
+        guard NotenLive.targetOk(target) else { return }
+        var lastSeq: Int64?
+        while !Task.isCancelled {
+            var pause = 5
+            switch await model.portalCall({ api, access in try await api.live(accessId: access, target: target) }) {
+            case .success(let state):
+                liveOk = true
+                canSend = state.canSend
+                if NotenLive.isNew(state.cue, lastSeq: lastSeq, ownSeq: ownSeq), let cue = state.cue {
+                    let found = NotenLive.place(of: cue.arrangement, current: mappe, all: model.scores?.mappen ?? [])
+                    vorgabe = Vorgabe(cue: cue, mappe: found?.mappe, piece: found?.piece ?? -1)
+                }
+                if let cue = state.cue { lastSeq = max(lastSeq ?? 0, cue.seq) } else if lastSeq == nil { lastSeq = 0 }
+                pause = state.pause
+            case .failure(let failure):
+                liveOk = false
+                if failure.status == 403 || failure.status == 404 { return }
+            case nil:
+                return
+            }
+            try? await Task.sleep(nanoseconds: UInt64(pause) * 1_000_000_000)
+        }
+    }
+
+    /// Nach drei Sekunden springen, außer „Bleiben“.
+    private func autoJump(_ shown: Vorgabe) async {
+        guard let target = shown.mappe else { return }
+        try? await Task.sleep(nanoseconds: 3_000_000_000)
+        guard !Task.isCancelled, vorgabe == shown else { return }
+        jump(target, shown.piece)
+        vorgabe = nil
+    }
+
+    /// Leitung: Stück an alle Geräte dieser Mappe senden und selbst hinspringen.
+    private func send(_ index: Int) async {
+        let items = mappe.playable
+        guard items.indices.contains(index), let arrangement = items[index].arrangement else { return }
+        let target = mappe.liveKey
+        let number = items[index].number
+        choosing = false
+        switch await model.portalCall({ api, access in
+            try await api.sendLive(accessId: access, target: target, arrangement: arrangement, number: number)
+        }) {
+        case .success(let cue):
+            ownSeq = cue?.seq ?? 0
+            hint = tr("An alle gesendet")
+            jump(mappe, index)
+        case .failure(let failure):
+            hint = failure.text
+        case nil:
+            break
+        }
+    }
+
     private var title: String {
         guard let piece else { return mappe.name }
         return piece.number.isEmpty ? piece.title : piece.number + " · " + piece.title
@@ -332,10 +414,81 @@ struct NotenPult: View {
                             .font(.footnote).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 12)
+                    if canSend {
+                        Button {
+                            choosing = true
+                        } label: {
+                            Label(tr("An alle senden"), systemImage: "paperplane")
+                        }
+                        .buttonStyle(.bordered)
+                    }
                     Button(tr("Schließen")) { dismiss() }.buttonStyle(.borderedProminent)
                 }
                 .padding(12)
                 .background(.regularMaterial)
+            } else if liveOk == false {
+                HStack {
+                    Text(tr("Live getrennt")).font(.caption2).foregroundStyle(.secondary)
+                    Spacer()
+                }
+                .padding(8)
+            }
+        }
+        .overlay(alignment: .top) {
+            if let shown = vorgabe {
+                VStack(alignment: .leading, spacing: 8) {
+                    Text(shown.cue.headline).font(.title3.weight(.semibold))
+                    if shown.mappe == nil {
+                        Text(tr("Dieses Stück ist nicht in deinen Noten."))
+                    }
+                    HStack(spacing: 12) {
+                        if let target = shown.mappe {
+                            Button(tr("Jetzt öffnen")) {
+                                jump(target, shown.piece)
+                                vorgabe = nil
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        Button(shown.mappe != nil ? tr("Bleiben") : tr("Schließen")) { vorgabe = nil }
+                            .buttonStyle(.bordered)
+                    }
+                }
+                .padding(16)
+                .frame(maxWidth: 560, alignment: .leading)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 12))
+                .padding(12)
+                .accessibilityElement(children: .contain)
+                .task(id: shown.cue.seq) { await autoJump(shown) }
+                .onAppear { UIAccessibility.post(notification: .announcement, argument: shown.cue.headline) }
+            }
+        }
+        .overlay(alignment: .center) {
+            if let hint {
+                Text(hint).foregroundStyle(.white).padding(10)
+                    .background(Color(white: 0.2, opacity: 0.85), in: RoundedRectangle(cornerRadius: 8))
+                    .task(id: hint) {
+                        try? await Task.sleep(nanoseconds: 2_000_000_000)
+                        if self.hint == hint { self.hint = nil }
+                    }
+            }
+        }
+        .sheet(isPresented: $choosing) {
+            NavigationStack {
+                List(Array(mappe.playable.enumerated()), id: \.offset) { index, item in
+                    Button {
+                        Task { await send(index) }
+                    } label: {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(item.number.isEmpty ? item.title : item.number + " · " + item.title).foregroundStyle(Color.primary)
+                            if !item.credit.isEmpty { Text(item.credit).font(.footnote).foregroundStyle(Color.secondary) }
+                        }
+                    }
+                }
+                .navigationTitle(tr("An alle senden"))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { choosing = false } }
+                }
             }
         }
         .overlay(alignment: .bottom) {
@@ -357,7 +510,8 @@ struct NotenPult: View {
             step(Blaettern.rueck)
             return .handled
         }
-        .task(id: at.piece) { await load() }
+        .task(id: mappe.key + "#" + String(at.piece)) { await load() }
+        .task(id: mappe.liveKey) { await followLive() }
         .onAppear {
             focused = true
             UIApplication.shared.isIdleTimerDisabled = true

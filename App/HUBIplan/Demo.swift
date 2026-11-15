@@ -517,7 +517,7 @@ struct DemoTransport: Transport {
             {"arrangement":3,"title":"Unter der Vereinsfahne","composer":"E. Beispiel","number":"3","scores":[]}
             """
             body = """
-            {"folders":[{"id":1,"key":"folder-1","kind":"marchbook","name":"\(t[0])","items":[\(pieces)]}],
+            {"folders":[{"id":1,"key":"folder-1","can_lead":true,"kind":"marchbook","name":"\(t[0])","items":[\(pieces)]}],
             "events":[{"key":"rehearsal-1","type":"rehearsal","title":"\(t[1])","starts_at":"\(day(3, "19:30"))","location":"\(t[2])","focus":"\(t[3])","items":[
             {"arrangement":2,"title":"Musterstädter Schützenmarsch","scores":[{"id":2,"content_type":"application/pdf","url":"/api/portal/1/music/files/2/"}]},
             {"kind":"pause","title":"\(t[4])"},
