@@ -26,7 +26,7 @@ final class VerwaltungRechnungenTests: XCTestCase {
         XCTAssertEqual(lesen.sections, [.tasks, .billing])
         let alles = AdminUnit(id: 1, name: "A", permissions: ["members.view", "finance.view", "billing.edit"], stufen: true)
         XCTAssertTrue(alles.canEditBilling)
-        XCTAssertEqual(alles.sections, [.tasks, .members, .finance, .billing, .occasions])
+        XCTAssertEqual(alles.sections, [.tasks, .members, .occasions, .finance, .billing])
     }
 
     func testRechnungInListeUndAufDerSeite() throws {

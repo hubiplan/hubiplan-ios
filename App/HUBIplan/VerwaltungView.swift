@@ -264,11 +264,25 @@ private struct VerwaltungStart: View {
                         )
                     }
                 }
+                if unit.sections.contains(.events) {
+                    NavigationLink {
+                        TermineVerwaltungView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "calendar", title: tr("Termine"), hint: tr("Absagen, Rückmeldungen eintragen, neuer Termin"))
+                    }
+                }
                 if unit.sections.contains(.todos) {
                     NavigationLink {
                         AufgabenVerwaltungView(unit: unit)
                     } label: {
                         Bereich(symbol: "checklist", title: tr("Aufgaben verteilen"), hint: tr("Aufgaben anlegen, erledigen und wieder öffnen"))
+                    }
+                }
+                if unit.sections.contains(.obligations) {
+                    NavigationLink {
+                        FristenView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "calendar.badge.exclamationmark", title: tr("Fristen"), hint: tr("Vereinspflichten mit Frist und Zuständigkeit"))
                     }
                 }
                 if unit.sections.contains(.members) {
@@ -278,11 +292,25 @@ private struct VerwaltungStart: View {
                         Bereich(symbol: "person.2", title: tr("Mitglieder"), hint: tr("Suchen, anrufen, Mitgliedsakte öffnen"))
                     }
                 }
-                if unit.sections.contains(.events) {
+                if unit.sections.contains(.occasions) {
                     NavigationLink {
-                        TermineVerwaltungView(unit: unit)
+                        AnlaesseView(unit: unit)
                     } label: {
-                        Bereich(symbol: "calendar", title: tr("Termine"), hint: tr("Absagen, Rückmeldungen eintragen, neuer Termin"))
+                        Bereich(symbol: "gift", title: tr("Jubiläen und Geburtstage"), hint: tr("Geburtstage und Jubiläen der nächsten Wochen"))
+                    }
+                }
+                if unit.sections.contains(.qualifications) {
+                    NavigationLink {
+                        QualifikationenView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "rosette", title: tr("Qualifikationen"), hint: tr("Nachweise, die bald ablaufen"))
+                    }
+                }
+                if unit.sections.contains(.competitions) {
+                    NavigationLink {
+                        WettbewerbeView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "scope", title: tr("Wettbewerbe"), hint: tr("Schießen im Standmodus erfassen, auch ohne Empfang"))
                     }
                 }
                 if unit.sections.contains(.finance) {
@@ -299,39 +327,11 @@ private struct VerwaltungStart: View {
                         Bereich(symbol: "doc.text", title: tr("Rechnungen"), hint: tr("Offene und bezahlte Rechnungen, bar kassieren"))
                     }
                 }
-                if unit.sections.contains(.occasions) {
-                    NavigationLink {
-                        AnlaesseView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "gift", title: tr("Jubiläen und Geburtstage"), hint: tr("Geburtstage und Jubiläen der nächsten Wochen"))
-                    }
-                }
-                if unit.sections.contains(.competitions) {
-                    NavigationLink {
-                        WettbewerbeView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "scope", title: tr("Wettbewerbe"), hint: tr("Schießen im Standmodus erfassen, auch ohne Empfang"))
-                    }
-                }
                 if unit.sections.contains(.partners) {
                     NavigationLink {
                         GeschaeftspartnerView(unit: unit)
                     } label: {
                         Bereich(symbol: "building.2", title: tr("Geschäftspartner"), hint: tr("Lieferanten, Sponsoren und Ansprechpartner nachschlagen"))
-                    }
-                }
-                if unit.sections.contains(.qualifications) {
-                    NavigationLink {
-                        QualifikationenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "rosette", title: tr("Qualifikationen"), hint: tr("Nachweise, die bald ablaufen"))
-                    }
-                }
-                if unit.sections.contains(.obligations) {
-                    NavigationLink {
-                        FristenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "calendar.badge.exclamationmark", title: tr("Fristen"), hint: tr("Vereinspflichten mit Frist und Zuständigkeit"))
                     }
                 }
             } header: {

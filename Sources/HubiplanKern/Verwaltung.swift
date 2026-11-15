@@ -59,20 +59,26 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
     /// Ausweise am Einlass prüfen: wer in der Einheit Mitglieder sieht.
     public var canCheckCards: Bool { !isDepartment && showsMembers }
 
-    /// Bereiche dieser Fassung. Untereinheiten haben keine gemeinsame Liste offener Punkte.
+    /// Bereiche dieser Fassung in der Reihenfolge der Gruppen des Hauptmenüs im Browser (Planen,
+    /// Verein, Vereinsleben, Verwaltung), wie in der Android-App. Untereinheiten haben keine
+    /// gemeinsame Liste offener Punkte.
     public var sections: [AdminSection] {
         var list: [AdminSection] = []
         if !isDepartment { list.append(.tasks) }
-        if showsTodos { list.append(.todos) }
-        if showsMembers { list.append(.members) }
+        // Planen
         if showsEvents { list.append(.events) }
+        if showsTodos { list.append(.todos) }
+        if showsObligations { list.append(.obligations) }
+        // Verein
+        if showsMembers { list.append(.members) }
+        if !isDepartment, showsMembers { list.append(.occasions) }
+        if showsQualifications { list.append(.qualifications) }
+        // Vereinsleben
+        if showsCompetitions { list.append(.competitions) }
+        // Verwaltung: Geschäftspartner gleich nach Kassenbuch und Rechnungen
         if showsFinance { list.append(.finance) }
         if showsBilling { list.append(.billing) }
-        if !isDepartment, showsMembers { list.append(.occasions) }
-        if showsCompetitions { list.append(.competitions) }
         if showsPartners { list.append(.partners) }
-        if showsQualifications { list.append(.qualifications) }
-        if showsObligations { list.append(.obligations) }
         return list
     }
 

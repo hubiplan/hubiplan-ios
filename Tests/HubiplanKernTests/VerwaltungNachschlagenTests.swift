@@ -21,7 +21,7 @@ final class VerwaltungNachschlagenTests: XCTestCase {
             id: 1, name: "A", permissions: ["members.view", "partners.view", "obligations.edit"], stufen: true,
             modules: ["qualifications", "obligations"]
         )
-        XCTAssertEqual(alles.sections, [.tasks, .members, .occasions, .partners, .qualifications, .obligations])
+        XCTAssertEqual(alles.sections, [.tasks, .obligations, .members, .occasions, .qualifications, .partners])
         // Ohne Modul keine Qualifikationen und Fristen
         let ohneModule = AdminUnit(id: 1, name: "A", permissions: ["members.view", "partners.edit", "obligations.view"], stufen: true)
         XCTAssertEqual(ohneModule.sections, [.tasks, .members, .occasions, .partners])
