@@ -299,6 +299,13 @@ final class AppModel: ObservableObject {
         if epoch == self.epoch { await syncCalendar() }
     }
 
+    /// Nur „Meine Daten“ neu laden (z. B. nach einer Kündigung).
+    func reloadProfile() async {
+        if case .success(let fresh) = await portalCall({ api, access in try await api.profile(accessId: access) }) {
+            profile = fresh
+        }
+    }
+
     /// Reiter „Ich“: Ausweis, eigene Daten und Rechnungen (soweit das Modul eingeschaltet ist).
     func refreshIch() async {
         await refreshCard()

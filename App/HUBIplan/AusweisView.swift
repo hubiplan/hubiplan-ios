@@ -63,6 +63,8 @@ struct AusweisView: View {
     @State private var showMeetings = Demo.active && ["versammlungen", "live"].contains(Demo.section)
     @State private var showDocuments = Demo.active && Demo.section == "dokumente"
     @State private var showResults = Demo.active && Demo.section == "ergebnisse"
+    @State private var showBookings = Demo.active && Demo.section == "belegung"
+    @State private var showAbsences = Demo.active && Demo.section == "abwesenheiten"
     @State private var showAccount = Demo.active && Demo.tab == "konto"
     @State private var showAdmin = Demo.active && ["verwaltung", "freischalten", "offen", "meldungen", "mitglieder", "mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank", "aufnahme", "dubletten", "anlaesse", "ausweispruefung", "vtermine", "vtermin", "neuertermin", "kasse", "buchung", "neuebuchung", "quittung", "entwuerfe", "vrechnungen", "vrechnung", "vaufgaben", "vaufgabe", "neueaufgabe", "partner", "qualifikationen", "fristen", "frist", "wettbewerbe", "standcode"].contains(Demo.section)
 
@@ -106,6 +108,9 @@ struct AusweisView: View {
                     }
                     if let profile = model.profile {
                         MeineDaten(profile: profile)
+                        if let cancellation = profile.cancellation, cancellation.shown {
+                            KuendigungAbschnitt(info: cancellation)
+                        }
                     }
                     if let invoices = model.invoices {
                         MeineRechnungen(list: invoices).id("rechnungen")
@@ -119,8 +124,17 @@ struct AusweisView: View {
                     if let surveys = model.surveys {
                         IchVerweis(title: tr("Umfragen"), detail: surveys.summary) { UmfragenView() }
                     }
-                    if let access = model.access, access.hasResults {
-                        IchVerweis(title: tr("Ergebnisse"), detail: tr("Meine Ergebnisse und Ranglisten")) { ErgebnisseView() }
+                    if let access = model.access, access.hasResults || access.hasEntries {
+                        IchVerweis(
+                            title: tr("Wettbewerbe"),
+                            detail: access.hasEntries ? tr("Meldungen, Plätze, Werte und Titel") : tr("Meine Ergebnisse und Ranglisten")
+                        ) { ErgebnisseView() }
+                    }
+                    if let access = model.access, access.hasAbsences {
+                        IchVerweis(title: tr("Abwesenheiten"), detail: tr("Wann du nicht mitspielen kannst")) { AbwesenheitenView() }
+                    }
+                    if let access = model.access, access.hasBookings {
+                        IchVerweis(title: tr("Belegung"), detail: tr("Schützenhaus, Stand oder Material anfragen")) { BelegungView() }
                     }
                     if let access = model.access, access.company {
                         IchVerweis(title: tr("Mitarbeiter"), detail: tr("Für wen die Firma zahlt")) { MitarbeiterView() }
@@ -145,6 +159,8 @@ struct AusweisView: View {
             .navigationDestination(isPresented: $showMeetings) { VersammlungenView() }
             .navigationDestination(isPresented: $showDocuments) { DokumenteView() }
             .navigationDestination(isPresented: $showResults) { ErgebnisseView() }
+            .navigationDestination(isPresented: $showBookings) { BelegungView() }
+            .navigationDestination(isPresented: $showAbsences) { AbwesenheitenView() }
             .navigationDestination(isPresented: $showAccount) { KontoView() }
             .navigationDestination(isPresented: $showAdmin) { VerwaltungView() }
             .toolbar {
