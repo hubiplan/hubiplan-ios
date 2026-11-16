@@ -61,7 +61,7 @@ struct AkteMehr: View {
                 ForEach(awards) { award in
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(award.titleName)
+                            Text(award.label)
                             Text(award.period).font(.footnote).foregroundStyle(Color.secondary)
                             if !award.note.isEmpty { Text(award.note).font(.footnote).foregroundStyle(Color.secondary) }
                         }
