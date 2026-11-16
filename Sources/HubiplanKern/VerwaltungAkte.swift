@@ -12,10 +12,13 @@ public struct AwardItem: Decodable, Equatable, Sendable, Identifiable {
     public var validFrom: String
     public var validUntil: String?
     public var note: String
+    /// Eigener Titel des Trägers, z. B. „Ehrenhauptmann“ (hubiplan #518)
+    public var displayTitle: String
 
     enum CodingKeys: String, CodingKey {
         case id, title, note
         case titleName = "title_name"
+        case displayTitle = "display_title"
         case validFrom = "valid_from"
         case validUntil = "valid_until"
     }
@@ -28,6 +31,12 @@ public struct AwardItem: Decodable, Equatable, Sendable, Identifiable {
         validFrom = try c.decodeIfPresent(String.self, forKey: .validFrom) ?? ""
         validUntil = try c.decodeIfPresent(String.self, forKey: .validUntil).flatMap { $0.isEmpty ? nil : $0 }
         note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
+        displayTitle = try c.decodeIfPresent(String.self, forKey: .displayTitle) ?? ""
+    }
+
+    /// Ehrung, mit eigenem Titel in Klammern: „Ehrenmitglied (Ehrenhauptmann)“ (wie Android)
+    public var label: String {
+        displayTitle.trimmingCharacters(in: .whitespaces).isEmpty ? titleName : "\(titleName) (\(displayTitle))"
     }
 
     /// Läuft noch (lässt sich beenden).

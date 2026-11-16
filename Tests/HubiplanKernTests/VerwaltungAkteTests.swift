@@ -39,6 +39,14 @@ final class VerwaltungAkteTests: XCTestCase {
         XCTAssertFalse(list[1].running)
         XCTAssertEqual(list[1].period, "vom 01.09.2018 bis 31.08.2019")
         XCTAssertEqual(list[1].note, "Zug 1")
+        XCTAssertEqual(list[0].label, "Ehrenmitglied")
+    }
+
+    /// Eigener Titel des Trägers (hubiplan #518), gleicher Fall wie EhrungTitelTest (Android).
+    func testEhrungMitEigenemTitel() throws {
+        let list: [AwardItem] = try decode(#"[{"id":1,"title":3,"title_name":"Ehrenmitglied","valid_from":"2020-01-11","display_title":"Ehrenhauptmann"}]"#)
+        XCTAssertEqual(list[0].displayTitle, "Ehrenhauptmann")
+        XCTAssertEqual(list[0].label, "Ehrenmitglied (Ehrenhauptmann)")
     }
 
     func testZusatzfelderLesen() throws {
