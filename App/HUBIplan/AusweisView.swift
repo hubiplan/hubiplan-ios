@@ -134,7 +134,7 @@ struct AusweisView: View {
                         IchVerweis(title: tr("Abwesenheiten"), detail: tr("Wann du nicht mitspielen kannst")) { AbwesenheitenView() }
                     }
                     if let access = model.access, access.hasBookings {
-                        IchVerweis(title: tr("Belegung"), detail: tr("Schützenhaus, Stand oder Material anfragen")) { BelegungView() }
+                        IchVerweis(title: tr("Belegung"), detail: tr("Vereinsheim, Räume oder Material anfragen")) { BelegungView() }
                     }
                     if let access = model.access, access.company {
                         IchVerweis(title: tr("Mitarbeiter"), detail: tr("Für wen die Firma zahlt")) { MitarbeiterView() }

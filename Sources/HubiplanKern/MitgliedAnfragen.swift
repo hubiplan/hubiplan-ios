@@ -6,7 +6,7 @@ import Foundation
 
 // MARK: Belegung
 
-/// Objekt, das Mitglieder anfragen dürfen (Schützenhaus, Stand, Material).
+/// Objekt, das Mitglieder anfragen dürfen (Vereinsheim, Räume, Material).
 public struct BookableItem: Decodable, Equatable, Identifiable, Sendable {
     public var id: Int
     public var kind: String
