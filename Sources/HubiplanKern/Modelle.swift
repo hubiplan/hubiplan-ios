@@ -122,6 +122,9 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
     /// Umfragen eingeschaltet (nur für Instanzen ohne Modulliste) und Zahl unbeantworteter
     public var surveysEnabled: Bool
     public var surveysOpen: Int
+    /// Auslagen erstatten eingeschaltet und Zahl offener Rückfragen der Kasse
+    public var expensesEnabled: Bool
+    public var expensesQuestions: Int
     /// Hat ein Musikerprofil (für den Bereich „Noten“)
     public var musician: Bool
     /// Wettbewerbe eingeschaltet (nur für Instanzen ohne Modulliste)
@@ -151,6 +154,8 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         case docsEnabled = "docs_enabled"
         case surveysEnabled = "surveys_enabled"
         case surveysOpen = "surveys_open"
+        case expensesEnabled = "expenses_enabled"
+        case expensesQuestions = "expenses_questions"
     }
 
     public init(from decoder: Decoder) throws {
@@ -170,6 +175,8 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         docsEnabled = try c.decodeIfPresent(Bool.self, forKey: .docsEnabled) ?? false
         surveysEnabled = try c.decodeIfPresent(Bool.self, forKey: .surveysEnabled) ?? false
         surveysOpen = try c.decodeIfPresent(Int.self, forKey: .surveysOpen) ?? 0
+        expensesEnabled = try c.decodeIfPresent(Bool.self, forKey: .expensesEnabled) ?? false
+        expensesQuestions = try c.decodeIfPresent(Int.self, forKey: .expensesQuestions) ?? 0
         musician = try c.decodeIfPresent(Bool.self, forKey: .musician) ?? false
         competitionsEnabled = try c.decodeIfPresent(Bool.self, forKey: .competitionsEnabled) ?? false
         company = try c.decodeIfPresent(Bool.self, forKey: .company) ?? false
