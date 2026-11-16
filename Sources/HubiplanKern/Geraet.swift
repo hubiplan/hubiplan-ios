@@ -36,11 +36,11 @@ public actor DeviceSession: TokenStore {
 
     /// Verbinden mit dem Code aus dem QR-Code: erzeugt das Geräteschlüsselpaar, meldet den
     /// öffentlichen Teil mit und merkt sich Schlüssel und Gerät.
-    public func connect(code: String, deviceName: String, appVersion: String) async throws -> Paired {
+    public func connect(code: String, deviceName: String, appVersion: String, verifier: String = "") async throws -> Paired {
         let key = P256.Signing.PrivateKey()
         let paired = try await Api(server: server, transport: transport, language: Texte.language).pair(
             code: code, deviceName: deviceName, appVersion: appVersion,
-            deviceKey: SignedFormat.publicKey(key.publicKey)
+            deviceKey: SignedFormat.publicKey(key.publicKey), verifier: verifier
         )
         store.write(Self.deviceKeyKey, Base64Url.encode(key.rawRepresentation))
         store.write(Self.deviceIdKey, String(paired.device.id))

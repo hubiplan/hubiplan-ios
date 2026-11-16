@@ -890,5 +890,8 @@
  "storniert": "cancelled",
  "Bis": "Until",
  "Das Ende liegt vor dem Beginn.": "The end is before the start.",
- "Von": "From"
+ "Von": "From",
+ "Bei dieser Adresse anmelden?": "Sign in at this address?",
+ "Melde dich nur an, wenn das die Adresse deines Vereins ist und du den Link selbst gerade im Browser geöffnet hast.": "Only sign in if this is your club's address and you just opened the link yourself in the browser.",
+ "Ja, im Browser anmelden": "Yes, sign in in the browser"
 }
