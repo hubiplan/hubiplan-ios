@@ -124,6 +124,9 @@ struct AusweisView: View {
                     if let surveys = model.surveys {
                         IchVerweis(title: tr("Umfragen"), detail: surveys.summary) { UmfragenView() }
                     }
+                    if let expenses = model.expenses {
+                        IchVerweis(title: tr("Auslagen"), detail: expenses.summary) { AuslagenView() }
+                    }
                     if let access = model.access, access.hasResults || access.hasEntries {
                         IchVerweis(
                             title: tr("Wettbewerbe"),

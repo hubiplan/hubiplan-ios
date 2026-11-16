@@ -36,6 +36,8 @@ final class AppModel: ObservableObject {
     @Published var documents: MyDocuments?
     /// Umfragen des gewählten Zugangs (soweit eingeschaltet)
     @Published var surveys: SurveyList?
+    /// Auslagen des gewählten Zugangs (soweit eingeschaltet)
+    @Published var expenses: ExpenseOverview?
     /// Datei, die gerade zum Ansehen offen ist (liegt nur kurz im Zwischenspeicher)
     @Published var preview: URL?
     @Published var previewBusy = false
@@ -141,6 +143,7 @@ final class AppModel: ObservableObject {
         meetings = nil
         documents = nil
         surveys = nil
+        expenses = nil
         scores = nil
         sheetCache = [:]
         adminOverview = nil
@@ -326,6 +329,8 @@ final class AppModel: ObservableObject {
         if access.hasDocs { documents = try? await api.myDocuments(accessId: id) }
         var surveys: SurveyList?
         if access.hasSurveys { surveys = try? await api.memberSurveys(accessId: id) }
+        var expenses: ExpenseOverview?
+        if access.hasExpenses { expenses = try? await api.memberExpenses(accessId: id) }
         guard epoch == self.epoch, self.access?.id == id else { return }
         if let profile { self.profile = profile }
         self.invoices = invoices ?? self.invoices
@@ -333,6 +338,7 @@ final class AppModel: ObservableObject {
         self.meetings = access.hasMeetings ? (meetings ?? self.meetings) : nil
         self.documents = access.hasDocs ? (documents ?? self.documents) : nil
         self.surveys = access.hasSurveys ? (surveys ?? self.surveys) : nil
+        self.expenses = access.hasExpenses ? (expenses ?? self.expenses) : nil
         await loadAdmin()
     }
 
@@ -649,6 +655,17 @@ final class AppModel: ObservableObject {
         await portalCall(work)
     }
 
+    // MARK: Auslagen
+
+    /// Auslagen neu laden (nach einer Aktion oder beim Öffnen).
+    func reloadExpenses() async {
+        guard let access, access.hasExpenses else { return }
+        await run { api in
+            let fresh = try await api.memberExpenses(accessId: access.id)
+            if self.access?.id == access.id { self.expenses = fresh }
+        }
+    }
+
     // MARK: Umfragen
 
     /// Umfragen neu laden (nach einer Aktion oder beim Öffnen).
@@ -768,6 +785,7 @@ final class AppModel: ObservableObject {
         meetings = nil
         documents = nil
         surveys = nil
+        expenses = nil
         scores = nil
         sheetCache = [:]
         todos = []

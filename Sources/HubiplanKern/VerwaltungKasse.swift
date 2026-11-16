@@ -10,6 +10,11 @@ public struct Multipart: Equatable, Sendable {
 
     /// `boundary`: Trennzeile; darf im Inhalt nicht vorkommen (Vorgabe: zufällig).
     public init(fields: [(name: String, value: String)], file: Data, fileName: String, fileType: String, boundary: String = "hubiplan-" + UUID().uuidString) {
+        self.init(fields: fields, files: [(name: fileName, data: file, type: fileType)], boundary: boundary)
+    }
+
+    /// Mehrere Dateien, alle unter dem Feldnamen „file“ (z. B. Belege einer Auslage).
+    public init(fields: [(name: String, value: String)], files: [(name: String, data: Data, type: String)], boundary: String = "hubiplan-" + UUID().uuidString) {
         var out = Data()
         func add(_ text: String) { out.append(Data(text.utf8)) }
         // Namen und Dateiname kommen aus dem Code; Anführungszeichen und Zeilenwechsel trotzdem entfernen
@@ -17,9 +22,12 @@ public struct Multipart: Equatable, Sendable {
         for field in fields {
             add("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(clean(field.name))\"\r\n\r\n\(field.value)\r\n")
         }
-        add("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(clean(fileName))\"\r\nContent-Type: \(clean(fileType))\r\n\r\n")
-        out.append(file)
-        add("\r\n--\(boundary)--\r\n")
+        for file in files {
+            add("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(clean(file.name))\"\r\nContent-Type: \(clean(file.type))\r\n\r\n")
+            out.append(file.data)
+            add("\r\n")
+        }
+        add("--\(boundary)--\r\n")
         contentType = "multipart/form-data; boundary=\(boundary)"
         body = out
     }

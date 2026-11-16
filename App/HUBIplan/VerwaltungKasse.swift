@@ -25,7 +25,7 @@ enum BelegBild {
 }
 
 /// Kamera für ein Belegfoto.
-private struct KameraBild: UIViewControllerRepresentable {
+struct KameraBild: UIViewControllerRepresentable {
     let taken: (UIImage?) -> Void
 
     static var available: Bool { UIImagePickerController.isSourceTypeAvailable(.camera) }
@@ -57,7 +57,7 @@ private struct KameraBild: UIViewControllerRepresentable {
 }
 
 /// Knöpfe „Beleg fotografieren“ und „Aus der Mediathek“; liefert das fertige JPEG.
-private struct BelegWahl: View {
+struct BelegWahl: View {
     let again: Bool
     let picked: (Data) -> Void
     let failed: (String) -> Void
