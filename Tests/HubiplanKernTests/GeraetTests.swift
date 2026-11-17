@@ -74,11 +74,12 @@ final class GeraetTests: XCTestCase {
         let events = try await session.api().events(accessId: 3, from: "2026-11-01", to: "2026-12-01")
         XCTAssertEqual(events.count, 0)
         XCTAssertEqual(store.read(DeviceSession.tokenKey), "hpd_b")
-        XCTAssertEqual(net.seen.map { $0.headers["Authorization"] ?? "-" }, ["-", "Bearer hpd_a", "Bearer hpd_a", "Bearer hpd_a", "Bearer hpd_b"])
+        // Selbstauskunft (Mindestversion) und Verbinden ohne Schlüssel, dann die Anfragen
+        XCTAssertEqual(net.seen.map { $0.headers["Authorization"] ?? "-" }, ["-", "-", "Bearer hpd_a", "Bearer hpd_a", "Bearer hpd_a", "Bearer hpd_b"])
         // Schon erneuert: ein zweiter Aufruf mit dem alten Schlüssel erneuert nicht noch einmal
         let again = await session.renew(used: "hpd_a")
         XCTAssertEqual(again, "hpd_b")
-        XCTAssertEqual(net.seen.count, 5)
+        XCTAssertEqual(net.seen.count, 6)
     }
 
     func testOhneSchluesselpaarKeineErneuerung() async {
