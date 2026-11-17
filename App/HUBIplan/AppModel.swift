@@ -96,6 +96,11 @@ final class AppModel: ObservableObject {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
     }
 
+    /// Buildnummer (CFBundleVersion): zählt für die Mindestversion der Instanz (APP-11)
+    static var build: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+    }
+
     init() {
         Texte.language = Texte.pick(preferred: Locale.preferredLanguages)
         Self.clearViews()
@@ -209,7 +214,7 @@ final class AppModel: ObservableObject {
         let new = makeSession(server: link.server, id: id)
         do {
             let paired = try await new.connect(
-                code: link.code, deviceName: UIDevice.current.name, appVersion: Self.version, verifier: verifier
+                code: link.code, deviceName: UIDevice.current.name, appVersion: Self.build, verifier: verifier
             )
             let entry = AccountEntry(id: id, server: link.server, display: paired.user.display, email: paired.user.email)
             // Dasselbe Konto noch einmal verbunden: der alte Eintrag weicht dem neuen
