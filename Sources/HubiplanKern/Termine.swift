@@ -183,6 +183,11 @@ public struct Rsvp: Decodable, Equatable, Sendable {
 public struct MapLinks: Decodable, Equatable, Sendable {
     public var osm: String?
     public var google: String?
+
+    public init(osm: String? = nil, google: String? = nil) {
+        self.osm = osm
+        self.google = google
+    }
 }
 
 /// Anhang eines Termins.
@@ -253,13 +258,6 @@ public struct EventDetail: Decodable, Equatable, Sendable {
         owner = try c.decodeIfPresent(String.self, forKey: .owner) ?? ""
         rsvp = try c.decodeIfPresent(Rsvp.self, forKey: .rsvp) ?? Rsvp()
         attachments = try c.decodeIfPresent([EventFile].self, forKey: .attachments) ?? []
-    }
-}
-
-extension MapLinks {
-    public init() {
-        osm = nil
-        google = nil
     }
 }
 
