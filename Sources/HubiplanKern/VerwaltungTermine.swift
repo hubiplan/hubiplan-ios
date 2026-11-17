@@ -390,7 +390,7 @@ public enum EventTime {
     }
 
     /// Beginn und Ende für die Anfrage. `day`: `TT.MM.JJJJ` oder `JJJJ-MM-TT`. Ganztägig:
-    /// Mitternacht in deutscher Zeit, auch wenn das Telefon woanders ist. Ohne Ende zwei
+    /// Mitternacht in deutscher Zeit, auch wenn das Gerät woanders ist. Ohne Ende zwei
     /// Stunden; ein Ende vor dem Beginn liegt am nächsten Tag. nil bei ungültiger Eingabe.
     public static func range(day: String, start: String, end: String, allDay: Bool, timeZone: TimeZone = .current) -> (from: String, to: String)? {
         guard let iso = MasterData.parseDate(day) else { return nil }

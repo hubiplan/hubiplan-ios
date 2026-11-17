@@ -235,7 +235,7 @@ struct KassenbuchView: View {
                 showDrafts()
             }
         } message: { _ in
-            Text(tr("Die Quittung und beide Unterschriften werden von diesem iPhone gelöscht. Das lässt sich nicht rückgängig machen."))
+            Text(tr("Die Quittung und beide Unterschriften werden von diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen."))
         }
         .confirmationDialog(
             tr("Entwurf verwerfen?"),
@@ -248,7 +248,7 @@ struct KassenbuchView: View {
                 showDrafts()
             }
         } message: { _ in
-            Text(tr("Die Buchung und das Belegfoto werden von diesem iPhone gelöscht. Das lässt sich nicht rückgängig machen."))
+            Text(tr("Die Buchung und das Belegfoto werden von diesem Gerät gelöscht. Das lässt sich nicht rückgängig machen."))
         }
         .confirmationDialog(tr("Unlesbare Entwürfe löschen?"), isPresented: $confirmUnreadable, titleVisibility: .visible) {
             Button(tr("Löschen"), role: .destructive) {
@@ -309,7 +309,7 @@ struct KassenbuchView: View {
             } header: {
                 Text(tr("Noch nicht gesendet ({n})", ["n": drafts.count + receipts.count]))
             } footer: {
-                Text(tr("Diese Buchungen und Quittungen liegen verschlüsselt auf diesem iPhone. Die App sendet sie, sobald wieder eine Verbindung besteht."))
+                Text(tr("Diese Buchungen und Quittungen liegen verschlüsselt auf diesem Gerät. Die App sendet sie, sobald wieder eine Verbindung besteht."))
             }
         }
         if unreadable > 0 {
@@ -593,7 +593,7 @@ private struct NeueBuchungBlatt: View {
         saving = true
         defer { saving = false }
         // Derselbe Schlüssel bei jedem Versuch: ein zweites Senden bucht nicht doppelt.
-        // Erst als Entwurf sichern, dann senden: ohne Verbindung bleibt die Buchung auf dem iPhone.
+        // Erst als Entwurf sichern, dann senden: ohne Verbindung bleibt die Buchung auf dem Gerät.
         let box = model.draftBox
         let outcome = await model.verwaltung(unit) { client -> BookingOutcome in
             if let box { return try await client.book(stored, box: box) }

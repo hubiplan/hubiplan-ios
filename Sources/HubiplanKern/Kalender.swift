@@ -33,16 +33,16 @@ public struct CalendarEntry: Equatable, Sendable {
 extension Occurrence {
     /// Termin aus HUBIplan als Kalendereintrag; `nil`, wenn die Zeiten nicht lesbar sind.
     /// Ganztägig: HUBIplan liefert als Ende den letzten Tag; der Eintrag reicht vom ersten
-    /// bis zum letzten Tag in der Zeitzone des Geräts.
+    /// bis zum letzten Kalendertag der Verwaltung, in jeder Zeitzone des Geräts dieselben Tage
+    /// (UX-Audit 16.11., AND-27).
     public func calendarEntry(unitTitle: String, reminderMinutes: Int?, timeZone: TimeZone = .current) -> CalendarEntry? {
         guard let start, let end else { return nil }
         var from = start
         var to = max(end, start)
         if allDay {
-            var calendar = Calendar(identifier: .gregorian)
-            calendar.timeZone = timeZone
-            from = calendar.startOfDay(for: start)
-            to = max(calendar.startOfDay(for: end), from)
+            guard let days = Zeit.ganztaegig(startsAt, endsAt, timeZone: timeZone) else { return nil }
+            from = days.first
+            to = days.last
         }
         var prefix = ""
         if isCancelled {

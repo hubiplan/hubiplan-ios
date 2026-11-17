@@ -58,12 +58,13 @@ public enum Design {
     private static let monateEn = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"]
 
     /// Tag und Monatskürzel für das Datumskästchen („14“, „NOV“); nil bei unlesbarem Zeitpunkt.
+    /// Ganztägig zählt der Kalendertag der Verwaltung, unabhängig von der Zeitzone (AND-27).
     public static func datumKaestchen(
-        _ iso: String, timeZone: TimeZone = .current, englisch: Bool = Texte.language == "en"
+        _ iso: String, allDay: Bool = false, timeZone: TimeZone = .current, englisch: Bool = Texte.language == "en"
     ) -> (tag: String, monat: String)? {
         guard let date = Zeit.parse(iso) else { return nil }
         var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timeZone
+        calendar.timeZone = allDay ? Zeit.kalenderZone : timeZone
         let parts = calendar.dateComponents([.month, .day], from: date)
         guard let day = parts.day, let month = parts.month, (1...12).contains(month) else { return nil }
         return (String(day), (englisch ? monateEn : monateDe)[month - 1])

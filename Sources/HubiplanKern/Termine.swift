@@ -91,6 +91,37 @@ public enum Zeit {
         return fraction.date(from: text)
     }
 
+    /// Zeitzone, in der HUBIplan Kalendertage führt. Ganztägige Termine sind Kalendertage ohne
+    /// Zeitzone: Sie stehen überall am selben Datum wie in der Verwaltung (UX-Audit 16.11., AND-27).
+    public static let kalenderZone = TimeZone(identifier: "Europe/Berlin") ?? .current
+
+    /// Kalendertag (Jahr, Monat, Tag) eines Zeitpunkts in der Zeitzone von HUBIplan.
+    public static func kalenderTag(_ iso: String) -> DateComponents? {
+        guard let date = parse(iso) else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = kalenderZone
+        return calendar.dateComponents([.year, .month, .day], from: date)
+    }
+
+    /// Ganztägiger Termin: erster und letzter Tag als Mitternacht in `timeZone` (Zeitzone des
+    /// Geräts), damit Anzeige und Gerätekalender überall dieselben Tage zeigen wie die Verwaltung.
+    /// Das Ende liefert HUBIplan als letzten Tag (0 Uhr). nil bei unlesbarem Beginn.
+    public static func ganztaegig(_ from: String, _ to: String, timeZone: TimeZone = .current) -> (first: Date, last: Date)? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        guard let startDay = kalenderTag(from), let first = calendar.date(from: startDay) else { return nil }
+        let last = kalenderTag(to).flatMap { calendar.date(from: $0) } ?? first
+        return (first, max(first, last))
+    }
+
+    /// Zusatz hinter Uhrzeiten, wenn das Gerät in einer anderen Zeitzone steht als HUBIplan:
+    /// „ (Zeit an deinem Gerät)“, sonst leer. Uhrzeiten bleiben Gerätezeit.
+    public static func geraeteHinweis(_ iso: String, timeZone: TimeZone = .current) -> String {
+        guard let date = parse(iso) else { return "" }
+        if timeZone.secondsFromGMT(for: date) == kalenderZone.secondsFromGMT(for: date) { return "" }
+        return " " + tr("(Zeit an deinem Gerät)")
+    }
+
     /// Tag als `JJJJ-MM-TT` für `from`/`to` der Terminliste.
     public static func day(_ date: Date, timeZone: TimeZone = .current) -> String {
         var calendar = Calendar(identifier: .gregorian)
