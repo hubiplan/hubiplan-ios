@@ -215,7 +215,8 @@ final class AppModel: ObservableObject {
     /// Geheimnisse und Ablage eines Kontos auf dem Gerät löschen.
     private func forget(_ entry: AccountEntry) async {
         guard !Demo.active else { return }
-        await makeSession(server: entry.server, id: entry.id).forget()
+        // Auch beim Server abmelden, nicht nur hier vergessen (Gesamtaudit 15.11., APP-02)
+        await makeSession(server: entry.server, id: entry.id).signOut()
         VerwaltungTresor(account: entry.id).clear()
         FileCardStore(account: entry.id).clear()
     }
@@ -231,7 +232,8 @@ final class AppModel: ObservableObject {
     /// Das gezeigte Konto vergessen; gibt es weitere, kommt das nächste nach vorn.
     func disconnect() async {
         guard let account else { return }
-        await session?.forget()
+        // Push und Gerät beim Server abmelden; ohne Netz höchstens kurz warten (APP-02)
+        await session?.signOut()
         if !Demo.active { VerwaltungTresor(account: account.id).clear() }
         if !Demo.active { StandStore(store: Konten.secrets(account.id)).clear() }
         if !Demo.active { DraftBox(files: EntwurfsOrdner(account: account.id), secrets: Konten.secrets(account.id)).clear() }

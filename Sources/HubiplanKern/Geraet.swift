@@ -51,6 +51,37 @@ public actor DeviceSession: TokenStore {
     func secret(_ key: String) -> String? { store.read(key) }
     func setSecret(_ key: String, _ value: String?) { store.write(key, value) }
 
+    /// Verbindung trennen (Gesamtaudit 15.11., APP-02): nach bestem Bemühen Push abmelden und
+    /// das Gerät bei der Instanz abmelden, dann alles vergessen. Ohne Netz oder bei langsamer
+    /// Instanz wartet die App höchstens `timeout` Sekunden und löscht trotzdem; der Server lässt
+    /// den Schlüssel sonst nach 180 Tagen verfallen (wie Android).
+    public func signOut(timeout: Double = 5) async {
+        if let idText = store.read(Self.deviceIdKey), let id = Int(idText), store.read(Self.tokenKey) != nil {
+            let api = api()
+            let work = Task {
+                _ = try? await api.clearPush()
+                _ = try? await api.logout(deviceId: id)
+            }
+            await Self.race(work, seconds: timeout)
+        }
+        forget()
+    }
+
+    /// Wartet auf `work`, aber höchstens `seconds` Sekunden (die Arbeit läuft danach weiter).
+    static func race(_ work: Task<Void, Never>, seconds: Double) async {
+        let gate = OnceGate()
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            Task {
+                await work.value
+                gate.run { done.resume() }
+            }
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(max(0, seconds) * 1_000_000_000))
+                gate.run { done.resume() }
+            }
+        }
+    }
+
     /// Alles vergessen (Verbindung trennen oder Gerät abgemeldet).
     public func forget() {
         store.write(ApplePush.keysKey, nil)
@@ -97,3 +128,19 @@ extension ApiError {
         return tr("Das hat nicht geklappt ({status}). Bitte später erneut versuchen.", ["status": status])
     }
 }
+
+/// Führt den ersten Aufruf aus, alle weiteren nicht (thread-sicher).
+final class OnceGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var used = false
+
+    func run(_ body: () -> Void) {
+        let first: Bool = lock.withLock {
+            if used { return false }
+            used = true
+            return true
+        }
+        if first { body() }
+    }
+}
+
