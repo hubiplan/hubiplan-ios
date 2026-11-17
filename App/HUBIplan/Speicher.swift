@@ -115,6 +115,24 @@ final class EntwurfsOrdner: DraftFiles, @unchecked Sendable {
             .appendingPathComponent(safe.isEmpty ? "konto" : "konto-\(safe)", isDirectory: true)
     }
 
+    /// Ordner einer Quarantäne (Gesamtaudit 15.11., APP-04), benannt nach Instanz und Konto
+    init(quarantine id: String) {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let safe = id.filter { $0.isASCII && ($0.isLetter || $0.isNumber) }
+        dir = Self.quarantineRoot(base).appendingPathComponent(safe, isDirectory: true)
+    }
+
+    static func quarantineRoot(_ base: URL) -> URL {
+        base.appendingPathComponent("quarantaene", isDirectory: true)
+    }
+
+    /// Kennungen aller vorhandenen Quarantänen.
+    static func quarantineIds() -> [String] {
+        let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
+        let items = (try? FileManager.default.contentsOfDirectory(atPath: quarantineRoot(base).path)) ?? []
+        return items.filter { !$0.hasPrefix(".") }
+    }
+
     func names() -> [String] {
         let keys: [URLResourceKey] = [.contentModificationDateKey]
         let files = (try? FileManager.default.contentsOfDirectory(at: dir, includingPropertiesForKeys: keys)) ?? []
