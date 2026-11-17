@@ -23,7 +23,7 @@ final class QuarantaeneTests: XCTestCase {
         let alt = gefuellt()
         let quarantaene = box()
         let owner = DraftQuarantine.Owner(server: server, email: "Erika@Example.org", since: Date())
-        XCTAssertEqual(DraftQuarantine.retire(alt, into: quarantaene, owner: owner, files: quarantaene.files), 2)
+        XCTAssertEqual(DraftQuarantine.retire(alt, into: quarantaene, owner: owner), 2)
         alt.clear()
         // Verschlüsselt mit dem Schlüssel der Quarantäne, nicht dem des alten Kontos
         let roh = quarantaene.files.read("k-1" + DraftBox.ending) ?? Data()
@@ -37,7 +37,7 @@ final class QuarantaeneTests: XCTestCase {
     func testAnderesKontoBekommtNichts() {
         let quarantaene = box()
         let owner = DraftQuarantine.Owner(server: server, email: "erika@example.org", since: Date())
-        DraftQuarantine.retire(gefuellt(), into: quarantaene, owner: owner, files: quarantaene.files)
+        DraftQuarantine.retire(gefuellt(), into: quarantaene, owner: owner)
         let fremd = box()
         XCTAssertEqual(DraftQuarantine.adopt(quarantaene, into: fremd, server: server, email: "max@example.org"), 0)
         XCTAssertEqual(DraftQuarantine.adopt(quarantaene, into: fremd, server: "https://andere.example.de", email: "erika@example.org"), 0)
@@ -51,7 +51,7 @@ final class QuarantaeneTests: XCTestCase {
     func testAblauf() {
         let quarantaene = box()
         let alt = Date().addingTimeInterval(-121 * 24 * 3600)
-        DraftQuarantine.retire(gefuellt(), into: quarantaene, owner: .init(server: server, email: "e@example.org", since: alt), files: quarantaene.files)
+        DraftQuarantine.retire(gefuellt(), into: quarantaene, owner: .init(server: server, email: "e@example.org", since: alt))
         XCTAssertTrue(DraftQuarantine.expired(quarantaene.files))
         XCTAssertFalse(DraftQuarantine.expired(quarantaene.files, now: alt.addingTimeInterval(24 * 3600)))
     }
@@ -61,7 +61,7 @@ final class QuarantaeneTests: XCTestCase {
     private func alteQuarantaene(tage: Int, email: String = "e@example.org") -> DraftBox {
         let q = box()
         let since = Date().addingTimeInterval(-Double(tage) * 24 * 3600)
-        DraftQuarantine.retire(gefuellt(), into: q, owner: .init(server: server, email: email, since: since), files: q.files)
+        DraftQuarantine.retire(gefuellt(), into: q, owner: .init(server: server, email: email, since: since))
         return q
     }
 
@@ -98,7 +98,7 @@ final class QuarantaeneTests: XCTestCase {
 
     func testKontoDateiVorDenEntwuerfen() {
         let q = box()
-        DraftQuarantine.retire(gefuellt(), into: q, owner: .init(server: server, email: "e@example.org", since: Date()), files: q.files)
+        DraftQuarantine.retire(gefuellt(), into: q, owner: .init(server: server, email: "e@example.org", since: Date()))
         // Endet die App mitten im Verschieben, hat die Quarantäne trotzdem einen Eigentümer
         XCTAssertEqual(q.files.names().first, DraftQuarantine.ownerName)
         XCTAssertEqual(q.files.names().count, 3)
@@ -106,7 +106,7 @@ final class QuarantaeneTests: XCTestCase {
 
     func testLeereQuarantaeneOhneKontoDatei() {
         let q = box()
-        XCTAssertEqual(DraftQuarantine.retire(box(), into: q, owner: .init(server: server, email: "e@example.org", since: Date()), files: q.files), 0)
+        XCTAssertEqual(DraftQuarantine.retire(box(), into: q, owner: .init(server: server, email: "e@example.org", since: Date())), 0)
         XCTAssertTrue(q.files.names().isEmpty)
     }
 
@@ -151,7 +151,7 @@ final class QuarantaeneTests: XCTestCase {
         let frueher = try XCTUnwrap(DraftQuarantine.owner(q.files)).since
         let neu = box()
         XCTAssertTrue(neu.seal(Beleg(text: "Noten"), "k-2" + DraftBox.ending))
-        XCTAssertEqual(DraftQuarantine.retire(neu, into: q, owner: .init(server: server, email: "E@example.org", since: Date()), files: q.files), 1)
+        XCTAssertEqual(DraftQuarantine.retire(neu, into: q, owner: .init(server: server, email: "E@example.org", since: Date())), 1)
         XCTAssertEqual(try XCTUnwrap(DraftQuarantine.owner(q.files)).since.timeIntervalSince1970, frueher.timeIntervalSince1970, accuracy: 0.001)
         XCTAssertEqual(DraftQuarantine.staleCount([q]), 3)
         XCTAssertTrue(DraftQuarantine.expired(q.files, now: frueher.addingTimeInterval(121 * tag)))
@@ -164,7 +164,7 @@ final class QuarantaeneTests: XCTestCase {
         ordner(q).changedAt = geaendert
         let neu = box()
         XCTAssertTrue(neu.seal(Beleg(text: "Noten"), "k-2" + DraftBox.ending))
-        DraftQuarantine.retire(neu, into: q, owner: .init(server: server, email: "e@example.org", since: Date()), files: q.files)
+        DraftQuarantine.retire(neu, into: q, owner: .init(server: server, email: "e@example.org", since: Date()))
         XCTAssertEqual(try XCTUnwrap(DraftQuarantine.owner(q.files)).since.timeIntervalSince1970, geaendert.timeIntervalSince1970, accuracy: 0.001)
     }
 

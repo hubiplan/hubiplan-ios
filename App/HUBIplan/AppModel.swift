@@ -275,7 +275,7 @@ final class AppModel: ObservableObject {
         guard !email.isEmpty else { return }
         let id = DraftQuarantine.id(server: server, email: email)
         let box = quarantineBox(id)
-        DraftQuarantine.retire(drafts, into: box, owner: .init(server: server, email: email, since: Date()), files: box.files)
+        DraftQuarantine.retire(drafts, into: box, owner: .init(server: server, email: email, since: Date()))
     }
 
     /// Nach dem Verbinden: Entwürfe desselben Kontos auf derselben Instanz zurückholen.
@@ -289,7 +289,7 @@ final class AppModel: ObservableObject {
     static func purgeQuarantine() {
         for id in EntwurfsOrdner.quarantineIds() {
             let box = quarantineBox(id)
-            if DraftQuarantine.expired(box.files) { box.clear() }
+            if DraftQuarantine.expired(box) { box.clear() }
         }
     }
 
@@ -314,7 +314,8 @@ final class AppModel: ObservableObject {
     /// das Teilen geschlossen wird, spätestens beim nächsten Start (`clearExports`). Die
     /// Vorgänge selbst bleiben wie bei Android bis zum Löschen oder nach 120 Tagen.
     func exportStaleQuarantine() -> URL? {
-        guard let (data, _) = DraftQuarantine.exportStale(Self.quarantineBoxes) else { return nil }
+        guard let export = DraftQuarantine.exportStale(Self.quarantineBoxes) else { return nil }
+        let data = export.0
         Self.clearExports()
         let url = DraftQuarantine.exportURL(in: FileManager.default.temporaryDirectory)
         do {
