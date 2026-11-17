@@ -17,6 +17,13 @@ public protocol DeviceKeyStore: Sendable {
     func create() throws -> (signer: DeviceKeySigner, stored: String)
     /// Gespeichertes Schlüsselpaar laden; nil, wenn es sich nicht (mehr) laden lässt.
     func load(_ stored: String) -> DeviceKeySigner?
+    /// Kann diese Quelle Schlüssel in Hardware anlegen? Ohne (Simulator, Kern) brächte ein
+    /// erneutes Verbinden nichts, also auch kein Hinweis auf den älteren Schlüssel.
+    var hardwareAvailable: Bool { get }
+}
+
+extension DeviceKeyStore {
+    public var hardwareAvailable: Bool { false }
 }
 
 /// Software-Schlüssel (CryptoKit/swift-crypto); so verbundene Geräte bleiben gültig.

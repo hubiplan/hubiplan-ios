@@ -34,9 +34,13 @@ public actor DeviceSession: TokenStore {
         return keys.load(stored) ?? SoftwareDeviceKeys().load(stored)
     }
 
-    /// Liegt der Geräteschlüssel noch in Software (vor APP-03 verbunden)? Dann wechselt er beim
-    /// nächsten Verbinden in die Secure Enclave; die App weist darauf hin.
-    public var usesSoftwareKey: Bool { signer().map { !$0.inHardware } ?? false }
+    /// Liegt der Geräteschlüssel noch in Software (vor APP-03 verbunden), obwohl das Gerät eine
+    /// Secure Enclave hat? Dann wechselt er beim nächsten Verbinden dorthin; die App weist darauf
+    /// hin. Ohne Secure Enclave (Simulator) kein Hinweis, Neuverbinden änderte nichts.
+    public var usesSoftwareKey: Bool {
+        guard keys.hardwareAvailable else { return false }
+        return signer().map { !$0.inHardware } ?? false
+    }
 
     public var connected: Bool { store.read(Self.tokenKey) != nil }
 

@@ -12,11 +12,16 @@ import Security
 struct EnclaveDeviceKeys: DeviceKeyStore {
     static let prefix = "se1:"
 
+    var hardwareAvailable: Bool { SecureEnclave.isAvailable }
+
     func create() throws -> (signer: DeviceKeySigner, stored: String) {
         guard SecureEnclave.isAvailable else { return try SoftwareDeviceKeys().create() }
         var error: Unmanaged<CFError>?
         guard let access = SecAccessControlCreateWithFlags(
-            kCFAllocatorDefault, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, .privateKeyUsage, &error
+            // Wie der übrige Schlüsselbund (Speicher.swift): Auch bei gesperrtem Gerät nach dem
+            // ersten Entsperren nutzbar, etwa wenn ein Wecksignal das Erneuern auslöst.
+            // Nur auf einem Gerät prüfbar.
+            kCFAllocatorDefault, kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly, .privateKeyUsage, &error
         ) else {
             return try SoftwareDeviceKeys().create()
         }

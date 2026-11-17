@@ -9,6 +9,7 @@ final class GeraeteschluesselTests: XCTestCase {
     /// Nachbau einer Hardware-Quelle: merkt sich, dass sie benutzt wurde
     final class FakeHardware: DeviceKeyStore, @unchecked Sendable {
         var created = 0
+        var hardwareAvailable: Bool { true }
         func create() throws -> (signer: DeviceKeySigner, stored: String) {
             created += 1
             let (signer, stored) = try SoftwareDeviceKeys().create()
@@ -64,5 +65,15 @@ final class GeraeteschluesselTests: XCTestCase {
         XCTAssertNotNil(signer)  // Rückfall auf den Software-Schlüssel
         let soft = await session.usesSoftwareKey
         XCTAssertTrue(soft)
+    }
+
+    func testOhneSecureEnclaveKeinHinweis() async throws {
+        // Simulator oder Gerät ohne Secure Enclave: Neuverbinden änderte nichts
+        let store = MemoryStore()
+        let (_, stored) = try SoftwareDeviceKeys().create()
+        store.write(DeviceSession.deviceKeyKey, stored)
+        let session = DeviceSession(server: server, store: store, transport: FakeTransport([]), keys: SoftwareDeviceKeys())
+        let soft = await session.usesSoftwareKey
+        XCTAssertFalse(soft)
     }
 }
