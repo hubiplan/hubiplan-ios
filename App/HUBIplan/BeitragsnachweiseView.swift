@@ -151,12 +151,13 @@ private struct NachweisJahr: View {
         busy = true
         failure = nil
         defer { busy = false }
-        let state = state
-        let kind = kind
-        let note = note
+        let discount = state.discount
+        let year = state.year
+        let chosenKind = kind
+        let text = note
         switch await model.portalCall({ api, access in
-            try await api.submitFeeProof(accessId: access, discount: state.discount, year: state.year,
-                                         kind: kind, note: note, fileName: file.name, type: file.type, data: file.data)
+            try await api.submitFeeProof(accessId: access, discount: discount, year: year,
+                                         kind: chosenKind, note: text, fileName: file.name, type: file.type, data: file.data)
         }) {
         case .success(let fresh):
             photo = nil
