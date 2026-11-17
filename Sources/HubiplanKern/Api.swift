@@ -180,6 +180,11 @@ public struct Api: Sendable {
         try await expect("GET", "/api/app/v1/me/")
     }
 
+    /// Dieses Gerät bei der Instanz abmelden (wie Android `Api.logout`).
+    public func logout(deviceId: Int) async throws {
+        let _: Ignored = try await expect("DELETE", "/api/app/v1/devices/\(deviceId)/")
+    }
+
     /// Geräteschlüssel erneuern (H7): Aufgabe holen, unterschreiben, neuen Schlüssel bekommen.
     public func renew(deviceId: Int, signer: DeviceKeySigner) async throws -> Renewed {
         let path = "/api/app/v1/devices/current/renew/"

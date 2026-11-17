@@ -54,8 +54,11 @@ public actor DeviceSession: TokenStore {
     /// Verbinden mit dem Code aus dem QR-Code: erzeugt das Geräteschlüsselpaar, meldet den
     /// öffentlichen Teil mit und merkt sich Schlüssel und Gerät.
     public func connect(code: String, deviceName: String, appVersion: String, verifier: String = "") async throws -> Paired {
+        let plain = Api(server: server, transport: transport, language: Texte.language)
+        // Gesamtaudit 15.11., APP-11: Produkt und Mindestversion vor dem Verbinden prüfen
+        try await plain.instance().check(build: Int(appVersion.trimmingCharacters(in: .whitespaces)))
         let (signer, stored) = try keys.create()
-        let paired = try await Api(server: server, transport: transport, language: Texte.language).pair(
+        let paired = try await plain.pair(
             code: code, deviceName: deviceName, appVersion: appVersion,
             deviceKey: signer.publicKey, verifier: verifier
         )
@@ -67,6 +70,37 @@ public actor DeviceSession: TokenStore {
 
     func secret(_ key: String) -> String? { store.read(key) }
     func setSecret(_ key: String, _ value: String?) { store.write(key, value) }
+
+    /// Verbindung trennen (Gesamtaudit 15.11., APP-02): nach bestem Bemühen Push abmelden und
+    /// das Gerät bei der Instanz abmelden, dann alles vergessen. Ohne Netz oder bei langsamer
+    /// Instanz wartet die App höchstens `timeout` Sekunden und löscht trotzdem; der Server lässt
+    /// den Schlüssel sonst nach 180 Tagen verfallen (wie Android).
+    public func signOut(timeout: Double = 5) async {
+        if let idText = store.read(Self.deviceIdKey), let id = Int(idText), store.read(Self.tokenKey) != nil {
+            let api = api()
+            let work = Task {
+                _ = try? await api.clearPush()
+                _ = try? await api.logout(deviceId: id)
+            }
+            await Self.race(work, seconds: timeout)
+        }
+        forget()
+    }
+
+    /// Wartet auf `work`, aber höchstens `seconds` Sekunden (die Arbeit läuft danach weiter).
+    static func race(_ work: Task<Void, Never>, seconds: Double) async {
+        let gate = OnceGate()
+        await withCheckedContinuation { (done: CheckedContinuation<Void, Never>) in
+            Task {
+                await work.value
+                gate.run { done.resume() }
+            }
+            Task {
+                try? await Task.sleep(nanoseconds: UInt64(max(0, seconds) * 1_000_000_000))
+                gate.run { done.resume() }
+            }
+        }
+    }
 
     /// Alles vergessen (Verbindung trennen oder Gerät abgemeldet).
     public func forget() {
@@ -100,6 +134,10 @@ public actor DeviceSession: TokenStore {
 extension ApiError {
     /// Meldung für die Oberfläche, in der Sprache der App.
     public var text: String {
+        if code == "app_too_old" {
+            return tr("Bitte die App aktualisieren, diese Version wird von HUBIplan nicht mehr unterstützt.")
+        }
+        if code == "not_hubiplan" { return tr("Unter dieser Adresse läuft kein HUBIplan.") }
         if status == 0 {
             if code == "format" || code == "too_large" {
                 return tr("Die Antwort der Instanz war nicht lesbar. Vielleicht ist die App zu alt.")
@@ -112,3 +150,19 @@ extension ApiError {
         return tr("Das hat nicht geklappt ({status}). Bitte später erneut versuchen.", ["status": status])
     }
 }
+
+/// Führt den ersten Aufruf aus, alle weiteren nicht (thread-sicher).
+final class OnceGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var used = false
+
+    func run(_ body: () -> Void) {
+        let first: Bool = lock.withLock {
+            if used { return false }
+            used = true
+            return true
+        }
+        if first { body() }
+    }
+}
+

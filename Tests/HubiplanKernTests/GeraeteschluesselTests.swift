@@ -44,6 +44,8 @@ final class GeraeteschluesselTests: XCTestCase {
     func testNeueVerbindungNutztDieQuelle() async throws {
         let device = #"{"id":7,"name":"iPhone","platform":"ios","current":true,"key":true}"#
         let net = FakeTransport([
+            // Selbstauskunft vor dem Verbinden (Mindestversion, APP-11)
+            FakeTransport.json(200, #"{"product":"HUBIplan","api_version":1}"#),
             FakeTransport.json(201, #"{"token":"hpd_a","device":\#(device),"user":{"email":"erika@example.org","display":"Erika"}}"#),
         ])
         let store = MemoryStore()

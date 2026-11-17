@@ -28,6 +28,9 @@ public struct Instance: Decodable, Equatable, Sendable {
     public var product: String
     public var apiVersion: Int
     public var minAppVersion: Int
+    /// Je Plattform (Gesamtaudit 15.11., APP-11); ältere Instanzen kennen nur den Android-Wert
+    /// in `minAppVersion`, der für iOS nichts bedeutet.
+    public var minAppVersions: [String: Int]
     public var url: String
     public var push: [PushWay]
     /// Anmeldewege mit Passkey (`android`, `browser`); iOS nutzt `browser` (docs/app.md).
@@ -37,6 +40,7 @@ public struct Instance: Decodable, Equatable, Sendable {
         case product, url, push, passkey
         case apiVersion = "api_version"
         case minAppVersion = "min_app_version"
+        case minAppVersions = "min_app_versions"
     }
 
     public init(from decoder: Decoder) throws {
@@ -44,9 +48,24 @@ public struct Instance: Decodable, Equatable, Sendable {
         product = try c.decode(String.self, forKey: .product)
         apiVersion = try c.decode(Int.self, forKey: .apiVersion)
         minAppVersion = try c.decodeIfPresent(Int.self, forKey: .minAppVersion) ?? 1
+        minAppVersions = try c.decodeIfPresent([String: Int].self, forKey: .minAppVersions) ?? [:]
         url = try c.decodeIfPresent(String.self, forKey: .url) ?? ""
         push = try c.decodeIfPresent([PushWay].self, forKey: .push) ?? []
         passkey = try c.decodeIfPresent([String].self, forKey: .passkey) ?? []
+    }
+}
+
+extension Instance {
+    /// Älteste iOS-Buildnummer, die die Instanz noch bedient (ohne Angabe: jede).
+    public var minIosBuild: Int { minAppVersions["ios"] ?? 1 }
+
+    /// Kann diese App (Buildnummer `build`) mit der Instanz arbeiten? Wie Android: Produkt muss
+    /// HUBIplan sein, die Fassung mindestens die verlangte. Ohne lesbare Buildnummer
+    /// (Entwicklungsfassung, `nil`) entfällt die Versionsprüfung, wie auf dem Server
+    /// (devices/views.py, app_too_old).
+    public func check(build: Int?) throws {
+        guard product == "HUBIplan" else { throw ApiError(status: 0, code: "not_hubiplan") }
+        if let build, build < minIosBuild { throw ApiError(status: 0, code: "app_too_old") }
     }
 }
 
