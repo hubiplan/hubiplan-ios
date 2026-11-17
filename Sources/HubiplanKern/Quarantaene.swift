@@ -18,6 +18,12 @@ public enum DraftQuarantine {
         public var server: String
         public var email: String
         public var since: Date
+
+        public init(server: String, email: String, since: Date) {
+            self.server = server
+            self.email = email
+            self.since = since
+        }
     }
 
     /// Kennung der Quarantäne für Instanz und Konto (Ordner- und Schlüsselbundname).
@@ -33,7 +39,8 @@ public enum DraftQuarantine {
     /// Quarantäne ohne Eigentümer da. Liegt für dasselbe Konto schon eine, bleibt deren älteres
     /// `since`, damit ältere Vorgänge nicht über `finalDays` hinaus verlängert werden.
     @discardableResult
-    public static func retire(_ box: DraftBox, into target: DraftBox, owner: Owner, files: DraftFiles) -> Int {
+    public static func retire(_ box: DraftBox, into target: DraftBox, owner: Owner) -> Int {
+        let files = target.files
         var owner = owner
         if let earlier = self.owner(files) {
             if same(earlier, owner) { owner.since = min(owner.since, earlier.since) }
@@ -136,6 +143,11 @@ public enum DraftQuarantine {
     /// des Ordners; eine Quarantäne ohne Eigentümer wird also nie sofort gelöscht.
     public static func expired(_ files: DraftFiles, now: Date = Date()) -> Bool {
         older(files, than: finalDays, now: now)
+    }
+
+    /// Wie `expired(_:now:)` für die Quarantäne `box` (die App sieht deren Ablage nicht).
+    public static func expired(_ box: DraftBox, now: Date = Date()) -> Bool {
+        expired(box.files, now: now)
     }
 
     // MARK: Exportdatei
