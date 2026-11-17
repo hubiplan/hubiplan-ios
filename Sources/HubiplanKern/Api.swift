@@ -178,13 +178,17 @@ public struct Api: Sendable {
     }
 
     /// Geräteschlüssel erneuern (H7): Aufgabe holen, unterschreiben, neuen Schlüssel bekommen.
-    public func renew(deviceId: Int, key: P256.Signing.PrivateKey) async throws -> Renewed {
+    public func renew(deviceId: Int, signer: DeviceKeySigner) async throws -> Renewed {
         let path = "/api/app/v1/devices/current/renew/"
         let challenge: RenewChallenge = try await expect("POST", path)
         let message = SignedFormat.renewMessage(deviceId: deviceId, challenge: challenge.challenge)
         return try await expect("POST", path, json: [
             "challenge": challenge.challenge,
-            "signature": try SignedFormat.sign(message, with: key),
+            "signature": try signer.sign(message),
         ])
+    }
+
+    public func renew(deviceId: Int, key: P256.Signing.PrivateKey) async throws -> Renewed {
+        try await renew(deviceId: deviceId, signer: SoftwareSigner(key: key))
     }
 }

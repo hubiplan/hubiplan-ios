@@ -17,13 +17,26 @@ public actor DeviceSession: TokenStore {
     public let server: String
     private let store: SecretStore
     private let transport: Transport
+    private let keys: DeviceKeyStore
     private var running: Task<String?, Never>?
 
-    public init(server: String, store: SecretStore, transport: Transport) {
+    /// `keys`: Herkunft des Geräteschlüsselpaars (App: Secure Enclave, wenn vorhanden; APP-03).
+    public init(server: String, store: SecretStore, transport: Transport, keys: DeviceKeyStore = SoftwareDeviceKeys()) {
         self.server = server
         self.store = store
         self.transport = transport
+        self.keys = keys
     }
+
+    /// Das gespeicherte Schlüsselpaar, mit Rückfall auf einen älteren Software-Schlüssel.
+    func signer() -> DeviceKeySigner? {
+        guard let stored = store.read(Self.deviceKeyKey) else { return nil }
+        return keys.load(stored) ?? SoftwareDeviceKeys().load(stored)
+    }
+
+    /// Liegt der Geräteschlüssel noch in Software (vor APP-03 verbunden)? Dann wechselt er beim
+    /// nächsten Verbinden in die Secure Enclave; die App weist darauf hin.
+    public var usesSoftwareKey: Bool { signer().map { !$0.inHardware } ?? false }
 
     public var connected: Bool { store.read(Self.tokenKey) != nil }
 
@@ -37,12 +50,12 @@ public actor DeviceSession: TokenStore {
     /// Verbinden mit dem Code aus dem QR-Code: erzeugt das Geräteschlüsselpaar, meldet den
     /// öffentlichen Teil mit und merkt sich Schlüssel und Gerät.
     public func connect(code: String, deviceName: String, appVersion: String) async throws -> Paired {
-        let key = P256.Signing.PrivateKey()
+        let (signer, stored) = try keys.create()
         let paired = try await Api(server: server, transport: transport, language: Texte.language).pair(
             code: code, deviceName: deviceName, appVersion: appVersion,
-            deviceKey: SignedFormat.publicKey(key.publicKey)
+            deviceKey: signer.publicKey
         )
-        store.write(Self.deviceKeyKey, Base64Url.encode(key.rawRepresentation))
+        store.write(Self.deviceKeyKey, stored)
         store.write(Self.deviceIdKey, String(paired.device.id))
         store.write(Self.tokenKey, paired.token)
         return paired
@@ -72,11 +85,9 @@ public actor DeviceSession: TokenStore {
     }
 
     private func renewNow() async -> String? {
-        guard let keyText = store.read(Self.deviceKeyKey), let raw = Base64Url.decode(keyText),
-              let key = try? P256.Signing.PrivateKey(rawRepresentation: raw),
-              let idText = store.read(Self.deviceIdKey), let id = Int(idText)
+        guard let key = signer(), let idText = store.read(Self.deviceIdKey), let id = Int(idText)
         else { return nil }
-        guard let renewed = try? await api().renew(deviceId: id, key: key) else { return nil }
+        guard let renewed = try? await api().renew(deviceId: id, signer: key) else { return nil }
         store.write(Self.tokenKey, renewed.token)
         return renewed.token
     }

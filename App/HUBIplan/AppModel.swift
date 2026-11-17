@@ -115,7 +115,9 @@ final class AppModel: ObservableObject {
 
     private func makeSession(server: String, id: String) -> DeviceSession {
         let store: SecretStore = Demo.active ? DemoStore() : Konten.secrets(id)
-        return DeviceSession(server: server, store: store, transport: transport)
+        // Neue Verbindungen: Geräteschlüssel in der Secure Enclave (APP-03); ältere behalten
+        // ihren Software-Schlüssel bis zum nächsten Verbinden
+        return DeviceSession(server: server, store: store, transport: transport, keys: EnclaveDeviceKeys())
     }
 
     private func save() {
