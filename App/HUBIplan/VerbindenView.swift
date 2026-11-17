@@ -64,6 +64,23 @@ struct VerbindenView: View {
                 }
             }
             .navigationTitle("HUBIplan")
+            .alert(
+                tr("Bei dieser Adresse anmelden?"),
+                isPresented: Binding(
+                    get: { model.browserStart.map { !model.isKnown(server: $0) } ?? false },
+                    set: { if !$0 { model.browserStart = nil } }
+                )
+            ) {
+                Button(tr("Ja, im Browser anmelden")) { startBrowser() }
+                Button(tr("Abbrechen"), role: .cancel) { model.browserStart = nil }
+            } message: {
+                Text((model.browserStart ?? "").replacingOccurrences(of: "https://", with: "") + "\n\n"
+                    + tr("Melde dich nur an, wenn das die Adresse deines Vereins ist und du den Link selbst gerade im Browser geöffnet hast."))
+            }
+            .onChange(of: model.browserStart) { _, start in
+                // Schon verbundene Adresse: ohne Rückfrage
+                if let start, model.isKnown(server: start) { startBrowser() }
+            }
             .overlay { if model.loading { ProgressView() } }
             .sheet(isPresented: $scanning) {
                 QrScanner { text in
@@ -83,12 +100,24 @@ struct VerbindenView: View {
         }
     }
 
+    /// Anmeldeseite der Adresse aus `hubiplan://anmelden` öffnen.
+    private func startBrowser() {
+        guard let start = model.browserStart else { return }
+        model.browserStart = nil
+        server = start.replacingOccurrences(of: "https://", with: "")
+        Task { await passkey() }
+    }
+
     /// Anmeldeseite der Instanz öffnen; mit dem zurückgegebenen Einmalcode gleich verbinden.
     private func passkey() async {
-        guard let url = BrowserLogin.url(server: server) else {
+        // Prüfwert (Gesamtaudit 15.11., APP-01): den Code löst nur diese App ein
+        let verifier = BrowserLogin.newVerifier()
+        guard let url = BrowserLogin.url(server: server, challenge: BrowserLogin.challenge(verifier: verifier)),
+              let origin = normalizeServer(server) else {
             model.linkError = tr("Bitte die Adresse von HUBIplan angeben, z. B. verein.example.de.")
             return
         }
+        model.pendingVerifier = (server: origin, verifier: verifier)
         do {
             // Ohne gemeinsame Cookies mit Safari: es bleibt keine Browser-Sitzung zurück
             let callback = try await webAuthentication.authenticate(

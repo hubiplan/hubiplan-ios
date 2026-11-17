@@ -75,11 +75,42 @@ func httpsOrigin(_ parts: URLComponents) -> String? {
 /// `/app/anmelden` der Instanz. Dort gilt der Passkey wie auf der Webseite; nach „Verbinden“
 /// kommt `hubiplan://verbinden?server=…&code=…` zurück, und die App verbindet sich wie beim
 /// QR-Code (docs/app.md in hubiplan).
+///
+/// Prüfwert (Gesamtaudit 15.11., APP-01): Das Schema `hubiplan` gehört keiner App allein; eine
+/// fremde App könnte den Rückruf abfangen. Die App erzeugt deshalb ein Geheimnis
+/// (`newVerifier`) und schickt nur dessen Prüfwert (`challenge`, SHA-256 wie PKCE, RFC 7636) mit;
+/// den Code löst nur ein, wer das Geheimnis kennt.
 public enum BrowserLogin {
     /// Seite zum Anmelden; nil bei ungültiger Adresse.
-    public static func url(server input: String) -> URL? {
+    public static func url(server input: String, challenge: String? = nil) -> URL? {
         guard let origin = normalizeServer(input) else { return nil }
-        return URL(string: origin + "/app/anmelden")
+        guard let challenge else { return URL(string: origin + "/app/anmelden") }
+        return URL(string: origin + "/app/anmelden?challenge=" + challenge)
+    }
+
+    /// 32 Zufallsbytes, base64url ohne „=“: 43 Zeichen aus A–Z a–z 0–9 - _.
+    public static func newVerifier() -> String {
+        var generator = SystemRandomNumberGenerator()
+        let bytes = (0..<32).map { _ in UInt8.random(in: 0...255, using: &generator) }
+        return Base64Url.encode(Data(bytes))
+    }
+
+    public static func challenge(verifier: String) -> String {
+        Base64Url.encode(Data(SHA256.hash(data: Data(verifier.utf8))))
+    }
+
+    /// Knopf „In der HUBIplan-App öffnen“ ohne Code: `hubiplan://anmelden?server=<Origin>`.
+    /// Liefert die Adresse der Instanz (nur HTTPS, ohne Pfad); die App fragt vor dem Öffnen nach.
+    public static func parseStart(_ text: String) -> String? {
+        guard let parts = URLComponents(string: text.trimmingCharacters(in: .whitespacesAndNewlines)),
+              parts.scheme == PairingLink.scheme, parts.host == "anmelden",
+              parts.path.isEmpty || parts.path == "/",
+              let serverText = parts.queryItems?.first(where: { $0.name == "server" })?.value,
+              let server = URLComponents(string: serverText), server.scheme == "https",
+              server.path.isEmpty || server.path == "/",
+              server.query == nil, server.fragment == nil, server.user == nil, server.password == nil
+        else { return nil }
+        return httpsOrigin(server)
     }
 
     /// Rückruf der Seite: nur ein Link zum Verbinden mit genau der aufgerufenen Instanz.
