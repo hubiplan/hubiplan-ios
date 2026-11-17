@@ -13,28 +13,31 @@ final class GeraetTests: XCTestCase {
     private let server = "https://verein.example.de"
     private let device = #"{"id":7,"name":"iPhone von Erika","platform":"ios","current":true,"key":true}"#
 
+    /// Selbstauskunft vor dem Verbinden (APP-11)
+    static let instanz = FakeTransport.json(200, #"{"product":"HUBIplan","api_version":1,"min_app_versions":{"android":5,"ios":1}}"#)
+
     private func paired(_ token: String) -> Result<HttpResponse, Error> {
         FakeTransport.json(201, #"{"token":"\#(token)","device":\#(device),"user":{"email":"erika@example.org","display":"Erika Musterfrau"}}"#)
     }
 
     func testVerbindenMerktSchluesselUndGeraet() async throws {
-        let net = FakeTransport([paired("hpd_a")])
+        let net = FakeTransport([Self.instanz, paired("hpd_a")])
         let store = MemoryStore()
         let session = DeviceSession(server: server, store: store, transport: net)
         let before = await session.connected
         XCTAssertFalse(before)
-        let result = try await session.connect(code: "abc", deviceName: "iPhone von Erika", appVersion: "0.1.0")
+        let result = try await session.connect(code: "abc", deviceName: "iPhone von Erika", appVersion: "3")
         XCTAssertEqual(result.user.display, "Erika Musterfrau")
         let token = await session.token()
         XCTAssertEqual(token, "hpd_a")
         XCTAssertEqual(store.read(DeviceSession.deviceIdKey), "7")
         // Der gemeldete öffentliche Schlüssel gehört zum gespeicherten privaten
-        let sent = try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(net.seen.first?.body)) as? [String: String])
+        let sent = try XCTUnwrap(JSONSerialization.jsonObject(with: try XCTUnwrap(net.seen[1].body)) as? [String: String])
         let raw = try XCTUnwrap(Base64Url.decode(try XCTUnwrap(store.read(DeviceSession.deviceKeyKey))))
         let key = try P256.Signing.PrivateKey(rawRepresentation: raw)
         XCTAssertEqual(sent["device_key"], SignedFormat.publicKey(key.publicKey))
         XCTAssertEqual(sent["platform"], "ios")
-        XCTAssertNil(net.seen.first?.headers["Authorization"])
+        XCTAssertNil(net.seen[1].headers["Authorization"])
 
         await session.forget()
         let after = await session.connected
@@ -44,9 +47,9 @@ final class GeraetTests: XCTestCase {
 
     func testFehlgeschlagenesVerbindenMerktNichts() async throws {
         let store = MemoryStore()
-        let session = DeviceSession(server: server, store: store, transport: FakeTransport([FakeTransport.json(400, #"{"detail":"Der Code ist abgelaufen."}"#)]))
+        let session = DeviceSession(server: server, store: store, transport: FakeTransport([Self.instanz, FakeTransport.json(400, #"{"detail":"Der Code ist abgelaufen."}"#)]))
         do {
-            _ = try await session.connect(code: "alt", deviceName: "iPhone", appVersion: "0.1.0")
+            _ = try await session.connect(code: "alt", deviceName: "iPhone", appVersion: "3")
             XCTFail("Fehler erwartet")
         } catch let error as ApiError {
             XCTAssertEqual(error.text, "Der Code ist abgelaufen.")
@@ -58,6 +61,7 @@ final class GeraetTests: XCTestCase {
     /// 401 device_renew mitten in einer Anfrage: erneuern, neuen Schlüssel merken, wiederholen.
     func testErneuertUeberDasGeraet() async throws {
         let net = FakeTransport([
+            Self.instanz,
             paired("hpd_a"),
             FakeTransport.json(401, #"{"code":"device_renew"}"#),
             FakeTransport.json(200, #"{"challenge":"aufgabe"}"#),
@@ -66,7 +70,7 @@ final class GeraetTests: XCTestCase {
         ])
         let store = MemoryStore()
         let session = DeviceSession(server: server, store: store, transport: net)
-        _ = try await session.connect(code: "abc", deviceName: "iPhone", appVersion: "0.1.0")
+        _ = try await session.connect(code: "abc", deviceName: "iPhone", appVersion: "3")
         let events = try await session.api().events(accessId: 3, from: "2026-11-01", to: "2026-12-01")
         XCTAssertEqual(events.count, 0)
         XCTAssertEqual(store.read(DeviceSession.tokenKey), "hpd_b")

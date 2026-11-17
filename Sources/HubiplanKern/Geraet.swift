@@ -37,8 +37,11 @@ public actor DeviceSession: TokenStore {
     /// Verbinden mit dem Code aus dem QR-Code: erzeugt das Geräteschlüsselpaar, meldet den
     /// öffentlichen Teil mit und merkt sich Schlüssel und Gerät.
     public func connect(code: String, deviceName: String, appVersion: String) async throws -> Paired {
+        let plain = Api(server: server, transport: transport, language: Texte.language)
+        // Gesamtaudit 15.11., APP-11: Produkt und Mindestversion vor dem Verbinden prüfen
+        try await plain.instance().check(build: Int(appVersion) ?? 0)
         let key = P256.Signing.PrivateKey()
-        let paired = try await Api(server: server, transport: transport, language: Texte.language).pair(
+        let paired = try await plain.pair(
             code: code, deviceName: deviceName, appVersion: appVersion,
             deviceKey: SignedFormat.publicKey(key.publicKey)
         )
@@ -85,6 +88,10 @@ public actor DeviceSession: TokenStore {
 extension ApiError {
     /// Meldung für die Oberfläche, in der Sprache der App.
     public var text: String {
+        if code == "app_too_old" {
+            return tr("Bitte die App aktualisieren, diese Version wird von HUBIplan nicht mehr unterstützt.")
+        }
+        if code == "not_hubiplan" { return tr("Unter dieser Adresse läuft kein HUBIplan.") }
         if status == 0 {
             if code == "format" || code == "too_large" {
                 return tr("Die Antwort der Instanz war nicht lesbar. Vielleicht ist die App zu alt.")
