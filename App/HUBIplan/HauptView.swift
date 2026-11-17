@@ -245,7 +245,14 @@ struct KontoView: View {
                         ))
                     }
                 } footer: {
-                    Text(tr("Die App vergisst dieses Konto. Im Browser bleibt alles, wie es ist."))
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(tr("Die App vergisst dieses Konto. Im Browser bleibt alles, wie es ist."))
+                        if model.softwareKey {
+                            // Gesamtaudit 15.11., APP-03: Wechsel in die Secure Enclave beim nächsten Verbinden
+                            Text(tr("Dieses Konto ist noch mit einem älteren Geräteschlüssel verbunden. Wenn du es trennst und neu verbindest, liegt der Schlüssel sicher im Chip des iPhones."))
+                        }
+                    }
+                    .task { await model.checkDeviceKey() }
                 }
                 Section {
                     Toggle(tr("Termine in den Kalender des Geräts übernehmen"), isOn: Binding(

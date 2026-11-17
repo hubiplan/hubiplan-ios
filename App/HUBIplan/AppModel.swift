@@ -82,6 +82,12 @@ final class AppModel: ObservableObject {
 
     private let transport: Transport = Demo.active ? DemoTransport() : UrlSessionTransport()
     private var session: DeviceSession?
+    /// Geräteschlüssel noch in Software (vor APP-03 verbunden): Hinweis in „Konten“
+    @Published var softwareKey = false
+
+    func checkDeviceKey() async {
+        softwareKey = Demo.active ? false : (await session?.usesSoftwareKey ?? false)
+    }
     private var cards: CardStore = DemoCards()
     /// Zählt jeden Kontowechsel; Antworten für ein früheres Konto werden verworfen
     private var epoch = 0
@@ -129,7 +135,9 @@ final class AppModel: ObservableObject {
 
     private func makeSession(server: String, id: String) -> DeviceSession {
         let store: SecretStore = Demo.active ? DemoStore() : Konten.secrets(id)
-        return DeviceSession(server: server, store: store, transport: transport)
+        // Neue Verbindungen: Geräteschlüssel in der Secure Enclave (APP-03); ältere behalten
+        // ihren Software-Schlüssel bis zum nächsten Verbinden
+        return DeviceSession(server: server, store: store, transport: transport, keys: EnclaveDeviceKeys())
     }
 
     private func save() {
