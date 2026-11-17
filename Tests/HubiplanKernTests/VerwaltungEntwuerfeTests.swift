@@ -6,8 +6,11 @@ final class MemoryFiles: DraftFiles, @unchecked Sendable {
     private var order: [String] = []
     private var data: [String: Data] = [:]
     var failWrites = false
+    /// Letzte Änderung des „Ordners“ (Quarantäne ohne lesbares konto.json); nil: unbekannt
+    var changedAt: Date?
 
     func names() -> [String] { lock.withLock { order } }
+    func lastChange() -> Date? { lock.withLock { changedAt } }
     func read(_ name: String) -> Data? { lock.withLock { data[name] } }
     func write(_ name: String, _ value: Data) -> Bool {
         lock.withLock {

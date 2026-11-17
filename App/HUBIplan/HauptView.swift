@@ -45,7 +45,12 @@ struct HauptView: View {
         } message: {
             Text(model.staleQuarantineText)
         }
-        .sheet(item: Binding(get: { exportURL.map(ExportFile.init) }, set: { if $0 == nil { exportURL = nil } })) { file in
+        // Die Exportdatei ist entschlüsselt: beim Schließen gleich löschen. Die Vorgänge bleiben
+        // (wie Android), die Rückfrage erscheint danach wieder mit „Jetzt löschen“ und „Später“.
+        .sheet(
+            item: Binding(get: { exportURL.map(ExportFile.init) }, set: { if $0 == nil { exportURL = nil } }),
+            onDismiss: { AppModel.clearExports() }
+        ) { file in
             ShareLink(item: file.url) { Label(tr("Exportieren"), systemImage: "square.and.arrow.up") }
                 .padding()
         }

@@ -96,6 +96,7 @@ final class AppModel: ObservableObject {
     init() {
         Texte.language = Texte.pick(preferred: Locale.preferredLanguages)
         Self.clearViews()
+        Self.clearExports()
         if !Demo.active { Self.purgeQuarantine() }
         accounts = Demo.active ? Demo.accounts : Konten.load()
         activate()
@@ -309,16 +310,24 @@ final class AppModel: ObservableObject {
         staleQuarantine = Demo.active ? 0 : DraftQuarantine.staleCount(Self.quarantineBoxes)
     }
 
-    /// Alte Vorgänge als Datei zum Teilen (nach dem Teilen löscht das System sie mit dem Cache).
+    /// Alte Vorgänge als Datei zum Teilen. Die Datei ist entschlüsselt: Sie wird gelöscht, wenn
+    /// das Teilen geschlossen wird, spätestens beim nächsten Start (`clearExports`). Die
+    /// Vorgänge selbst bleiben wie bei Android bis zum Löschen oder nach 120 Tagen.
     func exportStaleQuarantine() -> URL? {
         guard let (data, _) = DraftQuarantine.exportStale(Self.quarantineBoxes) else { return nil }
-        let url = FileManager.default.temporaryDirectory.appendingPathComponent("hubiplan-belege.json")
+        Self.clearExports()
+        let url = DraftQuarantine.exportURL(in: FileManager.default.temporaryDirectory)
         do {
             try data.write(to: url, options: [.atomic, .completeFileProtection])
             return url
         } catch {
             return nil
         }
+    }
+
+    /// Entschlüsselte Exportdatei löschen (Teilen geschlossen, App gestartet).
+    static func clearExports() {
+        DraftQuarantine.clearExports(in: FileManager.default.temporaryDirectory)
     }
 
     /// Nach Zustimmung: alte Vorgänge jetzt löschen.

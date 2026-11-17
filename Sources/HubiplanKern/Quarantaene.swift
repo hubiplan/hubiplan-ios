@@ -28,13 +28,27 @@ public enum DraftQuarantine {
 
     /// Entwürfe aus `box` (abgemeldetes Konto) in die Quarantäne `target` legen, verschlüsselt
     /// mit deren eigenem Schlüssel. Gibt die Zahl der verschobenen Dateien zurück.
+    ///
+    /// `konto.json` wird zuerst geschrieben: Endet die App mitten im Verschieben, liegt nie eine
+    /// Quarantäne ohne Eigentümer da. Liegt für dasselbe Konto schon eine, bleibt deren älteres
+    /// `since`, damit ältere Vorgänge nicht über `finalDays` hinaus verlängert werden.
     @discardableResult
     public static func retire(_ box: DraftBox, into target: DraftBox, owner: Owner, files: DraftFiles) -> Int {
-        let moved = box.move(to: target)
-        if moved > 0 || !target.files.names().filter({ $0 != ownerName }).isEmpty {
-            if let data = try? JSONEncoder().encode(owner) { _ = files.write(ownerName, data) }
+        var owner = owner
+        if let earlier = self.owner(files) {
+            if same(earlier, owner) { owner.since = min(owner.since, earlier.since) }
+        } else if !entries(target.files).isEmpty, let changed = files.lastChange() {
+            // Schon Vorgänge ohne lesbaren Eigentümer da: deren Alter nicht zurücksetzen
+            owner.since = min(owner.since, changed)
         }
+        if let data = try? JSONEncoder().encode(owner) { _ = files.write(ownerName, data) }
+        let moved = box.move(to: target)
+        if moved == 0 && entries(target.files).isEmpty { files.delete(ownerName) }
         return moved
+    }
+
+    private static func same(_ a: Owner, _ b: Owner) -> Bool {
+        a.server.lowercased() == b.server.lowercased() && a.email.lowercased() == b.email.lowercased()
     }
 
     /// Wem gehört die Quarantäne `files`?
@@ -60,9 +74,16 @@ public enum DraftQuarantine {
         files.names().filter { $0 != ownerName && !$0.hasSuffix(".tmp") }
     }
 
+    /// Seit wann die Quarantäne besteht: aus `konto.json`, sonst (fehlt oder unlesbar, z. B.
+    /// nach einem Absturz) die letzte Änderung des Ordners, wie Android (`since`). nil: unbekannt,
+    /// dann gilt sie nie als alt und wird nicht gelöscht.
+    private static func since(_ files: DraftFiles) -> Date? {
+        owner(files)?.since ?? files.lastChange()
+    }
+
     private static func older(_ files: DraftFiles, than days: Int, now: Date) -> Bool {
-        guard let who = owner(files) else { return true }
-        return now.timeIntervalSince(who.since) > Double(days) * day
+        guard let since = since(files) else { return false }
+        return now.timeIntervalSince(since) > Double(days) * day
     }
 
     /// Vorgänge in Quarantänen, die älter als `staleDays` sind (für die Rückfrage).
@@ -73,7 +94,7 @@ public enum DraftQuarantine {
     /// Wann die ältesten Vorgänge der Rückfrage endgültig gelöscht werden (nil: keine alten).
     public static func finalDeletion(_ boxes: [DraftBox], now: Date = Date()) -> Date? {
         boxes.filter { older($0.files, than: staleDays, now: now) }
-            .compactMap { owner($0.files)?.since }
+            .compactMap { since($0.files) }
             .min()
             .map { $0.addingTimeInterval(Double(finalDays) * day) }
     }
@@ -111,10 +132,34 @@ public enum DraftQuarantine {
         return (data, items.count)
     }
 
-    /// Abgelaufen (älter als `finalDays`)?
+    /// Abgelaufen (älter als `finalDays`)? Ohne lesbares `konto.json` zählt die letzte Änderung
+    /// des Ordners; eine Quarantäne ohne Eigentümer wird also nie sofort gelöscht.
     public static func expired(_ files: DraftFiles, now: Date = Date()) -> Bool {
-        guard let who = owner(files) else { return true }
-        return now.timeIntervalSince(who.since) > Double(finalDays) * 24 * 3600
+        older(files, than: finalDays, now: now)
+    }
+
+    // MARK: Exportdatei
+
+    /// Ordner für die Exportdatei im temporären Verzeichnis (wie Android `cacheDir/export`).
+    public static func exportFolder(in temporary: URL) -> URL {
+        temporary.appendingPathComponent("export", isDirectory: true)
+    }
+
+    /// Ort der Exportdatei; der Ordner wird bei Bedarf angelegt.
+    public static func exportURL(in temporary: URL, fileManager: FileManager = .default) -> URL {
+        let folder = exportFolder(in: temporary)
+        try? fileManager.createDirectory(at: folder, withIntermediateDirectories: true)
+        return folder.appendingPathComponent(exportName)
+    }
+
+    static let exportName = "hubiplan-belege.json"
+
+    /// Entschlüsselte Exportdateien löschen: wenn das Teilen geschlossen wird und beim nächsten
+    /// Start (wie Android `sweep`). Auch die Datei früherer Fassungen direkt im temporären
+    /// Verzeichnis. Die Vorgänge in der Quarantäne bleiben.
+    public static func clearExports(in temporary: URL, fileManager: FileManager = .default) {
+        try? fileManager.removeItem(at: exportFolder(in: temporary))
+        try? fileManager.removeItem(at: temporary.appendingPathComponent(exportName))
     }
 }
 

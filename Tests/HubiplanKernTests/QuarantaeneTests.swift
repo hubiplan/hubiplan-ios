@@ -89,4 +89,113 @@ final class QuarantaeneTests: XCTestCase {
         XCTAssertTrue((doc["hinweis"] as? String ?? "").contains("bitte löschen"))
         XCTAssertNil(DraftQuarantine.exportStale([jung]))
     }
+
+    // konto.json zuerst; ohne lesbares konto.json zählt das Ordnerdatum, nie sofort löschen
+
+    private let tag: Double = 24 * 3600
+
+    private func ordner(_ q: DraftBox) -> MemoryFiles { q.files as! MemoryFiles }
+
+    func testKontoDateiVorDenEntwuerfen() {
+        let q = box()
+        DraftQuarantine.retire(gefuellt(), into: q, owner: .init(server: server, email: "e@example.org", since: Date()), files: q.files)
+        // Endet die App mitten im Verschieben, hat die Quarantäne trotzdem einen Eigentümer
+        XCTAssertEqual(q.files.names().first, DraftQuarantine.ownerName)
+        XCTAssertEqual(q.files.names().count, 3)
+    }
+
+    func testLeereQuarantaeneOhneKontoDatei() {
+        let q = box()
+        XCTAssertEqual(DraftQuarantine.retire(box(), into: q, owner: .init(server: server, email: "e@example.org", since: Date()), files: q.files), 0)
+        XCTAssertTrue(q.files.names().isEmpty)
+    }
+
+    func testOhneKontoDateiNichtSofortGeloescht() {
+        let q = alteQuarantaene(tage: 0)
+        q.files.delete(DraftQuarantine.ownerName)
+        // Datum unbekannt: behalten
+        XCTAssertFalse(DraftQuarantine.expired(q.files))
+        XCTAssertEqual(DraftQuarantine.staleCount([q]), 0)
+        // Ordner kürzlich geändert: behalten
+        ordner(q).changedAt = Date().addingTimeInterval(-10 * tag)
+        XCTAssertFalse(DraftQuarantine.expired(q.files))
+        XCTAssertEqual(DraftQuarantine.staleCount([q]), 0)
+    }
+
+    func testUnlesbareKontoDateiNichtSofortGeloescht() {
+        let q = alteQuarantaene(tage: 0)
+        XCTAssertTrue(q.files.write(DraftQuarantine.ownerName, Data("kaputt".utf8)))
+        XCTAssertNil(DraftQuarantine.owner(q.files))
+        ordner(q).changedAt = Date().addingTimeInterval(-tag)
+        XCTAssertFalse(DraftQuarantine.expired(q.files))
+    }
+
+    func testOhneKontoDateiAblaufNachOrdnerdatum() throws {
+        let q = alteQuarantaene(tage: 0)
+        q.files.delete(DraftQuarantine.ownerName)
+        let geaendert = Date().addingTimeInterval(-91 * tag)
+        ordner(q).changedAt = geaendert
+        XCTAssertFalse(DraftQuarantine.expired(q.files))
+        XCTAssertEqual(DraftQuarantine.staleCount([q]), 2)
+        let ende = try XCTUnwrap(DraftQuarantine.finalDeletion([q]))
+        XCTAssertEqual(ende.timeIntervalSince1970, geaendert.addingTimeInterval(120 * tag).timeIntervalSince1970, accuracy: 1)
+        XCTAssertTrue(DraftQuarantine.expired(q.files, now: geaendert.addingTimeInterval(121 * tag)))
+        ordner(q).changedAt = Date().addingTimeInterval(-121 * tag)
+        XCTAssertTrue(DraftQuarantine.expired(q.files))
+    }
+
+    // Erneute Abmeldung desselben Kontos: älteres `since` bleiben
+
+    func testErneuteAbmeldungBehaeltAelteresSeit() throws {
+        let q = alteQuarantaene(tage: 100)
+        let frueher = try XCTUnwrap(DraftQuarantine.owner(q.files)).since
+        let neu = box()
+        XCTAssertTrue(neu.seal(Beleg(text: "Noten"), "k-2" + DraftBox.ending))
+        XCTAssertEqual(DraftQuarantine.retire(neu, into: q, owner: .init(server: server, email: "E@example.org", since: Date()), files: q.files), 1)
+        XCTAssertEqual(try XCTUnwrap(DraftQuarantine.owner(q.files)).since.timeIntervalSince1970, frueher.timeIntervalSince1970, accuracy: 0.001)
+        XCTAssertEqual(DraftQuarantine.staleCount([q]), 3)
+        XCTAssertTrue(DraftQuarantine.expired(q.files, now: frueher.addingTimeInterval(121 * tag)))
+    }
+
+    func testErneuteAbmeldungUebernimmtOrdnerdatumOhneKontoDatei() throws {
+        let q = alteQuarantaene(tage: 0)
+        q.files.delete(DraftQuarantine.ownerName)
+        let geaendert = Date().addingTimeInterval(-100 * tag)
+        ordner(q).changedAt = geaendert
+        let neu = box()
+        XCTAssertTrue(neu.seal(Beleg(text: "Noten"), "k-2" + DraftBox.ending))
+        DraftQuarantine.retire(neu, into: q, owner: .init(server: server, email: "e@example.org", since: Date()), files: q.files)
+        XCTAssertEqual(try XCTUnwrap(DraftQuarantine.owner(q.files)).since.timeIntervalSince1970, geaendert.timeIntervalSince1970, accuracy: 0.001)
+    }
+
+    // Entschlüsselte Exportdatei: beim Schließen des Teilens und beim nächsten Start löschen
+
+    func testExportdateiWirdAufgeraeumt() throws {
+        let fm = FileManager.default
+        let tmp = fm.temporaryDirectory.appendingPathComponent("quarantaene-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: tmp) }
+        let url = DraftQuarantine.exportURL(in: tmp)
+        XCTAssertEqual(url.lastPathComponent, "hubiplan-belege.json")
+        try Data("{}".utf8).write(to: url)
+        // Datei früherer Fassungen direkt im temporären Verzeichnis
+        let alt = tmp.appendingPathComponent("hubiplan-belege.json")
+        try Data("{}".utf8).write(to: alt)
+        let fremd = tmp.appendingPathComponent("anderes.txt")
+        try Data("x".utf8).write(to: fremd)
+        DraftQuarantine.clearExports(in: tmp)
+        XCTAssertFalse(fm.fileExists(atPath: url.path))
+        XCTAssertFalse(fm.fileExists(atPath: alt.path))
+        XCTAssertTrue(fm.fileExists(atPath: fremd.path))
+        // Nichts da: kein Fehler
+        DraftQuarantine.clearExports(in: tmp)
+    }
+
+    func testExportLaesstVorgaengeLiegen() throws {
+        // Wie Android: nach dem Export bleiben die Vorgänge bis „Löschen“ oder 120 Tage
+        let alt = alteQuarantaene(tage: 91)
+        _ = try XCTUnwrap(DraftQuarantine.exportStale([alt]))
+        XCTAssertEqual(DraftQuarantine.staleCount([alt]), 2)
+        XCTAssertNotNil(DraftQuarantine.owner(alt.files))
+    }
 }

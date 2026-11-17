@@ -169,4 +169,10 @@ final class EntwurfsOrdner: DraftFiles, @unchecked Sendable {
     func delete(_ name: String) {
         try? FileManager.default.removeItem(at: dir.appendingPathComponent(name))
     }
+
+    /// Änderungsdatum des Ordners (Alter einer Quarantäne ohne lesbares `konto.json`)
+    func lastChange() -> Date? {
+        let values = try? dir.resourceValues(forKeys: [.contentModificationDateKey, .creationDateKey])
+        return values?.contentModificationDate ?? values?.creationDate
+    }
 }
