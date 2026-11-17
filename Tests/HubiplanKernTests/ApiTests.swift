@@ -85,7 +85,7 @@ final class ApiTests: XCTestCase {
         XCTAssertEqual(request.headers["Accept-Language"], "en")
         XCTAssertEqual(try body(request), [
             "code": "abc", "login_link": "", "name": "iPhone von Erika",
-            "platform": "ios", "app_version": "0.1.0", "device_key": "BEcc",
+            "platform": "ios", "app_version": "0.1.0", "device_key": "BEcc", "verifier": "",
         ])
     }
 

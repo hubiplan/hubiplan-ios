@@ -64,6 +64,11 @@ final class AppModel: ObservableObject {
     @Published var error: String?
     /// Link, den die App zum Verbinden bekommen hat und der noch bestätigt werden muss
     @Published var pending: PairingLink?
+    /// Geheimnis zum Prüfwert, mit dem die App den Code im Browser angefordert hat (APP-01);
+    /// gilt nur für den Rückruf derselben Adresse.
+    var pendingVerifier: (server: String, verifier: String)?
+    /// Link `hubiplan://anmelden` einer Adresse: vor dem Öffnen der Anmeldeseite nachfragen.
+    @Published var browserStart: String?
     @Published var linkError: String?
     /// Gerätekalender: eingeschaltet, Erinnerung in Minuten, Zugriff verweigert
     @Published private(set) var calendarOn = KalenderEinstellung.on
@@ -91,6 +96,11 @@ final class AppModel: ObservableObject {
 
     static var version: String {
         Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0"
+    }
+
+    /// Buildnummer (CFBundleVersion): zählt für die Mindestversion der Instanz (APP-11)
+    static var build: String {
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
     }
 
     init() {
@@ -180,7 +190,12 @@ final class AppModel: ObservableObject {
             linkError = tr("Mehr als {anzahl} Konten lassen sich nicht verbinden. Trenne zuerst ein Konto.", ["anzahl": "\(AccountList.limit)"])
             return
         }
-        if let parsed = PairingLink.parse(link) {
+        if let server = BrowserLogin.parseStart(link) {
+            // Ohne Code: die App fordert ihn selbst mit Prüfwert an (APP-01)
+            if !accounts.accounts.isEmpty { adding = true }
+            browserStart = server
+            linkError = nil
+        } else if let parsed = PairingLink.parse(link) {
             pending = parsed
             linkError = nil
         } else {
@@ -188,14 +203,23 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Schon mit dieser Adresse verbunden? Dann öffnet `hubiplan://anmelden` ohne Rückfrage.
+    func isKnown(server: String) -> Bool {
+        accounts.accounts.contains { $0.server == server }
+    }
+
     func connect() async {
         guard let link = pending else { return }
         pending = nil
+        let verifier = pendingVerifier.flatMap { $0.server == link.server ? $0.verifier : nil } ?? ""
+        pendingVerifier = nil
         loading = true
         let id = accounts.freeId()
         let new = makeSession(server: link.server, id: id)
         do {
-            let paired = try await new.connect(code: link.code, deviceName: UIDevice.current.name, appVersion: Self.version)
+            let paired = try await new.connect(
+                code: link.code, deviceName: UIDevice.current.name, appVersion: Self.build, verifier: verifier
+            )
             let entry = AccountEntry(id: id, server: link.server, display: paired.user.display, email: paired.user.email)
             // Dasselbe Konto noch einmal verbunden: der alte Eintrag weicht dem neuen
             if let replaced = accounts.add(entry) { await forget(replaced) }

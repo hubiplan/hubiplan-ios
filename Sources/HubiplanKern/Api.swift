@@ -159,9 +159,11 @@ public struct Api: Sendable {
         try await expect("GET", "/api/app/v1/instance/")
     }
 
-    /// Verbinden mit dem Code aus dem QR-Code oder mit einem Anmeldelink.
+    /// Verbinden mit dem Code aus dem QR-Code oder mit einem Anmeldelink. `verifier`: Geheimnis
+    /// zum Prüfwert, mit dem die App den Code im Browser angefordert hat (APP-01).
     public func pair(
-        code: String = "", loginLink: String = "", deviceName: String, appVersion: String, deviceKey: String = ""
+        code: String = "", loginLink: String = "", deviceName: String, appVersion: String, deviceKey: String = "",
+        verifier: String = ""
     ) async throws -> Paired {
         try await expect("POST", "/api/app/v1/pair/", json: [
             "code": code,
@@ -170,6 +172,7 @@ public struct Api: Sendable {
             "platform": Api.platform,
             "app_version": appVersion,
             "device_key": deviceKey,
+            "verifier": verifier,
         ])
     }
 
