@@ -127,6 +127,9 @@ struct AusweisView: View {
                     if let expenses = model.expenses {
                         IchVerweis(title: tr("Auslagen"), detail: expenses.summary) { AuslagenView() }
                     }
+                    if let access = model.access, access.hasFeeProofs, model.feeProofs != nil {
+                        IchVerweis(title: tr("Beitragsnachweise"), detail: feeProofSummary(due: access.feeProofsDue)) { BeitragsnachweiseView() }
+                    }
                     if let access = model.access, access.hasResults || access.hasEntries {
                         IchVerweis(
                             title: tr("Wettbewerbe"),

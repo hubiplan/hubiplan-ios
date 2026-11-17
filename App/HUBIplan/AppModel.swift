@@ -40,6 +40,7 @@ final class AppModel: ObservableObject {
     @Published var surveys: SurveyList?
     /// Auslagen des gewählten Zugangs (soweit eingeschaltet)
     @Published var expenses: ExpenseOverview?
+    @Published var feeProofs: FeeProofOverview?
     /// Datei, die gerade zum Ansehen offen ist (liegt nur kurz im Zwischenspeicher)
     @Published var preview: URL?
     @Published var previewBusy = false
@@ -166,6 +167,7 @@ final class AppModel: ObservableObject {
         documents = nil
         surveys = nil
         expenses = nil
+        feeProofs = nil
         scores = nil
         sheetCache = [:]
         adminOverview = nil
@@ -453,6 +455,8 @@ final class AppModel: ObservableObject {
         if access.hasSurveys { surveys = try? await api.memberSurveys(accessId: id) }
         var expenses: ExpenseOverview?
         if access.hasExpenses { expenses = try? await api.memberExpenses(accessId: id) }
+        var feeProofs: FeeProofOverview?
+        if access.hasFeeProofs { feeProofs = try? await api.memberFeeProofs(accessId: id) }
         guard epoch == self.epoch, self.access?.id == id else { return }
         if let profile { self.profile = profile }
         self.invoices = invoices ?? self.invoices
@@ -461,6 +465,7 @@ final class AppModel: ObservableObject {
         self.documents = access.hasDocs ? (documents ?? self.documents) : nil
         self.surveys = access.hasSurveys ? (surveys ?? self.surveys) : nil
         self.expenses = access.hasExpenses ? (expenses ?? self.expenses) : nil
+        self.feeProofs = access.hasFeeProofs ? (feeProofs ?? self.feeProofs) : nil
         await loadAdmin()
     }
 
@@ -788,6 +793,17 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: Beitragsnachweise
+
+    /// Stand der Beitragsnachweise neu laden (nach dem Einreichen oder beim Öffnen).
+    func reloadFeeProofs() async {
+        guard let access, access.hasFeeProofs else { return }
+        await run { api in
+            let fresh = try await api.memberFeeProofs(accessId: access.id)
+            if self.access?.id == access.id { self.feeProofs = fresh }
+        }
+    }
+
     // MARK: Umfragen
 
     /// Umfragen neu laden (nach einer Aktion oder beim Öffnen).
@@ -908,6 +924,7 @@ final class AppModel: ObservableObject {
         documents = nil
         surveys = nil
         expenses = nil
+        feeProofs = nil
         scores = nil
         sheetCache = [:]
         todos = []
