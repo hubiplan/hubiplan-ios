@@ -75,6 +75,12 @@ final class AppModel: ObservableObject {
 
     private let transport: Transport = Demo.active ? DemoTransport() : UrlSessionTransport()
     private var session: DeviceSession?
+    /// Geräteschlüssel noch in Software (vor APP-03 verbunden): Hinweis in „Konten“
+    @Published var softwareKey = false
+
+    func checkDeviceKey() async {
+        softwareKey = Demo.active ? false : (await session?.usesSoftwareKey ?? false)
+    }
     private var cards: CardStore = DemoCards()
     /// Zählt jeden Kontowechsel; Antworten für ein früheres Konto werden verworfen
     private var epoch = 0
