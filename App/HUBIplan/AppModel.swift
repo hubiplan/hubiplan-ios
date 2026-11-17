@@ -133,7 +133,7 @@ final class AppModel: ObservableObject {
         return StandStore(store: Konten.secrets(account.id))
     }
 
-    /// Buchungen der Kasse, die noch nicht gesendet sind (verschlüsselt auf diesem iPhone)
+    /// Buchungen der Kasse, die noch nicht gesendet sind (verschlüsselt auf diesem Gerät)
     var draftBox: DraftBox? {
         if Demo.active { return Demo.box }
         guard let account else { return nil }
@@ -206,7 +206,7 @@ final class AppModel: ObservableObject {
             return
         }
         guard !accounts.full else {
-            linkError = tr("Mehr als {anzahl} Konten lassen sich nicht verbinden. Trenne zuerst ein Konto.", ["anzahl": "\(AccountList.limit)"])
+            linkError = tr("Mehr als {anzahl} Konten lassen sich nicht verbinden. Melde zuerst ein Konto auf diesem Gerät ab.", ["anzahl": "\(AccountList.limit)"])
             return
         }
         if let server = BrowserLogin.parseStart(link) {
@@ -250,7 +250,7 @@ final class AppModel: ObservableObject {
             return
         }
         guard !accounts.full else {
-            linkError = tr("Mehr als {anzahl} Konten lassen sich nicht verbinden. Trenne zuerst ein Konto.", ["anzahl": "\(AccountList.limit)"])
+            linkError = tr("Mehr als {anzahl} Konten lassen sich nicht verbinden. Melde zuerst ein Konto auf diesem Gerät ab.", ["anzahl": "\(AccountList.limit)"])
             return
         }
         await pair(server: server) { new in
@@ -370,7 +370,7 @@ final class AppModel: ObservableObject {
     func sendDraftsBeforeDisconnect() async -> String? {
         guard let box = draftBox, box.count > 0 else { return nil }
         guard adminOpen, let units = adminOverview?.units else {
-            return tr("Die Verwaltung ist gesperrt. Bitte unter „Verwaltung“ entsperren und dann noch einmal trennen.")
+            return tr("Die Verwaltung ist gesperrt. Bitte unter „Verwaltung“ entsperren und dann noch einmal abmelden.")
         }
         let ids = Set(box.list().map(\.unitId) + box.receipts().map(\.unitId))
         for unit in units where ids.contains(unit.id) {
@@ -640,7 +640,7 @@ final class AppModel: ObservableObject {
             }
             guard tresor.save(access.stored) else {
                 try? await api.lockAdmin()
-                adminError = tr("Für die Verwaltung braucht das iPhone einen Gerätecode. Bitte in den Einstellungen einrichten.")
+                adminError = tr("Für die Verwaltung braucht das Gerät einen Gerätecode. Bitte in den Einstellungen einrichten.")
                 return
             }
             adminAccess = access

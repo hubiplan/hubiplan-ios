@@ -273,8 +273,8 @@ struct StandmodusView: View {
             }
         } message: {
             Text(trn(
-                "Eine Eingabe wartet noch auf die Übertragung. Sie bleibt bis zu zwölf Stunden auf dem iPhone und wird beim nächsten Öffnen des Standmodus mit Empfang übertragen.",
-                "{n} Eingaben warten noch auf die Übertragung. Sie bleiben bis zu zwölf Stunden auf dem iPhone und werden beim nächsten Öffnen des Standmodus mit Empfang übertragen.",
+                "Eine Eingabe wartet noch auf die Übertragung. Sie bleibt bis zu zwölf Stunden auf dem Gerät und wird beim nächsten Öffnen des Standmodus mit Empfang übertragen.",
+                "{n} Eingaben warten noch auf die Übertragung. Sie bleiben bis zu zwölf Stunden auf dem Gerät und werden beim nächsten Öffnen des Standmodus mit Empfang übertragen.",
                 pending ?? 0
             ))
         }

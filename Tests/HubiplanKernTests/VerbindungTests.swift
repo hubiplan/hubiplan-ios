@@ -61,7 +61,7 @@ final class VerbindungTests: XCTestCase {
         XCTAssertEqual(serverLink(server: "https://test.example:8443/", path: "/x?q=1"), "https://test.example:8443/x?q=1")
     }
 
-    // Passkey auf dem iPhone: Anmelden im eingebetteten Browser (docs/app.md in hubiplan)
+    // Passkey auf dem Gerät: Anmelden im eingebetteten Browser (docs/app.md in hubiplan)
     func testPasskeyAnmeldeseite() {
         XCTAssertEqual(BrowserLogin.url(server: "verein.example.de")?.absoluteString, "https://verein.example.de/app/anmelden")
         XCTAssertEqual(BrowserLogin.url(server: "https://Test.Example:8443/")?.absoluteString, "https://test.example:8443/app/anmelden")

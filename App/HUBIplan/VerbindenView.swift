@@ -194,7 +194,7 @@ struct VerbindenView: View {
         } header: {
             Text(tr("Mit QR-Code"))
         } footer: {
-            Text(tr("Öffne HUBIplan im Browser: Mein Konto › App & andere Instanzen › App auf dem Telefon. Scanne den QR-Code oder kopiere den Link. Nur ein Telefon? Tippe dort auf „In der HUBIplan-App öffnen“."))
+            Text(tr("Öffne HUBIplan im Browser: Mein Konto › App & andere Instanzen. Scanne den QR-Code oder kopiere den Link. Nur ein Gerät? Öffne HUBIplan im Browser des Geräts und tippe dort auf „In der HUBIplan-App öffnen“."))
         }
     }
 

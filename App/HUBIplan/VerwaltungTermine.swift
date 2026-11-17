@@ -5,12 +5,16 @@ import SwiftUI
 
 /// Wann ein Termin ist; ganztägige Termine zählen als Kalendertag in deutscher Zeit.
 func terminZeit(_ from: String, _ to: String, allDay: Bool) -> String {
-    guard allDay else { return zeitraum(from, to) }
-    guard let start = Zeit.parse(from) else { return from }
-    var style = Date.FormatStyle.dateTime.weekday(.abbreviated).day().month(.abbreviated).year()
+    // Uhrzeiten in Gerätezeit, mit Zusatz, wenn das Gerät woanders steht (AND-27)
+    guard allDay else { return zeitraum(from, to) + Zeit.geraeteHinweis(from) }
+    // Ganztägig: dieselben Kalendertage wie in der Verwaltung, in jeder Zeitzone
+    guard let days = Zeit.ganztaegig(from, to) else { return from }
+    let style = Date.FormatStyle.dateTime.weekday(.abbreviated).day().month(.abbreviated).year()
         .locale(Texte.locale)
-    if let berlin = TimeZone(identifier: "Europe/Berlin") { style.timeZone = berlin }
-    return start.formatted(style) + " · " + tr("Ganztägig")
+    if Calendar.current.isDate(days.first, inSameDayAs: days.last) {
+        return days.first.formatted(style) + " · " + tr("Ganztägig")
+    }
+    return days.first.formatted(style) + " – " + days.last.formatted(style) + " · " + tr("Ganztägig")
 }
 
 /// Beschriftung über dem Feld, das Feld selbst ohne Platzhalter.

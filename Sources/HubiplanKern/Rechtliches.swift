@@ -36,7 +36,7 @@ public enum Rechtliches {
         let name = server.replacingOccurrences(of: "https://", with: "")
         return [
             tr("Deine Mitgliedsdaten verwaltet dein Verein in seiner HUBIplan-Instanz ({server}), nicht die App.", ["server": name]),
-            "• " + tr("Trennen löscht den Geräteschlüssel dieses iPhones beim Verein und alle Daten dieses Kontos in der App, auch den Kalender „HUBIplan“ und noch nicht gesendete Buchungen und Quittungen der Verwaltung."),
+            "• " + tr("Abmelden löscht den Geräteschlüssel dieses Geräts beim Verein und alle Daten dieses Kontos in der App, auch den Kalender „HUBIplan“ und noch nicht gesendete Buchungen und Quittungen der Verwaltung."),
             "• " + tr("Dein Foto kannst du im Browser unter „Mein Konto“ selbst löschen."),
             "• " + tr("Die Löschung deines Zugangs und deiner Mitgliedsdaten beantragst du beim Verein. Wen du ansprichst, steht in seinen Datenschutzhinweisen."),
         ].joined(separator: "\n\n")

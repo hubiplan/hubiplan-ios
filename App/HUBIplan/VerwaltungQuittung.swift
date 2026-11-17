@@ -80,7 +80,7 @@ private struct UnterschriftFeld: View {
                     }
                     .accessibilityLabel(tr("Unterschriftsfeld: {name}", ["name": title]))
                 }
-                Text(tr("Tipp: iPhone quer halten, dann ist mehr Platz.")).font(.footnote).foregroundStyle(Color.secondary)
+                Text(tr("Tipp: Gerät quer halten, dann ist mehr Platz.")).font(.footnote).foregroundStyle(Color.secondary)
             }
             .padding()
             .navigationTitle(title)
@@ -392,7 +392,7 @@ struct QuittungBlatt: View {
         }
         saving = true
         defer { saving = false }
-        // Erst verschlüsselt sichern, dann senden: ohne Verbindung bleibt die Quittung auf dem iPhone.
+        // Erst verschlüsselt sichern, dann senden: ohne Verbindung bleibt die Quittung auf dem Gerät.
         let box = model.draftBox
         let outcome = await model.verwaltung(unit) { client -> ReceiptOutcome in
             if let box { return try await client.submit(receipt, box: box) { id in draft.serverId = id } }

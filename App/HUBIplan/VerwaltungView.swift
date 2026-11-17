@@ -161,7 +161,7 @@ private struct Freischalten: View {
                 } header: {
                     Text(withPasskey ? tr("Oder mit Passwort und Code") : tr("Verwaltung freischalten"))
                 } footer: {
-                    Text(tr("Für Mitglieder und offene Punkte in der App bitte mit Passwort und Zwei-Faktor-Code bestätigen. Die Freischaltung gilt 30 Tage auf diesem iPhone; geöffnet wird jedes Mal mit Face ID, Touch ID oder Gerätecode."))
+                    Text(tr("Für Mitglieder und offene Punkte in der App bitte mit Passwort und Zwei-Faktor-Code bestätigen. Die Freischaltung gilt 30 Tage auf diesem Gerät; geöffnet wird jedes Mal mit Face ID, Touch ID oder Gerätecode."))
                 }
             }
             if let message = model.adminError {
@@ -169,7 +169,7 @@ private struct Freischalten: View {
             }
             if !Demo.active && !VerwaltungTresor.deviceLock {
                 Section {
-                    Text(tr("Für die Verwaltung braucht das iPhone einen Gerätecode. Bitte in den Einstellungen einrichten."))
+                    Text(tr("Für die Verwaltung braucht das Gerät einen Gerätecode. Bitte in den Einstellungen einrichten."))
                         .foregroundStyle(.secondary)
                 }
             }
@@ -340,7 +340,7 @@ private struct VerwaltungStart: View {
                 Text(tr("Alles Weitere verwaltest du zurzeit im Browser."))
             }
             Section {
-                Button(tr("Verwaltung auf diesem iPhone sperren"), role: .destructive) { confirmLock = true }
+                Button(tr("Verwaltung auf diesem Gerät sperren"), role: .destructive) { confirmLock = true }
             } footer: {
                 if let until, let date = Zeit.parse(until) {
                     Text(tr("Freigeschaltet bis {datum}", [

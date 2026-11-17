@@ -70,8 +70,8 @@ struct HauptView: View {
         } message: {
             if model.retiredDrafts > 0 {
                 Text(trn(
-                    "1 nicht gesendeter Vorgang der Kasse bleibt verschlüsselt auf diesem iPhone. Er kommt zurück, wenn du dasselbe Konto wieder verbindest.",
-                    "{n} nicht gesendete Vorgänge der Kasse bleiben verschlüsselt auf diesem iPhone. Sie kommen zurück, wenn du dasselbe Konto wieder verbindest.",
+                    "1 nicht gesendeter Vorgang der Kasse bleibt verschlüsselt auf diesem Gerät. Er kommt zurück, wenn du dasselbe Konto wieder verbindest.",
+                    "{n} nicht gesendete Vorgänge der Kasse bleiben verschlüsselt auf diesem Gerät. Sie kommen zurück, wenn du dasselbe Konto wieder verbindest.",
                     model.retiredDrafts
                 ))
             }
@@ -121,10 +121,10 @@ struct TermineView: View {
 /// Wann ein Termin ist (Liste und Detail).
 func terminWann(_ event: Occurrence) -> String {
     guard let start = event.start else { return event.startsAt }
-    // Ganztägige Termine zählen als Kalendertag in deutscher Zeit
+    // Ganztägige Termine sind Kalendertage der Verwaltung, unabhängig von der Zeitzone (AND-27)
     if event.allDay { return terminZeit(event.startsAt, event.endsAt, allDay: true) }
     let day = start.formatted(.dateTime.weekday(.abbreviated).day().month().year().locale(Texte.locale))
-    return day + " · " + start.formatted(.dateTime.hour().minute().locale(Texte.locale))
+    return day + " · " + start.formatted(.dateTime.hour().minute().locale(Texte.locale)) + Zeit.geraeteHinweis(event.startsAt)
 }
 
 /// Termin in der Liste: antippen öffnet das Detail mit allen Angaben und Antworten (IOS-04).
@@ -152,7 +152,7 @@ struct TerminZeile: View {
         VStack(alignment: .leading, spacing: 6) {
             NavigationLink(value: event.key) {
                 HStack(alignment: .top, spacing: 12) {
-                    DatumKaestchen(iso: event.startsAt, gedaempft: event.isCancelled)
+                    DatumKaestchen(iso: event.startsAt, allDay: event.allDay, gedaempft: event.isCancelled)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(event.title)
                             .font(.headline)
@@ -242,7 +242,7 @@ struct KontoView: View {
 
     private var serverName: String { (model.account?.server ?? "").replacingOccurrences(of: "https://", with: "") }
 
-    /// Immer nachfragen (UX-Audit 16.11., IOS-08); mit Entwürfen auch „Erst senden, dann trennen“.
+    /// Immer nachfragen (UX-Audit 16.11., IOS-08); mit Entwürfen auch „Erst senden, dann abmelden“.
     private func askDisconnect() {
         unsent = model.draftBox?.count ?? 0
         sendProblem = nil
@@ -308,15 +308,15 @@ struct KontoView: View {
                     Text(tr("Für mehrere Vereine mit eigener HUBIplan-Instanz. Tippe ein Konto an, um es zu zeigen."))
                 }
                 Section {
-                    Button(tr("Verbindung trennen …"), role: .destructive) { askDisconnect() }
+                    Button(tr("Auf diesem Gerät abmelden …"), role: .destructive) { askDisconnect() }
                         .disabled(sendingFirst)
                         .confirmationDialog(
-                            tr("Verbindung zu {server} trennen?", ["server": serverName]),
+                            tr("Auf diesem Gerät von {server} abmelden?", ["server": serverName]),
                             isPresented: $confirmDisconnect,
                             titleVisibility: .visible
                         ) {
                             if unsent > 0 {
-                                Button(tr("Erst senden, dann trennen")) {
+                                Button(tr("Erst senden, dann abmelden")) {
                                     Task {
                                         sendingFirst = true
                                         sendProblem = await model.sendDraftsBeforeDisconnect()
@@ -324,16 +324,16 @@ struct KontoView: View {
                                         if sendProblem == nil { await model.disconnect() }
                                     }
                                 }
-                                Button(tr("Verwerfen und trennen"), role: .destructive) { Task { await model.disconnect() } }
+                                Button(tr("Verwerfen und abmelden"), role: .destructive) { Task { await model.disconnect() } }
                             } else {
-                                Button(tr("Trennen"), role: .destructive) { Task { await model.disconnect() } }
+                                Button(tr("Abmelden"), role: .destructive) { Task { await model.disconnect() } }
                             }
                             Button(tr("Abbrechen"), role: .cancel) {}
                         } message: {
                             if unsent > 0 {
                                 Text(trn(
-                                    "Auf diesem iPhone liegt noch 1 nicht gesendete Buchung oder Quittung. Beim Trennen ohne Senden geht sie verloren.",
-                                    "Auf diesem iPhone liegen noch {n} nicht gesendete Buchungen oder Quittungen. Beim Trennen ohne Senden gehen sie verloren.",
+                                    "Auf diesem Gerät liegt noch 1 nicht gesendete Buchung oder Quittung. Beim Abmelden ohne Senden geht sie verloren.",
+                                    "Auf diesem Gerät liegen noch {n} nicht gesendete Buchungen oder Quittungen. Beim Abmelden ohne Senden gehen sie verloren.",
                                     unsent
                                 ))
                             } else {
@@ -347,7 +347,7 @@ struct KontoView: View {
                         Text(tr("Die App vergisst dieses Konto, den gespeicherten Ausweis und den Kalender. Im Browser bleibt alles, wie es ist."))
                         if model.softwareKey {
                             // Gesamtaudit 15.11., APP-03: Wechsel in die Secure Enclave beim nächsten Verbinden
-                            Text(tr("Dieses Konto ist noch mit einem älteren Geräteschlüssel verbunden. Wenn du es trennst und neu verbindest, liegt der Schlüssel sicher im Chip des iPhones."))
+                            Text(tr("Dieses Konto ist noch mit einem älteren Geräteschlüssel verbunden. Wenn du es auf diesem Gerät abmeldest und neu verbindest, liegt der Schlüssel sicher im Chip des Geräts."))
                         }
                     }
                     .task { await model.checkDeviceKey() }
@@ -400,7 +400,7 @@ struct KontoView: View {
                 if let url = Rechtliches.privacy(server: model.account?.server ?? "", key: model.access?.imprintKey) {
                     Button(tr("Datenschutzhinweise öffnen")) { openURL(url) }
                 }
-                Button(tr("Jetzt trennen …"), role: .destructive) {
+                Button(tr("Jetzt abmelden …"), role: .destructive) {
                     // Erst die Erklärung schließen, dann die Rückfrage zeigen
                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { askDisconnect() }
                 }

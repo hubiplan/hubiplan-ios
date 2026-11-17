@@ -44,10 +44,11 @@ struct Abzeichen: View {
 /// deshalb liest VoiceOver das Kästchen nicht eigens vor.
 struct DatumKaestchen: View {
     let iso: String
+    var allDay = false
     var gedaempft = false
 
     var body: some View {
-        if let teile = Design.datumKaestchen(iso) {
+        if let teile = Design.datumKaestchen(iso, allDay: allDay) {
             VStack(spacing: 0) {
                 Text(teile.tag).font(.headline.monospacedDigit())
                 Text(teile.monat).font(.caption2.weight(.semibold))
