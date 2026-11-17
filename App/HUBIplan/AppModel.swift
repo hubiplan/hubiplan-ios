@@ -16,6 +16,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var accounts = AccountList()
     /// Ein weiteres Konto wird gerade verbunden (Blatt über „Mein Konto“)
     @Published var adding = false
+    /// Alte Vorgänge in der Quarantäne (älter als 90 Tage): Rückfrage mit Export (FQ24, APP-04)
+    @Published var staleQuarantine = 0
     @Published var accesses: [PortalAccess] = []
     @Published var accessId: Int?
     @Published var events: [Occurrence] = []
@@ -104,6 +106,8 @@ final class AppModel: ObservableObject {
     init() {
         Texte.language = Texte.pick(preferred: Locale.preferredLanguages)
         Self.clearViews()
+        Self.clearExports()
+        if !Demo.active { Self.purgeQuarantine() }
         accounts = Demo.active ? Demo.accounts : Konten.load()
         activate()
     }
@@ -221,6 +225,7 @@ final class AppModel: ObservableObject {
             if let replaced = accounts.add(entry) { await forget(replaced) }
             save()
             activate(session: new)
+            if !Demo.active { Self.adopt(server: link.server, email: paired.user.email, account: id) }
             linkError = nil
             adding = false
             loading = false
@@ -254,13 +259,23 @@ final class AppModel: ObservableObject {
     }
 
     /// Das gezeigte Konto vergessen; gibt es weitere, kommt das nächste nach vorn.
-    func disconnect() async {
+    /// `revoked`: Der Server hat das Gerät abgemeldet (nicht bewusst getrennt). Dann gehen
+    /// unversandte Entwürfe in die Quarantäne statt verloren (Gesamtaudit 15.11., APP-04).
+    func disconnect(revoked: Bool = false) async {
         guard let account else { return }
-        // Push und Gerät beim Server abmelden; ohne Netz höchstens kurz warten (APP-02)
-        await session?.signOut()
+        if revoked {
+            await session?.forget()  // schon abgemeldet: nichts mehr beim Server
+        } else {
+            // Push und Gerät beim Server abmelden; ohne Netz höchstens kurz warten (APP-02)
+            await session?.signOut()
+        }
         if !Demo.active { VerwaltungTresor(account: account.id).clear() }
         if !Demo.active { StandStore(store: Konten.secrets(account.id)).clear() }
-        if !Demo.active { DraftBox(files: EntwurfsOrdner(account: account.id), secrets: Konten.secrets(account.id)).clear() }
+        if !Demo.active {
+            let drafts = DraftBox(files: EntwurfsOrdner(account: account.id), secrets: Konten.secrets(account.id))
+            if revoked { Self.retire(drafts, server: account.server, email: account.email) }
+            drafts.clear()
+        }
         cards.clear()
         Self.clearViews()
         preview = nil
@@ -271,6 +286,78 @@ final class AppModel: ObservableObject {
         save()
         activate()
         if self.account != nil { await refresh() }
+    }
+
+    // MARK: Quarantäne (APP-04)
+
+    private static func quarantineBox(_ id: String) -> DraftBox {
+        DraftBox(files: EntwurfsOrdner(quarantine: id), secrets: KeychainStore(service: "de.hubiplan.app.quarantaene.\(id)"))
+    }
+
+    /// Unversandte Entwürfe eines vom Server abgemeldeten Kontos beiseitelegen.
+    static func retire(_ drafts: DraftBox, server: String, email: String) {
+        guard !email.isEmpty else { return }
+        let id = DraftQuarantine.id(server: server, email: email)
+        let box = quarantineBox(id)
+        DraftQuarantine.retire(drafts, into: box, owner: .init(server: server, email: email, since: Date()), files: box.files)
+    }
+
+    /// Nach dem Verbinden: Entwürfe desselben Kontos auf derselben Instanz zurückholen.
+    static func adopt(server: String, email: String, account: String) {
+        let box = quarantineBox(DraftQuarantine.id(server: server, email: email))
+        let drafts = DraftBox(files: EntwurfsOrdner(account: account), secrets: Konten.secrets(account))
+        DraftQuarantine.adopt(box, into: drafts, server: server, email: email)
+    }
+
+    /// Beim Start: abgelaufene Quarantänen (älter als 120 Tage) löschen.
+    static func purgeQuarantine() {
+        for id in EntwurfsOrdner.quarantineIds() {
+            let box = quarantineBox(id)
+            if DraftQuarantine.expired(box.files) { box.clear() }
+        }
+    }
+
+    private static var quarantineBoxes: [DraftBox] { EntwurfsOrdner.quarantineIds().map(quarantineBox) }
+
+    /// Rückfrage zu alten Vorgängen: wie viele und wann sie endgültig gelöscht werden.
+    var staleQuarantineText: String {
+        let date = DraftQuarantine.finalDeletion(Self.quarantineBoxes).map {
+            $0.formatted(date: .numeric, time: .omitted)
+        } ?? ""
+        return tr(
+            "{anzahl} nicht gesendete Vorgänge liegen seit über 90 Tagen auf diesem Gerät, weil die Verbindung beendet wurde. Sie werden am {datum} gelöscht. Vorher exportieren?",
+            ["anzahl": "\(staleQuarantine)", "datum": date]
+        )
+    }
+
+    func checkStaleQuarantine() {
+        staleQuarantine = Demo.active ? 0 : DraftQuarantine.staleCount(Self.quarantineBoxes)
+    }
+
+    /// Alte Vorgänge als Datei zum Teilen. Die Datei ist entschlüsselt: Sie wird gelöscht, wenn
+    /// das Teilen geschlossen wird, spätestens beim nächsten Start (`clearExports`). Die
+    /// Vorgänge selbst bleiben wie bei Android bis zum Löschen oder nach 120 Tagen.
+    func exportStaleQuarantine() -> URL? {
+        guard let (data, _) = DraftQuarantine.exportStale(Self.quarantineBoxes) else { return nil }
+        Self.clearExports()
+        let url = DraftQuarantine.exportURL(in: FileManager.default.temporaryDirectory)
+        do {
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    /// Entschlüsselte Exportdatei löschen (Teilen geschlossen, App gestartet).
+    static func clearExports() {
+        DraftQuarantine.clearExports(in: FileManager.default.temporaryDirectory)
+    }
+
+    /// Nach Zustimmung: alte Vorgänge jetzt löschen.
+    func deleteStaleQuarantine() {
+        for box in Self.quarantineBoxes where DraftQuarantine.staleCount([box]) > 0 { box.clear() }
+        staleQuarantine = 0
     }
 
     // MARK: Daten
@@ -286,7 +373,7 @@ final class AppModel: ObservableObject {
         } catch let failure as ApiError {
             guard epoch == self.epoch else { return }
             if failure.mustReconnect {
-                await disconnect()
+                await disconnect(revoked: true)
                 linkError = failure.text
             } else {
                 error = failure.text
@@ -588,7 +675,7 @@ final class AppModel: ObservableObject {
         } catch let failure as ApiError {
             guard epoch == self.epoch else { return nil }
             if failure.mustReconnect {
-                await disconnect()
+                await disconnect(revoked: true)
                 linkError = failure.text
             } else if failure.status == 401 {
                 // Abgelaufen oder im Browser gesperrt: neu freischalten
@@ -667,7 +754,7 @@ final class AppModel: ObservableObject {
         } catch let failure as ApiError {
             guard epoch == self.epoch else { return nil }
             if failure.mustReconnect {
-                await disconnect()
+                await disconnect(revoked: true)
                 linkError = failure.text
                 return nil
             }
@@ -834,7 +921,7 @@ final class AppModel: ObservableObject {
         } catch let failure as ApiError {
             guard epoch == self.epoch else { return }
             if failure.mustReconnect {
-                await disconnect()
+                await disconnect(revoked: true)
                 linkError = failure.text
             } else {
                 cardOffline = true
@@ -988,7 +1075,7 @@ final class AppModel: ObservableObject {
                 error = nil
             } catch let failure as ApiError {
                 if failure.mustReconnect {
-                    await disconnect()
+                    await disconnect(revoked: true)
                     linkError = failure.text
                 } else {
                     error = failure.text

@@ -95,6 +95,13 @@ public protocol DraftFiles: Sendable {
     func read(_ name: String) -> Data?
     func write(_ name: String, _ data: Data) -> Bool
     func delete(_ name: String)
+    /// Letzte Änderung der Ablage (in der App: Änderungsdatum des Ordners); nil, wenn unbekannt.
+    /// Dient der Quarantäne als Alter, wenn `konto.json` fehlt oder unlesbar ist.
+    func lastChange() -> Date?
+}
+
+extension DraftFiles {
+    public func lastChange() -> Date? { nil }
 }
 
 /// Entwürfe eines Kontos. Der Schlüssel liegt im Schlüsselbund (`secrets`), die Dateien liegen
