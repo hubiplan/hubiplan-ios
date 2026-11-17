@@ -6,6 +6,7 @@ struct HauptView: View {
     @Environment(\.scenePhase) private var phase
     /// „Mein Konto“ liegt im Reiter „Ich“ (das iPhone zeigt höchstens fünf Reiter)
     @State private var tab = Demo.tab == "konto" ? "ausweis" : Demo.tab
+    @State private var exportURL: URL?
 
     var body: some View {
         TabView(selection: $tab) {
@@ -29,7 +30,25 @@ struct HauptView: View {
                 .tabItem { Label(tr("Ich"), systemImage: "person.text.rectangle") }
                 .tag("ausweis")
         }
-        .task { await model.refresh() }
+        .task {
+            model.checkStaleQuarantine()
+            await model.refresh()
+        }
+        // Alte Vorgänge aus beendeten Verbindungen (APP-04, FQ24): exportieren oder löschen
+        .alert(
+            tr("Alte Vorgänge"),
+            isPresented: Binding(get: { model.staleQuarantine > 0 && exportURL == nil }, set: { if !$0 { model.staleQuarantine = 0 } })
+        ) {
+            Button(tr("Exportieren")) { exportURL = model.exportStaleQuarantine() }
+            Button(tr("Jetzt löschen"), role: .destructive) { model.deleteStaleQuarantine() }
+            Button(tr("Später"), role: .cancel) { model.staleQuarantine = 0 }
+        } message: {
+            Text(model.staleQuarantineText)
+        }
+        .sheet(item: Binding(get: { exportURL.map(ExportFile.init) }, set: { if $0 == nil { exportURL = nil } })) { file in
+            ShareLink(item: file.url) { Label(tr("Exportieren"), systemImage: "square.and.arrow.up") }
+                .padding()
+        }
         .onChange(of: model.showEvents) { _, _ in tab = "termine" }
         // Verwaltung: nach mehr als einer Minute im Hintergrund neu entsperren
         .onChange(of: phase) { _, now in model.sceneChanged(active: now == .active) }
@@ -285,3 +304,10 @@ struct KontoView: View {
             }
     }
 }
+
+/// Datei zum Teilen (für `.sheet(item:)`)
+struct ExportFile: Identifiable {
+    let url: URL
+    var id: String { url.path }
+}
+

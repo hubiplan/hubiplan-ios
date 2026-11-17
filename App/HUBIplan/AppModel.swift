@@ -16,6 +16,8 @@ final class AppModel: ObservableObject {
     @Published private(set) var accounts = AccountList()
     /// Ein weiteres Konto wird gerade verbunden (Blatt über „Mein Konto“)
     @Published var adding = false
+    /// Alte Vorgänge in der Quarantäne (älter als 90 Tage): Rückfrage mit Export (FQ24, APP-04)
+    @Published var staleQuarantine = 0
     @Published var accesses: [PortalAccess] = []
     @Published var accessId: Int?
     @Published var events: [Occurrence] = []
@@ -288,6 +290,41 @@ final class AppModel: ObservableObject {
             let box = quarantineBox(id)
             if DraftQuarantine.expired(box.files) { box.clear() }
         }
+    }
+
+    private static var quarantineBoxes: [DraftBox] { EntwurfsOrdner.quarantineIds().map(quarantineBox) }
+
+    /// Rückfrage zu alten Vorgängen: wie viele und wann sie endgültig gelöscht werden.
+    var staleQuarantineText: String {
+        let date = DraftQuarantine.finalDeletion(Self.quarantineBoxes).map {
+            $0.formatted(date: .numeric, time: .omitted)
+        } ?? ""
+        return tr(
+            "{anzahl} nicht gesendete Vorgänge liegen seit über 90 Tagen auf diesem Gerät, weil die Verbindung beendet wurde. Sie werden am {datum} gelöscht. Vorher exportieren?",
+            ["anzahl": "\(staleQuarantine)", "datum": date]
+        )
+    }
+
+    func checkStaleQuarantine() {
+        staleQuarantine = Demo.active ? 0 : DraftQuarantine.staleCount(Self.quarantineBoxes)
+    }
+
+    /// Alte Vorgänge als Datei zum Teilen (nach dem Teilen löscht das System sie mit dem Cache).
+    func exportStaleQuarantine() -> URL? {
+        guard let (data, _) = DraftQuarantine.exportStale(Self.quarantineBoxes) else { return nil }
+        let url = FileManager.default.temporaryDirectory.appendingPathComponent("hubiplan-belege.json")
+        do {
+            try data.write(to: url, options: [.atomic, .completeFileProtection])
+            return url
+        } catch {
+            return nil
+        }
+    }
+
+    /// Nach Zustimmung: alte Vorgänge jetzt löschen.
+    func deleteStaleQuarantine() {
+        for box in Self.quarantineBoxes where DraftQuarantine.staleCount([box]) > 0 { box.clear() }
+        staleQuarantine = 0
     }
 
     // MARK: Daten

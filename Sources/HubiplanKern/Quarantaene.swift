@@ -7,7 +7,10 @@ import Foundation
 /// derselben Instanz wieder, kommen sie zurück; ein anderes Konto bekommt nichts. Nach
 /// `finalDays` werden sie gelöscht.
 public enum DraftQuarantine {
-    /// Wie Android `FINAL_DAYS`
+    /// Wie Android `STALE_DAYS`: danach fragt die App, ob die Vorgänge gelöscht werden dürfen,
+    /// und bietet einen Export an (Fachfrage FQ24)
+    public static let staleDays = 90
+    /// Wie Android `FINAL_DAYS`: spätestens dann löscht die App auch ohne Zustimmung
     public static let finalDays = 120
     static let ownerName = "konto.json"
 
@@ -49,6 +52,63 @@ public enum DraftQuarantine {
         let moved = quarantine.move(to: box)
         if quarantine.files.names().allSatisfy({ $0 == ownerName }) { quarantine.clear() }
         return moved
+    }
+
+    private static let day: Double = 24 * 3600
+
+    private static func entries(_ files: DraftFiles) -> [String] {
+        files.names().filter { $0 != ownerName && !$0.hasSuffix(".tmp") }
+    }
+
+    private static func older(_ files: DraftFiles, than days: Int, now: Date) -> Bool {
+        guard let who = owner(files) else { return true }
+        return now.timeIntervalSince(who.since) > Double(days) * day
+    }
+
+    /// Vorgänge in Quarantänen, die älter als `staleDays` sind (für die Rückfrage).
+    public static func staleCount(_ boxes: [DraftBox], now: Date = Date()) -> Int {
+        boxes.filter { older($0.files, than: staleDays, now: now) }.map { entries($0.files).count }.reduce(0, +)
+    }
+
+    /// Wann die ältesten Vorgänge der Rückfrage endgültig gelöscht werden (nil: keine alten).
+    public static func finalDeletion(_ boxes: [DraftBox], now: Date = Date()) -> Date? {
+        boxes.filter { older($0.files, than: staleDays, now: now) }
+            .compactMap { owner($0.files)?.since }
+            .min()
+            .map { $0.addingTimeInterval(Double(finalDays) * day) }
+    }
+
+    /// Alte Vorgänge (älter als `staleDays`) entschlüsselt als JSON, um sie vor dem Löschen zu
+    /// teilen oder zu sichern (Fachfrage FQ24); Aufbau wie Android `exportStale`. nil, wenn sich
+    /// nichts öffnen ließ. Zweites Ergebnis: Zahl der Vorgänge.
+    public static func exportStale(_ boxes: [DraftBox], now: Date = Date()) -> (Data, Int)? {
+        var items: [[String: Any]] = []
+        for box in boxes where older(box.files, than: staleDays, now: now) {
+            let who = owner(box.files)
+            guard let key = box.key(create: false) else { continue }
+            for name in entries(box.files) {
+                guard let sealed = box.files.read(name), let sealedBox = try? AES.GCM.SealedBox(combined: sealed),
+                      let plain = try? AES.GCM.open(sealedBox, using: key)
+                else { continue }
+                let content: Any = (try? JSONSerialization.jsonObject(with: plain)) ?? String(decoding: plain, as: UTF8.self)
+                items.append([
+                    "art": name.hasSuffix(DraftBox.receiptEnding) ? "quittungen" : "entwuerfe",
+                    "server": who?.server ?? "",
+                    "konto": who?.email ?? "",
+                    "inhalt": content,
+                ])
+            }
+        }
+        guard !items.isEmpty else { return nil }
+        let doc: [String: Any] = [
+            "hinweis": tr("Nicht gesendete Vorgänge aus HUBIplan. Enthält Namen und Beträge; nach der Übergabe an den Verein bitte löschen."),
+            "exportiert": ISO8601DateFormatter().string(from: now),
+            "vorgaenge": items,
+        ]
+        guard let data = try? JSONSerialization.data(withJSONObject: doc, options: [.prettyPrinted, .sortedKeys]) else {
+            return nil
+        }
+        return (data, items.count)
     }
 
     /// Abgelaufen (älter als `finalDays`)?

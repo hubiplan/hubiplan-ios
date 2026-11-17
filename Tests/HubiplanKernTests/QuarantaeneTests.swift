@@ -55,4 +55,38 @@ final class QuarantaeneTests: XCTestCase {
         XCTAssertTrue(DraftQuarantine.expired(quarantaene.files))
         XCTAssertFalse(DraftQuarantine.expired(quarantaene.files, now: alt.addingTimeInterval(24 * 3600)))
     }
+
+    // Rückfrage nach 90 Tagen mit Export (Fachfrage FQ24), Fälle wie Android
+
+    private func alteQuarantaene(tage: Int, email: String = "e@example.org") -> DraftBox {
+        let q = box()
+        let since = Date().addingTimeInterval(-Double(tage) * 24 * 3600)
+        DraftQuarantine.retire(gefuellt(), into: q, owner: .init(server: server, email: email, since: since), files: q.files)
+        return q
+    }
+
+    func testRueckfrageErstNach90Tagen() {
+        let jung = alteQuarantaene(tage: 10)
+        let alt = alteQuarantaene(tage: 91)
+        XCTAssertEqual(DraftQuarantine.staleCount([jung]), 0)
+        XCTAssertEqual(DraftQuarantine.staleCount([jung, alt]), 2)
+        let ende = try? XCTUnwrap(DraftQuarantine.finalDeletion([jung, alt]))
+        let erwartet = Date().addingTimeInterval(-91 * 24 * 3600 + 120 * 24 * 3600)
+        XCTAssertEqual(ende?.timeIntervalSince1970 ?? 0, erwartet.timeIntervalSince1970, accuracy: 5)
+        XCTAssertNil(DraftQuarantine.finalDeletion([jung]))
+    }
+
+    func testExportEnthaeltNurAlteVorgaenge() throws {
+        Texte.language = "de"
+        let jung = alteQuarantaene(tage: 10, email: "jung@example.org")
+        let alt = alteQuarantaene(tage: 91, email: "alt@example.org")
+        let (data, anzahl) = try XCTUnwrap(DraftQuarantine.exportStale([jung, alt]))
+        XCTAssertEqual(anzahl, 2)
+        let doc = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let items = try XCTUnwrap(doc["vorgaenge"] as? [[String: Any]])
+        XCTAssertEqual(Set(items.compactMap { $0["konto"] as? String }), ["alt@example.org"])
+        XCTAssertEqual(Set(items.compactMap { $0["art"] as? String }), ["entwuerfe", "quittungen"])
+        XCTAssertTrue((doc["hinweis"] as? String ?? "").contains("bitte löschen"))
+        XCTAssertNil(DraftQuarantine.exportStale([jung]))
+    }
 }
