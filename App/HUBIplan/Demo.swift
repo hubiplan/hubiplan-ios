@@ -9,7 +9,7 @@ enum Demo {
     /// Reiter, der beim Start offen sein soll (`-reiter mitteilungen`, `aufgaben`, `noten`, `ausweis`, `konto`).
     static var tab: String { UserDefaults.standard.string(forKey: "reiter") ?? "termine" }
 
-    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `live`, `ergebnisse`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `akte`, `ehrung`, `zusatzfelder`, `bank`, `aufnahme`, `dubletten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `entwuerfe`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`), im Reiter „Neues“ das Senden (`-abschnitt senden`).
+    /// Abschnitt im Reiter „Ich“, zu dem die Ansicht springt (`-abschnitt rechnungen`, `versammlungen`, `live`, `ergebnisse`, `dokumente`, `verwaltung`, `freischalten`, `offen`, `meldungen`, `mitglieder`, `mitglied`, `stammdaten`, `austritt`, `folgen`, `akte`, `ehrung`, `zusatzfelder`, `bank`, `aufnahme`, `dubletten`, `anlaesse`, `ausweispruefung`, `vtermine`, `vtermin`, `neuertermin`, `kasse`, `buchung`, `neuebuchung`, `quittung`, `entwuerfe`, `vrechnungen`, `vrechnung`, `vaufgaben`, `vaufgabe`, `neueaufgabe`, `partner`, `qualifikationen`, `fristen`, `frist`, `wettbewerbe`, `standcode`), im Reiter „Aufgaben“ die Helferdienste (`-abschnitt helfer`), im Reiter „Neues“ das Senden (`-abschnitt senden`), im Reiter „Termine“ ein Termin (`-abschnitt termin`).
     static var section: String { UserDefaults.standard.string(forKey: "abschnitt") ?? "" }
     /// Abschnitte, die eine Mitgliedsakte öffnen, und solche für „Neues Mitglied“
     static let akteAbschnitte = ["mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank"]
@@ -329,12 +329,39 @@ struct DemoTransport: Transport {
         return HttpResponse(status: 200, body: Data(body.utf8))
     }
 
+    /// Termin im Mitgliederbereich mit allen Angaben; Zu- und Absage antworten mit dem neuen Stand.
+    private func terminDetail(_ path: String, _ method: String, english: Bool) -> HttpResponse {
+        let t = english
+            ? ["Platoon meeting", "Clubhouse", "Musterweg 1, 41468 Musterstadt", "Parking behind the hall.", "Platoon 1",
+               "We plan the summer fair and elect the platoon leadership. Afterwards we sit together.", "Agenda.pdf",
+               "Are you bringing a salad?", "Pasta salad"]
+            : ["Zugversammlung", "Vereinsheim", "Musterweg 1, 41468 Musterstadt", "Parkplätze hinter der Halle.", "Zug 1",
+               "Wir planen das Sommerfest und wählen die Zugführung. Danach sitzen wir gemütlich zusammen.", "Tagesordnung.pdf",
+               "Bringst du einen Salat mit?", "Nudelsalat"]
+        if path.contains("/attachments/") {
+            return HttpResponse(status: 200, body: Data("%PDF-1.4\n%%EOF\n".utf8))
+        }
+        var mine = "null"
+        if method == "PUT" {
+            mine = #"{"status":"yes","guests":1,"note":"\#(t[8])"}"#
+        }
+        let body = """
+        {"id":1,"title":"\(t[0])","description":"\(t[5])","location":"\(t[1])","address":"\(t[2])","directions":"\(t[3])",
+        "latitude":51.2,"longitude":6.68,"map_links":{"osm":"https://www.openstreetmap.org/directions?to=51.2%2C6.68","google":"https://www.google.com/maps/dir/?api=1&destination=51.2%2C6.68"},
+        "starts_at":"\(day(3, "19:30"))","ends_at":"\(day(3, "21:30"))","owner":"\(t[4])",
+        "attachments":[{"id":1,"name":"\(t[6])","content_type":"application/pdf","file_name":"\(t[6])"}],
+        "rsvp":{"enabled":true,"deadline":"\(day(2, "18:00"))","capacity":40,"free":28,"guests_allowed":true,"max_guests":2,
+        "maybe_allowed":true,"note_allowed":true,"note_question":"\(t[7])","can_respond":true,"reason":"","mine":\(mine)}}
+        """
+        return HttpResponse(status: 200, body: Data(body.utf8))
+    }
+
     func send(_ request: HttpRequest) async throws -> HttpResponse {
         let path = URLComponents(string: request.url)?.path ?? ""
         let english = Texte.language == "en"
         let body: String
         if path.hasSuffix("/me/") {
-            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","modules":["events","circulars","card","billing","todos","helpers","meetings","docs","music","scores","competitions","entries"],"musician":true,"bookings_enabled":true}]}"#
+            body = #"{"user":{"email":"erika@example.org","display":"Erika Musterfrau"},"device":{"id":1,"name":"iPhone","platform":"ios","current":true},"portal":[{"id":1,"club_name":"Schützenverein Musterstadt","first_name":"Erika","last_name":"Musterfrau","modules":["events","circulars","card","billing","todos","helpers","meetings","docs","music","scores","competitions","entries"],"musician":true,"bookings_enabled":true},{"id":2,"club_name":"Schützenverein Musterstadt","first_name":"Lena","last_name":"Musterfrau","modules":["events","circulars","card"]}]}"#
         } else if path.hasSuffix("/api/app/v1/send/") {
             body = #"{"senders":[{"key":"org-1","name":"Schützenverein Musterstadt","type":"org","id":1},{"key":"dept-9","name":"\#(english ? "Platoon 1" : "Zug 1")","type":"dept","id":9,"club":"Schützenverein Musterstadt"}],"max_body":500}"#
         } else if path.hasSuffix("/api/app/v1/admin/") {
@@ -447,6 +474,8 @@ struct DemoTransport: Transport {
             "cancellation":{"enabled":true,"possible":true,"earliest_date":"\(Calendar.current.component(.year, from: Date()) + 1)-12-31",
             "rule":"\(english ? "with three months' notice to the end of the financial year" : "mit einer Frist von 3 Monaten zum Ende des Geschäftsjahres")","planned_exit":null,"requests":[]}}
             """
+        } else if path.hasPrefix("/api/portal/1/events/"), !path.hasSuffix("/events/") {
+            return terminDetail(path, request.method, english: english)
         } else if path.hasSuffix("/events/") {
             let titles = english
                 ? ["Platoon meeting", "Shooting practice", "Christmas party", "General assembly"]

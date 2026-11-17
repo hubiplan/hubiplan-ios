@@ -29,7 +29,7 @@ struct VerwaltungView: View {
                 }
             } else if !model.adminLoaded {
                 // Die Übersicht ist noch unterwegs: kein Fehlertext, bevor die Antwort da ist
-                ProgressView()
+                Laedt()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .task { await model.loadAdmin() }
             } else {
@@ -96,7 +96,7 @@ struct VerwaltungSchutz<Inhalt: View>: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(tr("Zum Öffnen mit Face ID, Touch ID oder Gerätecode entsperren."))
-                    if let message = model.adminError { Text(message).foregroundStyle(.red) }
+                    if let message = model.adminError { MeldungText(message, .fehler) }
                     Button(tr("Entsperren")) { Task { await model.openAdmin() } }
                         .buttonStyle(.borderedProminent)
                         .disabled(model.adminBusy || !model.adminSealed)
@@ -138,7 +138,7 @@ private struct Freischalten: View {
                             }
                         }
                     } label: {
-                        if model.adminBusy { ProgressView() } else { Label(tr("Mit Passkey freischalten"), systemImage: "person.badge.key") }
+                        if model.adminBusy { Laedt() } else { Label(tr("Mit Passkey freischalten"), systemImage: "person.badge.key") }
                     }
                     .disabled(model.adminBusy)
                 } header: {
@@ -165,7 +165,7 @@ private struct Freischalten: View {
                 }
             }
             if let message = model.adminError {
-                Section { Text(message).foregroundStyle(.red) }
+                Section { MeldungText(message, .fehler) }
             }
             if !Demo.active && !VerwaltungTresor.deviceLock {
                 Section {
@@ -181,7 +181,7 @@ private struct Freischalten: View {
                         code = ""
                         Task { await model.unlockAdmin(password: entered.0, code: entered.1) }
                     } label: {
-                        if model.adminBusy { ProgressView() } else { Text(tr("Freischalten")) }
+                        if model.adminBusy { Laedt() } else { Text(tr("Freischalten")) }
                     }
                     .disabled(model.adminBusy || password.isEmpty || code.count < 6)
                 }
@@ -443,7 +443,7 @@ struct OffenePunkteView: View {
                         }
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }
@@ -521,7 +521,7 @@ struct MitgliederView: View {
                         Text(trn("1 Mitglied", "{n} Mitglieder", count))
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: tr("Name oder Mitgliedsnummer"))
@@ -659,7 +659,7 @@ struct MitgliedView: View {
                     }
                     AkteMehr(unit: unit, member: member, daten: daten, blatt: $blatt) { await load(full: true) }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .task {
@@ -755,13 +755,13 @@ struct VerwaltungMeldung: View {
     var body: some View {
         if let message = model.adminError {
             Section {
-                Text(message).foregroundStyle(.red)
+                MeldungText(message, .fehler)
                 if let reload { Button(tr("Erneut laden")) { Task { await reload() } } }
             }
         }
         if let notice = model.adminNotice {
             Section {
-                Text(notice).foregroundStyle(.green)
+                MeldungText(notice, .gut)
                 if model.adminUndo != nil {
                     Button(tr("Rückgängig")) {
                         Task {
@@ -820,7 +820,7 @@ struct AenderungenView: View {
                         }
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }
@@ -895,8 +895,8 @@ private struct AusweisScan: View {
                         .foregroundStyle(Color.secondary)
                     Spacer()
                 }
-                if busy { ProgressView() }
-                if let error { Text(error).foregroundStyle(.red) }
+                if busy { Laedt() }
+                if let error { MeldungText(error, .fehler) }
             }
             .padding()
             .navigationTitle(tr("Ausweis prüfen"))
@@ -934,7 +934,7 @@ private struct AusweisErgebnis: View {
                 VStack(spacing: 12) {
                     Label(check.statusLabel, systemImage: check.valid ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
                         .font(.title2.weight(.semibold))
-                        .foregroundStyle(check.valid ? Color.green : Color.red)
+                        .foregroundStyle(check.valid ? Color.gutText : Color.fehlerText)
                     if let photo {
                         Image(uiImage: photo).resizable()
                             .aspectRatio(contentMode: check.isOrganization ? .fit : .fill)
@@ -993,7 +993,7 @@ private struct StammdatenBlatt: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 Section {
                     ForEach(keys, id: \.self) { key in
                         if key == "gender" {
@@ -1103,7 +1103,7 @@ struct AnlaesseView: View {
                         }
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }

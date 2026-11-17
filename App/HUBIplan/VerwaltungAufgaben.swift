@@ -36,7 +36,7 @@ struct AufgabenVerwaltungView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(todo.sharedText).font(.caption).foregroundStyle(Color.secondary)
                                     Text(todo.title)
-                                    Text(todo.dueText).font(.footnote).foregroundStyle(todo.urgent ? Color.red : Color.secondary)
+                                    Text(todo.dueText).font(.footnote).foregroundStyle(todo.urgent ? Color.fehlerText : Color.secondary)
                                 }
                             }
                         }
@@ -44,7 +44,7 @@ struct AufgabenVerwaltungView: View {
                         Text(tr("Teilen, Anhänge und Serien verwaltest du im Browser."))
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }
@@ -105,7 +105,7 @@ struct AufgabeVerwaltungView: View {
                     Section {
                         Text(todo.title).font(.title3.weight(.semibold))
                         Text("\(todo.statusText) · \(todo.sharedText)")
-                        Text(todo.dueText).foregroundStyle(todo.urgent && !todo.done ? Color.red : Color.primary)
+                        Text(todo.dueText).foregroundStyle(todo.urgent && !todo.done ? Color.fehlerText : Color.primary)
                         if todo.dueTime != nil {
                             Text(tr("Zeitzone: {zone}", ["zone": todo.timezone])).font(.footnote).foregroundStyle(Color.secondary)
                         }
@@ -125,7 +125,7 @@ struct AufgabeVerwaltungView: View {
                         Text(tr("Teilen, Anhänge und Serien verwaltest du im Browser."))
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }
@@ -193,7 +193,7 @@ private struct NeueAufgabeBlatt: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 Section {
                     BeschriftetesFeld(label: tr("Titel"), text: $draft.title)
                     BeschriftetesFeld(label: tr("Beschreibung"), text: $draft.description, axis: .vertical)

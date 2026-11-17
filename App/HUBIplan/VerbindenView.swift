@@ -8,62 +8,38 @@ struct VerbindenView: View {
     @State private var link = ""
     @State private var scanning = false
     @State private var server = ""
+    @State private var email = ""
+    @State private var password = ""
+    @State private var code = ""
+    @State private var missing: [LoginField] = []
+    @FocusState private var focus: Feld?
     @Environment(\.webAuthenticationSession) private var webAuthentication
+    @Environment(\.openURL) private var openURL
+
+    private enum Feld: Hashable { case link, server, email, password, code }
 
     var body: some View {
         NavigationStack {
             Form {
                 Section {
                     Text(tr("Mit deinem Verein verbinden")).font(.title2.bold())
-                    Text(tr("Öffne HUBIplan im Browser: Mein Konto › App & andere Instanzen › App auf dem Telefon. Scanne den QR-Code mit der Kamera oder füge den Link hier ein."))
+                        .accessibilityAddTraits(.isHeader)
+                    Text(tr("Es gibt drei Wege. Nimm den, der für dich am einfachsten ist."))
                 }
-                if QrScanner.available {
-                    Section {
-                        Button {
-                            scanning = true
-                        } label: {
-                            Label(tr("QR-Code scannen"), systemImage: "qrcode.viewfinder")
-                        }
-                    }
+                if let message = model.linkError {
+                    Section { MeldungText(message, .fehler) }
                 }
-                Section {
-                    TextField(tr("Link aus dem QR-Code"), text: $link, axis: .vertical)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-                        .accessibilityIdentifier("link")
-                    if let message = model.linkError {
-                        Text(message).foregroundStyle(.red)
-                    }
-                    Button(tr("Verbinden")) { model.offer(link: link) }
-                        .disabled(link.trimmingCharacters(in: .whitespaces).isEmpty || model.loading)
-                        .accessibilityIdentifier("verbinden")
+                if model.pendingLogin != nil {
+                    zweiterFaktor
+                } else {
+                    passwortWeg
+                    browserWeg
+                    qrWeg
                 }
-                // Passkey: Anmeldung im eingebetteten Browser der Instanz (docs/app.md in hubiplan)
-                Section {
-                    TextField(tr("Adresse von HUBIplan"), text: $server, prompt: Text("verein.example.de"))
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                        .keyboardType(.URL)
-                        .textContentType(.URL)
-                        .accessibilityIdentifier("server")
-                    Button {
-                        Task { await passkey() }
-                    } label: {
-                        Label(tr("Mit Passkey anmelden"), systemImage: "person.badge.key")
-                    }
-                    .disabled(server.trimmingCharacters(in: .whitespaces).isEmpty || model.loading)
-                    .accessibilityIdentifier("passkey")
-                } footer: {
-                    Text(tr("Öffnet die Anmeldeseite deines Vereins. Melde dich dort mit deinem Passkey an und tippe auf „Verbinden“."))
-                }
-                Section {
-                    Text(tr("Version {version}", ["version": AppModel.version]))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
+                UeberDieApp()
             }
             .navigationTitle("HUBIplan")
+            .disabled(model.loading)
             .alert(
                 tr("Bei dieser Adresse anmelden?"),
                 isPresented: Binding(
@@ -81,7 +57,7 @@ struct VerbindenView: View {
                 // Schon verbundene Adresse: ohne Rückfrage
                 if let start, model.isKnown(server: start) { startBrowser() }
             }
-            .overlay { if model.loading { ProgressView() } }
+            .overlay { if model.loading { Laedt(text: tr("Wird verbunden …")) } }
             .sheet(isPresented: $scanning) {
                 QrScanner { text in
                     scanning = false
@@ -92,12 +68,158 @@ struct VerbindenView: View {
             .toolbar {
                 if model.adding {
                     ToolbarItem(placement: .cancellationAction) {
-                        Button(tr("Abbrechen")) { model.adding = false }
+                        Button(tr("Abbrechen")) {
+                            model.pendingLogin = nil
+                            model.adding = false
+                        }
                     }
                 }
             }
             .verbindenFrage(aktiv: true)
         }
+    }
+
+    /// Weg 1: E-Mail und Passwort (wie in der Android-App)
+    @ViewBuilder
+    private var passwortWeg: some View {
+        Section {
+            TextField(tr("Adresse von HUBIplan"), text: $server, prompt: Text("verein.example.de"))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+                .textContentType(.URL)
+                .submitLabel(.next)
+                .focused($focus, equals: .server)
+                .onSubmit { focus = .email }
+                .accessibilityIdentifier("server")
+            if missing.contains(.server) {
+                MeldungText(tr("Bitte die Adresse von HUBIplan angeben, z. B. verein.example.de."), .fehler).font(.footnote)
+            }
+            TextField(tr("E-Mail"), text: $email)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.emailAddress)
+                .textContentType(.username)
+                .submitLabel(.next)
+                .focused($focus, equals: .email)
+                .onSubmit { focus = .password }
+            if missing.contains(.email) {
+                MeldungText(tr("Bitte deine E-Mail-Adresse eingeben."), .fehler).font(.footnote)
+            }
+            SecureField(tr("Passwort"), text: $password)
+                .textContentType(.password)
+                .submitLabel(.go)
+                .focused($focus, equals: .password)
+                .onSubmit { anmelden() }
+            if missing.contains(.password) {
+                MeldungText(tr("Bitte dein Passwort eingeben."), .fehler).font(.footnote)
+            }
+            Button(tr("Anmelden")) { anmelden() }
+                .accessibilityIdentifier("anmelden")
+            if let reset = Anmeldung.passwordReset(server: server) {
+                Button(tr("Passwort vergessen? Im Browser zurücksetzen")) { openURL(reset) }
+                    .font(.footnote)
+            }
+        } header: {
+            Text(tr("Mit E-Mail und Passwort"))
+        } footer: {
+            Text(tr("Dieselben Zugangsdaten wie auf der Seite deines Vereins. Die App merkt sich dein Passwort nicht."))
+        }
+    }
+
+    /// Zweiter Faktor nach der Anmeldung mit Passwort
+    @ViewBuilder
+    private var zweiterFaktor: some View {
+        Section {
+            Text(tr("Bitte den Code aus deiner Authenticator-App oder einen Wiederherstellungscode eingeben."))
+            TextField(tr("Code"), text: $code)
+                .textContentType(.oneTimeCode)
+                .keyboardType(.asciiCapable)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.go)
+                .focused($focus, equals: .code)
+                .onSubmit { pruefen() }
+            Button(tr("Bestätigen")) { pruefen() }
+                .disabled(code.trimmingCharacters(in: .whitespaces).isEmpty)
+            Button(tr("Zurück"), role: .cancel) {
+                model.pendingLogin = nil
+                code = ""
+            }
+        } header: {
+            Text(tr("Zweiter Schritt"))
+        }
+        .onAppear { focus = .code }
+    }
+
+    /// Weg 2: Anmeldeseite des Vereins im Browser (Passwort oder Passkey)
+    @ViewBuilder
+    private var browserWeg: some View {
+        Section {
+            Button {
+                Task { await passkey() }
+            } label: {
+                Label(tr("Im Browser anmelden"), systemImage: "safari")
+            }
+            .accessibilityIdentifier("passkey")
+        } header: {
+            Text(tr("Im Browser"))
+        } footer: {
+            Text(tr("Mit Passwort oder Passkey auf der Seite deines Vereins (Adresse oben eintragen); danach kommst du automatisch zurück."))
+        }
+    }
+
+    /// Weg 3: QR-Code oder Link aus „Mein Konto“ im Browser
+    @ViewBuilder
+    private var qrWeg: some View {
+        Section {
+            if QrScanner.available {
+                Button {
+                    scanning = true
+                } label: {
+                    Label(tr("QR-Code von einem anderen Bildschirm scannen"), systemImage: "qrcode.viewfinder")
+                }
+            }
+            TextField(tr("Link aus dem QR-Code"), text: $link, axis: .vertical)
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .keyboardType(.URL)
+                .submitLabel(.go)
+                .focused($focus, equals: .link)
+                .onSubmit { model.offer(link: link) }
+                .accessibilityIdentifier("link")
+            Button(tr("Verbinden")) { model.offer(link: link) }
+                .disabled(link.trimmingCharacters(in: .whitespaces).isEmpty)
+                .accessibilityIdentifier("verbinden")
+        } header: {
+            Text(tr("Mit QR-Code"))
+        } footer: {
+            Text(tr("Öffne HUBIplan im Browser: Mein Konto › App & andere Instanzen › App auf dem Telefon. Scanne den QR-Code oder kopiere den Link. Nur ein Telefon? Tippe dort auf „In der HUBIplan-App öffnen“."))
+        }
+    }
+
+    private func anmelden() {
+        missing = Anmeldung.missing(server: server, email: email, password: password)
+        if let first = missing.first {
+            switch first {
+            case .server: focus = .server
+            case .email: focus = .email
+            case .password: focus = .password
+            }
+            return
+        }
+        focus = nil
+        let secret = password
+        Task {
+            await model.login(server: server, email: email, password: secret)
+            password = ""
+        }
+    }
+
+    private func pruefen() {
+        let entered = code
+        code = ""
+        Task { await model.loginCode(entered) }
     }
 
     /// Anmeldeseite der Adresse aus `hubiplan://anmelden` öffnen.
@@ -114,9 +236,11 @@ struct VerbindenView: View {
         let verifier = BrowserLogin.newVerifier()
         guard let url = BrowserLogin.url(server: server, challenge: BrowserLogin.challenge(verifier: verifier)),
               let origin = normalizeServer(server) else {
-            model.linkError = tr("Bitte die Adresse von HUBIplan angeben, z. B. verein.example.de.")
+            missing = [.server]
+            focus = .server
             return
         }
+        model.linkError = nil
         model.pendingVerifier = (server: origin, verifier: verifier)
         do {
             // Ohne gemeinsame Cookies mit Safari: es bleibt keine Browser-Sitzung zurück

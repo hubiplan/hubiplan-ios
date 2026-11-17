@@ -45,7 +45,7 @@ struct WettbewerbeView: View {
                     Text(tr("Im Standmodus erfasst du Punkte, tippst Treffer auf der Scheibe an oder lässt ein Foto auswerten, auch ohne Empfang. Neue Wettbewerbe legst du im Browser an."))
                 }
                 VerwaltungMeldung { await load() }
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 if let rows {
                     if rows.isEmpty {
                         Section {
@@ -73,7 +73,7 @@ struct WettbewerbeView: View {
                         .disabled(busy)
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }

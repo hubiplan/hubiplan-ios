@@ -21,7 +21,7 @@ struct AufnahmeBlatt: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 if let found {
                     dubletten(found)
                 } else {

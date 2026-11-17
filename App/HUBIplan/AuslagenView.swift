@@ -23,10 +23,10 @@ struct AuslagenView: View {
         let overview = model.expenses ?? ExpenseOverview()
         List {
             if let message = model.error {
-                Section { Text(message).foregroundStyle(.red) }
+                Section { MeldungText(message, .fehler) }
             }
             if let notice {
-                Section { Text(notice).foregroundStyle(.green) }
+                Section { MeldungText(notice, .gut) }
             }
             if !overview.options.maySubmit {
                 Section { Text(tr("Auslagen melden hier nur Personen mit Amt oder Rolle im Verein.")) }
@@ -52,7 +52,7 @@ struct AuslagenView: View {
                             .font(.headline)
                         Text(claim.line).font(.footnote).foregroundStyle(.secondary)
                         if claim.asksMe {
-                            Text(tr("Die Kasse hat eine Rückfrage.")).font(.footnote).foregroundStyle(.red)
+                            Text(tr("Die Kasse hat eine Rückfrage.")).font(.footnote).foregroundStyle(Color.fehlerText)
                         }
                     }
                 }
@@ -164,7 +164,7 @@ private struct AuslageFormular: View {
                 Text(tr("Auszahlung"))
             }
             if let failure {
-                Section { Text(failure).foregroundStyle(.red) }
+                Section { MeldungText(failure, .fehler) }
             }
             Section {
                 Button(tr("Einreichen")) { Task { await send(submit: true) } }
@@ -218,10 +218,10 @@ private struct AuslageView: View {
     var body: some View {
         List {
             if let failure {
-                Section { Text(failure).foregroundStyle(.red) }
+                Section { MeldungText(failure, .fehler) }
             }
             if let notice {
-                Section { Text(notice).foregroundStyle(.green) }
+                Section { MeldungText(notice, .gut) }
             }
             if let c = claim {
                 Section {
@@ -244,7 +244,7 @@ private struct AuslageView: View {
                 if c.asksMe {
                     Section {
                         if let question = c.question {
-                            Text(tr("Rückfrage der Kasse: {text}", ["text": question])).foregroundStyle(.red)
+                            Text(tr("Rückfrage der Kasse: {text}", ["text": question])).foregroundStyle(Color.fehlerText)
                         }
                         TextField(tr("Deine Antwort"), text: $answer, axis: .vertical)
                         Button(tr("Antwort senden")) {
@@ -305,7 +305,7 @@ private struct AuslageView: View {
                     }
                 }
             } else if failure == nil {
-                ProgressView()
+                Laedt()
             }
         }
         .navigationTitle(tr("Auslagen"))

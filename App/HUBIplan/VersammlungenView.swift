@@ -24,10 +24,10 @@ private struct Meldungen: View {
 
     var body: some View {
         if let message = model.error {
-            Section { Text(message).foregroundStyle(.red) }
+            Section { MeldungText(message, .fehler) }
         }
         if let notice = model.taskNotice {
-            Section { Text(notice).foregroundStyle(.green) }
+            Section { MeldungText(notice, .gut) }
         }
         if model.previewBusy {
             Section { Text(tr("Datei wird geladen …")).foregroundStyle(.secondary) }
@@ -49,7 +49,7 @@ struct VersammlungenView: View {
         List {
             Meldungen()
             if let scanProblem {
-                Section { Text(scanProblem).foregroundStyle(.red) }
+                Section { MeldungText(scanProblem, .fehler) }
             }
             if model.meetings?.isEmpty ?? true {
                 Text(tr("Zurzeit gibt es keine Einladung und kein Protokoll für dich.")).foregroundStyle(.secondary)
@@ -180,7 +180,7 @@ struct AntragBlatt: View {
             Form {
                 Section {
                     Text(meeting.title)
-                    if let message = model.error { Text(message).foregroundStyle(.red) }
+                    if let message = model.error { MeldungText(message, .fehler) }
                 }
                 Section(tr("Titel")) {
                     TextField(tr("Titel"), text: $title)

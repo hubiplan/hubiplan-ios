@@ -11,11 +11,11 @@ struct MitteilungenView: View {
         NavigationStack {
             List {
                 if let notice {
-                    Section { Text(notice).foregroundStyle(.green) }
+                    Section { MeldungText(notice, .gut) }
                 }
                 if let message = model.error {
                     Section {
-                        Text(message).foregroundStyle(.red)
+                        MeldungText(message, .fehler)
                         Button(tr("Erneut versuchen")) { Task { await model.refresh() } }
                     }
                 }
@@ -35,6 +35,7 @@ struct MitteilungenView: View {
                 }
             }
             .navigationTitle(tr("Neues"))
+            .zugangsWahl()
             .toolbar {
                 if let senders = model.senders, !senders.senders.isEmpty {
                     ToolbarItem(placement: .primaryAction) {
@@ -56,7 +57,7 @@ struct MitteilungenView: View {
                 }
             }
             .refreshable { await model.refresh() }
-            .overlay { if model.loading && model.circulars.isEmpty { ProgressView() } }
+            .overlay { if model.loading && model.circulars.isEmpty { Laedt() } }
         }
     }
 }

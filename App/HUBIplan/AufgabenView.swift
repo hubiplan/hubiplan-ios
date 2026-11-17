@@ -30,12 +30,12 @@ struct AufgabenView: View {
             List {
                 if let message = model.error {
                     Section {
-                        Text(message).foregroundStyle(.red)
+                        MeldungText(message, .fehler)
                         Button(tr("Erneut versuchen")) { Task { await model.refreshTasks() } }
                     }
                 }
                 if let notice = model.taskNotice {
-                    Section { Text(notice).foregroundStyle(.green) }
+                    Section { MeldungText(notice, .gut) }
                 }
                 if both {
                     Picker(tr("Aufgaben"), selection: $helpers) {
@@ -55,6 +55,7 @@ struct AufgabenView: View {
                 }
             }
             .navigationTitle(showHelpers ? tr("Helferdienste") : tr("Aufgaben"))
+            .zugangsWahl()
             .navigationDestination(for: Int.self) { id in AufgabeView(id: id) }
             .refreshable { await model.refreshTasks() }
             .task { await model.refreshTasks() }
@@ -98,10 +99,10 @@ struct AufgabeView: View {
         List {
             if let todo = model.todos.first(where: { $0.id == id }) {
                 if let message = model.error {
-                    Section { Text(message).foregroundStyle(.red) }
+                    Section { MeldungText(message, .fehler) }
                 }
                 if let notice = model.taskNotice {
-                    Section { Text(notice).foregroundStyle(.green) }
+                    Section { MeldungText(notice, .gut) }
                 }
                 Section {
                     Text(todo.title).font(.title3.bold())

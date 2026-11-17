@@ -58,6 +58,19 @@ final class VersammlungLiveTests: XCTestCase {
         XCTAssertEqual(state.polls[1].result?.map(\.votes), [12, 1])
     }
 
+    /// IOS-03: Eine beim Nachfragen eröffnete Abstimmung wird angesagt, nur einmal und nur mit offener Stimme.
+    func testNeueAbstimmungAnsagen() throws {
+        let jetzt = try JSONDecoder().decode(MeetingLive.self, from: Data(stand.utf8))
+        var vorher = jetzt
+        vorher.polls[0].status = "closed"
+        XCTAssertEqual(neueAbstimmungAnsage(vorher: vorher, jetzt: jetzt), "Abstimmung eröffnet: 7. Entlastung")
+        XCTAssertNil(neueAbstimmungAnsage(vorher: jetzt, jetzt: jetzt))
+        XCTAssertNil(neueAbstimmungAnsage(vorher: nil, jetzt: jetzt))
+        var abgestimmt = jetzt
+        abgestimmt.polls[0].votes = []
+        XCTAssertNil(neueAbstimmungAnsage(vorher: vorher, jetzt: abgestimmt))
+    }
+
     func testStandTexte() throws {
         var state = try JSONDecoder().decode(MeetingLive.self, from: Data(stand.utf8))
         state.status = "present"

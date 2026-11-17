@@ -46,7 +46,7 @@ struct ErgebnisseView: View {
         List {
             if let error {
                 Section {
-                    Text(error).foregroundStyle(.red)
+                    MeldungText(error, .fehler)
                     Button(tr("Erneut laden")) { Task { await load() } }
                 }
             }
@@ -77,7 +77,7 @@ struct ErgebnisseView: View {
                         Button(tr("Alle {size} Wettbewerbe zeigen", ["size": results.starts.count])) { all = true }
                     }
                 } else if error == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             }
@@ -140,7 +140,7 @@ private struct RanglisteView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            if let error { Text(error).foregroundStyle(.red) }
+            if let error { MeldungText(error, .fehler) }
             if let detail {
                 if !detail.final {
                     Text(detail.live ? tr("Läuft noch – der Stand aktualisiert sich selbst.") : tr("Vorläufiges Ergebnis"))
@@ -206,7 +206,7 @@ struct MitarbeiterView: View {
         List {
             if let error {
                 Section {
-                    Text(error).foregroundStyle(.red)
+                    MeldungText(error, .fehler)
                     Button(tr("Erneut laden")) { Task { await load() } }
                 }
             }
@@ -235,7 +235,7 @@ struct MitarbeiterView: View {
                     Text(tr("Die Zahlung für jemanden beenden geht im Browser.")).font(.footnote).foregroundStyle(.secondary)
                 }
             } else if error == nil {
-                ProgressView()
+                Laedt()
             }
         }
         .navigationTitle(tr("Mitarbeiter"))
@@ -280,8 +280,8 @@ private struct MitarbeiterMelden: View {
             TextField(tr("E-Mail"), text: $email)
                 .textContentType(.emailAddress).keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
-            if let problem { Text(problem).foregroundStyle(.red) }
-            if let message { Text(message).foregroundStyle(.green) }
+            if let problem { MeldungText(problem, .fehler) }
+            if let message { MeldungText(message, .gut) }
             Button(busy ? tr("Wird gesendet …") : tr("Melden")) { Task { await report() } }
                 .buttonStyle(.borderedProminent)
                 .disabled(busy || !ready)
@@ -335,7 +335,7 @@ struct WalletKnopf: View {
                 .disabled(busy)
                 Text(tr("Der Wallet-Pass zeigt deinen Ausweis an. Ob er gilt, zeigt nur die Prüfung des QR-Codes."))
                     .font(.footnote).foregroundStyle(.secondary)
-                if let error { Text(error).font(.footnote).foregroundStyle(.red) }
+                if let error { MeldungText(error, .fehler).font(.footnote) }
             }
             .sheet(isPresented: Binding(get: { pass != nil }, set: { if !$0 { pass = nil } })) {
                 if let pass { PassBlatt(pass: pass).ignoresSafeArea() }

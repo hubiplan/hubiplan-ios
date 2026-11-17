@@ -63,31 +63,34 @@ struct HauptView: View {
             model.linkError ?? "",
             isPresented: Binding(get: { !model.adding && model.linkError != nil }, set: { if !$0 { model.linkError = nil } })
         ) {
-            Button(tr("Schließen"), role: .cancel) { model.linkError = nil }
+            Button(tr("Schließen"), role: .cancel) {
+                model.linkError = nil
+                model.retiredDrafts = 0
+            }
+        } message: {
+            if model.retiredDrafts > 0 {
+                Text(trn(
+                    "1 nicht gesendeter Vorgang der Kasse bleibt verschlüsselt auf diesem iPhone. Er kommt zurück, wenn du dasselbe Konto wieder verbindest.",
+                    "{n} nicht gesendete Vorgänge der Kasse bleiben verschlüsselt auf diesem iPhone. Sie kommen zurück, wenn du dasselbe Konto wieder verbindest.",
+                    model.retiredDrafts
+                ))
+            }
         }
     }
 }
 
 struct TermineView: View {
     @EnvironmentObject private var model: AppModel
+    /// Vorführmodus: `-abschnitt termin` öffnet gleich das Detail eines Termins
+    @State private var path: [String] = Demo.active && Demo.section == "termin" ? ["1"] : []
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             List {
                 if let message = model.error {
                     Section {
-                        Text(message).foregroundStyle(.red)
+                        MeldungText(message, .fehler)
                         Button(tr("Erneut versuchen")) { Task { await model.refresh() } }
-                    }
-                }
-                if model.accesses.count > 1 {
-                    Picker(tr("Verein"), selection: Binding(
-                        get: { model.access?.id ?? 0 },
-                        set: { id in Task { await model.choose(access: id) } }
-                    )) {
-                        ForEach(model.accesses) { access in
-                            Text(access.clubDisplayName.isEmpty ? access.clubName : access.clubDisplayName).tag(access.id)
-                        }
                     }
                 }
                 if model.accesses.isEmpty && !model.loading && model.error == nil {
@@ -101,82 +104,130 @@ struct TermineView: View {
                 }
             }
             .navigationTitle(tr("Termine"))
+            .navigationDestination(for: String.self) { key in
+                if let event = model.events.first(where: { $0.key == key }) {
+                    TerminDetailView(event: event, series: model.events.filter { $0.eventId == event.eventId }.count > 1)
+                } else {
+                    Text(tr("Diesen Termin gibt es nicht mehr.")).foregroundStyle(.secondary)
+                }
+            }
+            .zugangsWahl()
             .refreshable { await model.refresh() }
-            .overlay { if model.loading && model.events.isEmpty { ProgressView() } }
+            .overlay { if model.loading && model.events.isEmpty { Laedt() } }
         }
     }
 }
 
+/// Wann ein Termin ist (Liste und Detail).
+func terminWann(_ event: Occurrence) -> String {
+    guard let start = event.start else { return event.startsAt }
+    // Ganztägige Termine zählen als Kalendertag in deutscher Zeit
+    if event.allDay { return terminZeit(event.startsAt, event.endsAt, allDay: true) }
+    let day = start.formatted(.dateTime.weekday(.abbreviated).day().month().year().locale(Texte.locale))
+    return day + " · " + start.formatted(.dateTime.hour().minute().locale(Texte.locale))
+}
+
+/// Termin in der Liste: antippen öffnet das Detail mit allen Angaben und Antworten (IOS-04).
+/// Fehlt die Rückmeldung noch, stehen „Zusagen“ und „Absagen“ gleich in der Zeile; Ergebnis
+/// oder Fehler stehen darunter, an der Zeile (IOS-01, IOS-02).
 struct TerminZeile: View {
     @EnvironmentObject private var model: AppModel
     let event: Occurrence
 
-    private var when: String {
-        guard let start = event.start else { return event.startsAt }
-        // Ganztägige Termine zählen als Kalendertag in deutscher Zeit
-        if event.allDay { return terminZeit(event.startsAt, event.endsAt, allDay: true) }
-        let day = start.formatted(.dateTime.weekday(.abbreviated).day().month().year().locale(Texte.locale))
-        return day + " · " + start.formatted(.dateTime.hour().minute().locale(Texte.locale))
-    }
-
     private var status: String? {
-        if event.isCancelled { return tr("Abgesagt") }
-        guard event.rsvpEnabled else { return nil }
-        switch event.myResponse {
-        case "yes": return tr("Zugesagt")
-        case "no": return tr("Abgelehnt")
-        case "maybe": return tr("Vielleicht")
-        default: return tr("Rückmeldung fehlt")
-        }
+        Rueckmeldung.abzeichen(abgesagt: event.isCancelled, rsvp: event.rsvpEnabled, antwort: event.myResponse)
     }
 
     private var statusSymbol: String? {
-        guard !event.isCancelled else { return nil }
+        guard !event.isCancelled else { return "xmark.octagon" }
         switch event.myResponse {
         case "yes": return "checkmark"
         case "no": return "xmark"
-        default: return nil
+        case "maybe": return "questionmark"
+        default: return event.rsvpEnabled ? "exclamationmark" : nil
         }
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            HStack(alignment: .top, spacing: 12) {
-                DatumKaestchen(iso: event.startsAt, gedaempft: event.isCancelled)
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(event.title)
-                        .font(.headline)
-                        .strikethrough(event.isCancelled)
-                    Text(when).font(.subheadline)
-                    if !event.location.isEmpty {
-                        Text(event.location).font(.subheadline).foregroundStyle(.secondary)
-                    }
-                    if !event.owner.isEmpty {
-                        Text(event.owner).font(.footnote).foregroundStyle(.secondary)
-                    }
-                    if let status {
-                        Abzeichen(
-                            status,
-                            Design.zustand(abgesagt: event.isCancelled, antwort: event.myResponse),
-                            symbol: statusSymbol
-                        )
+        VStack(alignment: .leading, spacing: 6) {
+            NavigationLink(value: event.key) {
+                HStack(alignment: .top, spacing: 12) {
+                    DatumKaestchen(iso: event.startsAt, gedaempft: event.isCancelled)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(event.title)
+                            .font(.headline)
+                            .strikethrough(event.isCancelled)
+                        Text(terminWann(event)).font(.subheadline)
+                        if !event.location.isEmpty {
+                            Text(event.location).font(.subheadline).foregroundStyle(.secondary)
+                        }
+                        if !event.owner.isEmpty {
+                            Text(event.owner).font(.footnote).foregroundStyle(.secondary)
+                        }
+                        if let status {
+                            Abzeichen(
+                                status,
+                                Design.zustand(abgesagt: event.isCancelled, antwort: event.myResponse),
+                                symbol: statusSymbol
+                            )
+                        }
                     }
                 }
+                .accessibilityElement(children: .combine)
             }
-            if event.rsvpEnabled && !event.isCancelled {
+            if event.responseMissing {
                 HStack {
                     Button(tr("Zusagen")) { Task { await model.respond(event, status: "yes") } }
                         .buttonStyle(.borderedProminent)
-                        .disabled(event.myResponse == "yes" || model.loading)
                     Button(tr("Absagen")) { Task { await model.respond(event, status: "no") } }
                         .buttonStyle(.bordered)
-                        .disabled(event.myResponse == "no" || model.loading)
                 }
-                .padding(.top, 4)
+                .disabled(model.rsvpBusy.contains(event.eventId))
+                .padding(.top, 2)
+            }
+            if let failure = model.rsvpErrors[event.eventId] {
+                MeldungText(failure, .fehler).font(.footnote)
+            } else if let notice = model.rsvpNotices[event.eventId] {
+                MeldungText(notice, .gut).font(.footnote)
             }
         }
         .padding(.vertical, 4)
     }
+}
+
+/// Zugang (Verein und Person) wählen, in jedem Reiter oben links (UX-Audit 16.11., IOS-07).
+/// Nur bei mehr als einem Zugang; zwei Zugänge desselben Vereins tragen den Namen der Person.
+private struct ZugangsWahl: ViewModifier {
+    @EnvironmentObject private var model: AppModel
+
+    func body(content: Content) -> some View {
+        content.toolbar {
+            if model.accesses.count > 1 {
+                ToolbarItem(placement: .topBarLeading) {
+                    Menu {
+                        Picker(tr("Zugang"), selection: Binding(
+                            get: { model.access?.id ?? 0 },
+                            set: { id in Task { await model.choose(access: id) } }
+                        )) {
+                            ForEach(model.accesses) { access in
+                                Text(access.label).tag(access.id)
+                            }
+                        }
+                    } label: {
+                        Label(model.access?.title ?? tr("Zugang"), systemImage: "person.2.circle")
+                            .labelStyle(.titleAndIcon)
+                    }
+                    .accessibilityLabel(tr("Zugang"))
+                    .accessibilityValue(model.access?.label ?? "")
+                    .accessibilityHint(tr("Wählt, für welchen Verein und welche Person die App Daten zeigt."))
+                }
+            }
+        }
+    }
+}
+
+extension View {
+    func zugangsWahl() -> some View { modifier(ZugangsWahl()) }
 }
 
 /// „Mein Konto“: Konten, Trennen, Gerätekalender. Erreichbar über den Knopf im Reiter „Ich“.
@@ -184,7 +235,19 @@ struct KontoView: View {
     @EnvironmentObject private var model: AppModel
     @State private var unsent = 0
     @State private var confirmDisconnect = false
+    @State private var sendingFirst = false
+    @State private var sendProblem: String?
+    @State private var deleteInfo = false
     @Environment(\.openURL) private var openURL
+
+    private var serverName: String { (model.account?.server ?? "").replacingOccurrences(of: "https://", with: "") }
+
+    /// Immer nachfragen (UX-Audit 16.11., IOS-08); mit Entwürfen auch „Erst senden, dann trennen“.
+    private func askDisconnect() {
+        unsent = model.draftBox?.count ?? 0
+        sendProblem = nil
+        confirmDisconnect = true
+    }
 
     var body: some View {
             ScrollViewReader { scroll in
@@ -193,12 +256,27 @@ struct KontoView: View {
                     Text(model.account?.display ?? "")
                     Text(model.account?.email ?? "").foregroundStyle(.secondary)
                 }
-                Section(tr("Instanz")) {
+                Section {
                     Text(model.account?.server ?? "")
-                    // Hilfe der Instanz (wie in der Android-App unter „Mein Konto“)
-                    if let server = model.account?.server, let url = URL(string: server + "/hilfe") {
-                        Button(tr("Hilfe und Anleitungen im Browser")) { openURL(url) }
+                    // Wie in der Android-App unter „Mein Konto“ (IOS-27)
+                    if let server = model.account?.server {
+                        if let url = Rechtliches.myAccount(server: server) {
+                            Button(tr("Mein Konto im Browser öffnen")) { openURL(url) }
+                        }
+                        if let url = Rechtliches.help(server: server) {
+                            Button(tr("Hilfe und Anleitungen im Browser")) { openURL(url) }
+                        }
+                        if let url = Rechtliches.privacy(server: server, key: model.access?.imprintKey) {
+                            Button(tr("Datenschutzhinweise")) { openURL(url) }
+                        }
+                        if let url = Rechtliches.imprint(server: server, key: model.access?.imprintKey) {
+                            Button(tr("Impressum")) { openURL(url) }
+                        }
                     }
+                } header: {
+                    Text(tr("Instanz"))
+                } footer: {
+                    if let access = model.access { Text(access.signedInAs) }
                 }
                 Section {
                     ForEach(model.accounts.accounts) { entry in
@@ -230,23 +308,43 @@ struct KontoView: View {
                     Text(tr("Für mehrere Vereine mit eigener HUBIplan-Instanz. Tippe ein Konto an, um es zu zeigen."))
                 }
                 Section {
-                    Button(tr("Verbindung trennen"), role: .destructive) {
-                        // Nicht gesendete Buchungen und Quittungen gingen verloren: vorher fragen
-                        unsent = model.draftBox?.count ?? 0
-                        if unsent > 0, !Demo.active { confirmDisconnect = true } else { Task { await model.disconnect() } }
-                    }
-                    .confirmationDialog(tr("Verbindung trennen?"), isPresented: $confirmDisconnect, titleVisibility: .visible) {
-                        Button(tr("Trennen und Entwürfe löschen"), role: .destructive) { Task { await model.disconnect() } }
-                    } message: {
-                        Text(trn(
-                            "Auf diesem iPhone liegt noch 1 nicht gesendete Buchung oder Quittung. Beim Trennen geht sie verloren.",
-                            "Auf diesem iPhone liegen noch {n} nicht gesendete Buchungen oder Quittungen. Beim Trennen gehen sie verloren.",
-                            unsent
-                        ))
-                    }
+                    Button(tr("Verbindung trennen …"), role: .destructive) { askDisconnect() }
+                        .disabled(sendingFirst)
+                        .confirmationDialog(
+                            tr("Verbindung zu {server} trennen?", ["server": serverName]),
+                            isPresented: $confirmDisconnect,
+                            titleVisibility: .visible
+                        ) {
+                            if unsent > 0 {
+                                Button(tr("Erst senden, dann trennen")) {
+                                    Task {
+                                        sendingFirst = true
+                                        sendProblem = await model.sendDraftsBeforeDisconnect()
+                                        sendingFirst = false
+                                        if sendProblem == nil { await model.disconnect() }
+                                    }
+                                }
+                                Button(tr("Verwerfen und trennen"), role: .destructive) { Task { await model.disconnect() } }
+                            } else {
+                                Button(tr("Trennen"), role: .destructive) { Task { await model.disconnect() } }
+                            }
+                            Button(tr("Abbrechen"), role: .cancel) {}
+                        } message: {
+                            if unsent > 0 {
+                                Text(trn(
+                                    "Auf diesem iPhone liegt noch 1 nicht gesendete Buchung oder Quittung. Beim Trennen ohne Senden geht sie verloren.",
+                                    "Auf diesem iPhone liegen noch {n} nicht gesendete Buchungen oder Quittungen. Beim Trennen ohne Senden gehen sie verloren.",
+                                    unsent
+                                ))
+                            } else {
+                                Text(tr("Die App vergisst dieses Konto, den gespeicherten Ausweis und den Kalender. Im Browser bleibt alles, wie es ist."))
+                            }
+                        }
+                    if sendingFirst { Laedt(text: tr("Wird gesendet …")) }
+                    if let sendProblem { MeldungText(sendProblem, .fehler) }
                 } footer: {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(tr("Die App vergisst dieses Konto. Im Browser bleibt alles, wie es ist."))
+                        Text(tr("Die App vergisst dieses Konto, den gespeicherten Ausweis und den Kalender. Im Browser bleibt alles, wie es ist."))
                         if model.softwareKey {
                             // Gesamtaudit 15.11., APP-03: Wechsel in die Secure Enclave beim nächsten Verbinden
                             Text(tr("Dieses Konto ist noch mit einem älteren Geräteschlüssel verbunden. Wenn du es trennst und neu verbindest, liegt der Schlüssel sicher im Chip des iPhones."))
@@ -271,7 +369,7 @@ struct KontoView: View {
                     }
                     if model.calendarDenied {
                         Text(tr("Ohne Zugriff auf den Kalender bleiben die Termine nur in der App. Du kannst ihn in den Einstellungen des Geräts unter HUBIplan erlauben."))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.fehlerText)
                     }
                 } header: {
                     Text(tr("Gerätekalender")).id("kalender")
@@ -285,18 +383,30 @@ struct KontoView: View {
                     ))
                     if model.hintsDenied {
                         Text(tr("Mitteilungen sind für HUBIplan ausgeschaltet. Du kannst sie in den Einstellungen des Geräts unter HUBIplan erlauben."))
-                            .foregroundStyle(.red)
+                            .foregroundStyle(Color.fehlerText)
                     }
                 } header: {
                     Text(tr("Hinweise"))
                 } footer: {
                     Text(tr("Etwa einen Tag vor dem Anmeldeschluss, mit den Knöpfen Zusage und Absage."))
                 }
+                UeberDieApp()
                 Section {
-                    Text(tr("Version {version}", ["version": AppModel.version]))
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
+                    // App Store und Google Play verlangen einen Weg zum Löschen von Konto und Daten in der App
+                    Button(tr("Konto und Daten löschen")) { deleteInfo = true }
                 }
+            }
+            .alert(tr("Konto und Daten löschen"), isPresented: $deleteInfo) {
+                if let url = Rechtliches.privacy(server: model.account?.server ?? "", key: model.access?.imprintKey) {
+                    Button(tr("Datenschutzhinweise öffnen")) { openURL(url) }
+                }
+                Button(tr("Jetzt trennen …"), role: .destructive) {
+                    // Erst die Erklärung schließen, dann die Rückfrage zeigen
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { askDisconnect() }
+                }
+                Button(tr("Abbrechen"), role: .cancel) {}
+            } message: {
+                Text(Rechtliches.deleteInfo(server: model.account?.server ?? ""))
             }
             .navigationTitle(tr("Mein Konto"))
             .navigationBarTitleDisplayMode(.inline)
@@ -323,3 +433,55 @@ struct ExportFile: Identifiable {
     var id: String { url.path }
 }
 
+
+/// Abschnitt „Über die App“ (UX-Audit 16.11., IOS-27): Version, Lizenz, Lizenzen, Datenschutz
+/// der App, Quellcode. Steht auch auf dem Verbinden-Bildschirm, also ohne Konto.
+struct UeberDieApp: View {
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        Section {
+            NavigationLink(tr("Lizenzen")) { LizenzenView() }
+            if let url = URL(string: Rechtliches.appPrivacy) {
+                Button(tr("Datenschutzerklärung der App")) { openURL(url) }
+            }
+            if let url = URL(string: Rechtliches.sourceUrl(version: AppModel.version)) {
+                Button(tr("Quellcode")) { openURL(url) }
+            }
+        } header: {
+            Text(tr("Über die App"))
+        } footer: {
+            Text(Rechtliches.licenseLine(version: AppModel.version))
+        }
+    }
+}
+
+/// Lizenz der App. Die iOS-App enthält keine fremden Bibliotheken; sie nutzt nur Apples
+/// Systembibliotheken (swift-crypto braucht nur der Kern unter Linux für die Tests).
+struct LizenzenView: View {
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        List {
+            Section {
+                Text(tr("HUBIplan ist freie Software: Du kannst sie unter den Bedingungen der GNU Affero General Public License, Version 3 oder (nach deiner Wahl) jeder späteren Version, weitergeben und verändern."))
+                Text(tr("Die App wird in der Hoffnung verbreitet, dass sie nützlich ist, aber ohne jede Gewährleistung."))
+                if let url = URL(string: "https://www.gnu.org/licenses/agpl-3.0.html") {
+                    Button(tr("Lizenztext (GNU AGPL 3.0)")) { openURL(url) }
+                }
+                if let url = URL(string: Rechtliches.sourceUrl(version: AppModel.version)) {
+                    Button(tr("Quellcode")) { openURL(url) }
+                }
+            } header: {
+                Text("HUBIplan")
+            }
+            Section {
+                Text(tr("Die App enthält keine Bibliotheken anderer Anbieter. Sie nutzt nur die Bibliotheken des Betriebssystems von Apple."))
+            } header: {
+                Text(tr("Enthaltene Bibliotheken"))
+            }
+        }
+        .navigationTitle(tr("Lizenzen"))
+        .navigationBarTitleDisplayMode(.inline)
+    }
+}

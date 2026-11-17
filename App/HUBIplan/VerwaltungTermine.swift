@@ -67,7 +67,7 @@ struct TermineVerwaltungView: View {
                         Text(tr("Kommende Termine"))
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }
@@ -137,7 +137,7 @@ struct TerminVerwaltungView: View {
                         }
                         if shown.cancelled {
                             Text(shown.note.isEmpty ? tr("Abgesagt") : tr("Abgesagt: {hinweis}", ["hinweis": shown.note]))
-                                .foregroundStyle(.red)
+                                .foregroundStyle(Color.fehlerText)
                         }
                         if !event.description.isEmpty { Text(event.description) }
                     }
@@ -174,7 +174,7 @@ struct TerminVerwaltungView: View {
                         liste(responses, canEnter: event.rsvp.canEnter && event.canEdit)
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }
@@ -296,7 +296,7 @@ private struct AbsageBlatt: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 Section {
                     BeschriftetesFeld(label: tr("Hinweis (optional)"), text: $note, axis: .vertical)
                     if single == nil {
@@ -364,7 +364,7 @@ private struct RueckmeldungBlatt: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 Section {
                     Picker(tr("Rückmeldung"), selection: $status) {
                         Text(tr("Zusage")).tag("yes")
@@ -462,7 +462,7 @@ private struct NeuerTerminBlatt: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 Section {
                     BeschriftetesFeld(label: tr("Titel"), text: $draft.title)
                     DatePicker(tr("Tag"), selection: $day, displayedComponents: .date)

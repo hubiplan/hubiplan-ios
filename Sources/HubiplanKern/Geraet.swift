@@ -15,9 +15,9 @@ public actor DeviceSession: TokenStore {
     public static let deviceKeyKey = "deviceKey"
 
     public let server: String
-    private let store: SecretStore
-    private let transport: Transport
-    private let keys: DeviceKeyStore
+    let store: SecretStore
+    let transport: Transport
+    let keys: DeviceKeyStore
     private var running: Task<String?, Never>?
 
     /// `keys`: Herkunft des Geräteschlüsselpaars (App: Secure Enclave, wenn vorhanden; APP-03).

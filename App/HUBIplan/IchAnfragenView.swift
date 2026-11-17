@@ -33,7 +33,7 @@ struct BelegungView: View {
         List {
             if let error {
                 Section {
-                    Text(error).foregroundStyle(.red)
+                    MeldungText(error, .fehler)
                     Button(tr("Erneut laden")) { Task { await load() } }
                 }
             }
@@ -47,7 +47,7 @@ struct BelegungView: View {
                     }
                     Section(tr("Meine Anfragen und Buchungen")) {
                         if let notice { Text(notice) }
-                        if let problem { Text(problem).foregroundStyle(.red) }
+                        if let problem { MeldungText(problem, .fehler) }
                         if data.own.isEmpty { Text(tr("Noch keine.")).foregroundStyle(.secondary) }
                         ForEach(data.own) { booking in
                             VStack(alignment: .leading, spacing: 4) {
@@ -66,7 +66,7 @@ struct BelegungView: View {
                     }
                 }
             } else if error == nil {
-                ProgressView()
+                Laedt()
             }
         }
         .navigationTitle(tr("Belegung"))
@@ -182,9 +182,9 @@ private struct BelegungAnfrage: View {
         }
         TextField(tr("Notiz (optional)"), text: $note, axis: .vertical).lineLimit(2...5)
         if times == nil {
-            Text(tr("Das Ende liegt vor dem Beginn.")).font(.footnote).foregroundStyle(.red)
+            Text(tr("Das Ende liegt vor dem Beginn.")).font(.footnote).foregroundStyle(Color.fehlerText)
         }
-        if let problem { Text(problem).foregroundStyle(.red) }
+        if let problem { MeldungText(problem, .fehler) }
         if let notice { Text(notice) }
         Button(busy ? tr("Wird gesendet …") : tr("Anfrage senden")) { Task { await send() } }
             .buttonStyle(.borderedProminent)
@@ -235,7 +235,7 @@ struct GemeldetAbschnitt: View {
                 if !coming.isEmpty { gruppe(tr("Demnächst"), coming) }
                 if !past.isEmpty { gruppe(tr("Vergangen"), past) }
             } else {
-                ProgressView()
+                Laedt()
             }
         }
     }
@@ -272,7 +272,7 @@ struct AbwesenheitenView: View {
         List {
             if let error {
                 Section {
-                    Text(error).foregroundStyle(.red)
+                    MeldungText(error, .fehler)
                     Button(tr("Erneut laden")) { Task { await load() } }
                 }
             }
@@ -284,7 +284,7 @@ struct AbwesenheitenView: View {
                         Text(tr("Trage Zeiträume ein, in denen du nicht mitspielen kannst. Eine Begründung wird nicht erfasst. Bestehende Einteilungen bleiben erhalten; bitte dort zusätzlich absagen."))
                             .font(.footnote).foregroundStyle(.secondary)
                         if let notice { Text(notice) }
-                        if let problem { Text(problem).foregroundStyle(.red) }
+                        if let problem { MeldungText(problem, .fehler) }
                         Button(tr("Abwesenheit eintragen")) { notice = nil; editing = AbwesenheitEntwurf(row: nil) }
                     }
                     Section {
@@ -305,7 +305,7 @@ struct AbwesenheitenView: View {
                     }
                 }
             } else if error == nil {
-                ProgressView()
+                Laedt()
             }
         }
         .navigationTitle(tr("Abwesenheiten"))
@@ -391,9 +391,9 @@ private struct AbwesenheitFormular: View {
                 DatePicker(tr("Von"), selection: $start).environment(\.locale, Texte.locale)
                 DatePicker(tr("Bis"), selection: $end).environment(\.locale, Texte.locale)
                 if end <= start {
-                    Text(tr("Das Ende der Abwesenheit muss nach dem Beginn liegen.")).font(.footnote).foregroundStyle(.red)
+                    Text(tr("Das Ende der Abwesenheit muss nach dem Beginn liegen.")).font(.footnote).foregroundStyle(Color.fehlerText)
                 }
-                if let problem { Text(problem).foregroundStyle(.red) }
+                if let problem { MeldungText(problem, .fehler) }
             }
             .navigationTitle(draft.row == nil ? tr("Abwesenheit eintragen") : tr("Abwesenheit ändern"))
             .navigationBarTitleDisplayMode(.inline)
@@ -486,18 +486,18 @@ struct KuendigungAbschnitt: View {
                     .lineLimit(2...5)
                     .textFieldStyle(.roundedBorder)
                 if info.tooEarly(chosen) {
-                    Text(tr("Frühestens zum {date}.", ["date": Zeit.plainDate(earliest)])).font(.footnote).foregroundStyle(.red)
+                    Text(tr("Frühestens zum {date}.", ["date": Zeit.plainDate(earliest)])).font(.footnote).foregroundStyle(Color.fehlerText)
                 }
                 HStack {
                     Button(tr("Kündigung absenden"), role: .destructive) { confirm = true }
                         .buttonStyle(.borderedProminent)
-                        .tint(.red)
+                        .tint(Color.fehlerText)
                         .disabled(busy || info.tooEarly(chosen))
                     Button(tr("Abbrechen")) { open = false }.disabled(busy)
                 }
             }
             if let notice { Text(notice) }
-            if let problem { Text(problem).foregroundStyle(.red) }
+            if let problem { MeldungText(problem, .fehler) }
             ForEach(info.requests.filter { !$0.pending }) { item in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(item.statusLabel).font(.subheadline)

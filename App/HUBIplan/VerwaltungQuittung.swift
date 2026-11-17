@@ -144,7 +144,7 @@ struct QuittungBlatt: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 if let finished {
                     fertig(finished)
                 } else if let accounts {
@@ -163,7 +163,7 @@ struct QuittungBlatt: View {
                         Button(tr("Erneut laden")) { Task { await load() } }
                     }
                 } else if error == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .disabled(saving)

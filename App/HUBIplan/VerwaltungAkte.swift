@@ -159,7 +159,7 @@ struct AkteBlattView: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 switch blatt {
                 case .ehrung:
                     Section {

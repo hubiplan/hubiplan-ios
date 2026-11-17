@@ -63,7 +63,7 @@ public struct LiveTarget: Equatable, Hashable, Identifiable, Sendable {
         }
         if link.server != server { return (nil, tr("Der QR-Code gehört zu einer anderen HUBIplan-Instanz.")) }
         if clubId != 0 && link.clubId != clubId {
-            return (nil, tr("Der QR-Code gehört zu einem anderen Verein. Wähle oben den passenden Zugang."))
+            return (nil, tr("Der QR-Code gehört zu einem anderen Verein. Wähle unter „Ich“ oben links den passenden Zugang."))
         }
         return (LiveTarget(meetingId: link.meetingId, code: link.code), nil)
     }
@@ -171,6 +171,16 @@ public struct Poll: Decodable, Equatable, Identifiable, Sendable {
 }
 
 /// Stand einer laufenden Versammlung für das Mitglied.
+/// Ansage für VoiceOver, wenn beim Nachfragen eine Abstimmung eröffnet wurde (UX-Audit 16.11.,
+/// IOS-03): nur für neu laufende Abstimmungen mit offener eigener Stimme. nil: nichts ansagen.
+public func neueAbstimmungAnsage(vorher: MeetingLive?, jetzt: MeetingLive) -> String? {
+    guard let vorher else { return nil }
+    let alt = Set(vorher.polls.filter(\.running).map(\.id))
+    let neu = jetzt.polls.filter { $0.running && !alt.contains($0.id) && !$0.openVotes.isEmpty }
+    guard let erste = neu.first else { return nil }
+    return tr("Abstimmung eröffnet: {question}", ["question": erste.heading])
+}
+
 public struct MeetingLive: Decodable, Equatable, Sendable {
     public var id: Int
     public var title: String

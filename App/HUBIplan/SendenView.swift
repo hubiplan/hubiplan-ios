@@ -32,7 +32,7 @@ struct SendenView: View {
         NavigationStack {
             Form {
                 if let error {
-                    Section { Text(error).foregroundStyle(.red) }
+                    Section { MeldungText(error, .fehler) }
                 }
                 Section {
                     if senders.senders.count > 1 {
@@ -72,7 +72,7 @@ struct SendenView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     if busy {
-                        ProgressView()
+                        Laedt()
                     } else {
                         Button(tr("Weiter")) { Task { await call(confirm: false) } }
                             .disabled(!ready)
