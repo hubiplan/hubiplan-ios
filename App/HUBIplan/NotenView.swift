@@ -30,7 +30,7 @@ struct NotenView: View {
             List {
                 if let message = model.error {
                     Section {
-                        Text(message).foregroundStyle(.red)
+                        MeldungText(message, .fehler)
                         Button(tr("Erneut versuchen")) { Task { await model.refreshScores() } }
                     }
                 }
@@ -53,6 +53,7 @@ struct NotenView: View {
                 }
             }
             .navigationTitle(tr("Noten"))
+            .zugangsWahl()
             .searchable(text: $query, prompt: tr("Titel, Komponist oder Nummer"))
             .navigationDestination(for: String.self) { key in
                 if let mappe = model.scores?.mappen.first(where: { $0.key == key }) {
@@ -63,7 +64,7 @@ struct NotenView: View {
             }
             .refreshable { await model.refreshScores() }
             .task(id: model.accessId) { await model.refreshScores() }
-            .overlay { if model.loading && model.scores == nil { ProgressView() } }
+            .overlay { if model.loading && model.scores == nil { Laedt() } }
             .fullScreenCover(item: $play) { start in NotenPult(mappe: start.mappe, first: start.piece) }
         }
     }
@@ -97,7 +98,7 @@ struct NotenView: View {
                     }.joined(separator: " · "))
                         .font(.footnote).foregroundStyle(Color.secondary)
                     if hit.item.sheets.isEmpty {
-                        Text(tr("Keine Noten für deine Stimme")).font(.footnote).foregroundStyle(.red)
+                        Text(tr("Keine Noten für deine Stimme")).font(.footnote).foregroundStyle(Color.fehlerText)
                     }
                 }
             }
@@ -137,7 +138,7 @@ struct MappeView: View {
         List {
             Section {
                 if mappe.cancelled {
-                    Text(tr("Abgesagt: Noten gibt es dafür nicht mehr.")).foregroundStyle(.red)
+                    Text(tr("Abgesagt: Noten gibt es dafür nicht mehr.")).foregroundStyle(Color.fehlerText)
                 }
                 Text(mappeZeile(mappe)).font(.footnote).foregroundStyle(.secondary)
                 if !mappe.note.isEmpty { Text(mappe.note) }
@@ -171,7 +172,7 @@ struct MappeView: View {
                                         Text(item.credit).font(.footnote).foregroundStyle(Color.secondary)
                                     }
                                     if item.sheets.isEmpty {
-                                        Text(tr("Keine Noten für deine Stimme")).font(.footnote).foregroundStyle(.red)
+                                        Text(tr("Keine Noten für deine Stimme")).font(.footnote).foregroundStyle(Color.fehlerText)
                                     }
                                 }
                             }
@@ -387,12 +388,12 @@ struct NotenPult: View {
                         .accessibilityLabel(tr("Seite {seite} von {seiten}", ["seite": at.page + 1, "seiten": pages]))
                 } else if let failed {
                     VStack(spacing: 12) {
-                        Text(failed).foregroundStyle(.red).multilineTextAlignment(.center)
+                        MeldungText(failed, .fehler).multilineTextAlignment(.center)
                         Button(tr("Erneut versuchen")) { Task { await load() } }.buttonStyle(.bordered)
                     }
                     .padding()
                 } else {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .contentShape(Rectangle())

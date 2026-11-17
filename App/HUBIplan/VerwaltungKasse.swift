@@ -175,7 +175,7 @@ struct KassenbuchView: View {
                         }
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }
@@ -276,7 +276,7 @@ struct KassenbuchView: View {
                         Text([receipt.accountName, receipt.categoryName].filter { !$0.isEmpty }.joined(separator: " · "))
                             .font(.footnote).foregroundStyle(Color.secondary)
                         if let problem = receipt.error {
-                            Text(problem).font(.footnote).foregroundStyle(.red)
+                            MeldungText(problem, .fehler).font(.footnote)
                         }
                         if unit.canEditFinance {
                             HStack(spacing: 16) {
@@ -294,7 +294,7 @@ struct KassenbuchView: View {
                         Text([draft.accountName, draft.categoryName].filter { !$0.isEmpty }.joined(separator: " · "))
                             .font(.footnote).foregroundStyle(Color.secondary)
                         if let problem = draft.error {
-                            Text(problem).font(.footnote).foregroundStyle(.red)
+                            MeldungText(problem, .fehler).font(.footnote)
                         }
                         if unit.canEditFinance {
                             HStack(spacing: 16) {
@@ -406,7 +406,7 @@ struct BuchungView: View {
         VerwaltungSchutz {
             List {
                 VerwaltungMeldung { await load() }
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 if let booking {
                     Section {
                         Text(booking.title).font(.title3.weight(.semibold))
@@ -426,7 +426,7 @@ struct BuchungView: View {
                                         .frame(maxWidth: .infinity, maxHeight: 480)
                                         .accessibilityLabel(receipt.name)
                                 } else {
-                                    ProgressView()
+                                    Laedt()
                                 }
                             } else {
                                 Text(tr("{name} (im Browser ansehen)", ["name": receipt.name]))
@@ -442,7 +442,7 @@ struct BuchungView: View {
                         }
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }
@@ -506,7 +506,7 @@ private struct NeueBuchungBlatt: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 Section {
                     if let jpeg, let image = UIImage(data: jpeg) {
                         Image(uiImage: image)
@@ -641,10 +641,10 @@ private struct EntwurfKorrigierenBlatt: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 Section {
                     Text(line)
-                    if let problem { Text(problem).font(.footnote).foregroundStyle(.red) }
+                    if let problem { MeldungText(problem, .fehler).font(.footnote) }
                 }
                 Section {
                     Picker(tr("Konto"), selection: $chosenAccount) {

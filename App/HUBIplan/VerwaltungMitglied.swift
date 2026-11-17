@@ -44,11 +44,11 @@ struct VorgangBlatt: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 if let preview {
                     FolgenAbschnitt(preview: preview)
                 } else if vorgang == .beitragSelbst || vorgang == .beitragFremd {
-                    if error == nil { ProgressView() }
+                    if error == nil { Laedt() }
                 } else {
                     angaben
                 }

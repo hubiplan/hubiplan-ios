@@ -47,7 +47,7 @@ struct RechnungenView: View {
                         Text(tr("Beitragsläufe, Mahnungen und SEPA im Browser."))
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: tr("Name, Betreff oder Rechnungsnummer"))
@@ -89,7 +89,7 @@ private struct RechnungZeile: View {
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 Text(invoice.listAmount).monospacedDigit()
-                Text(invoice.listStatus).font(.footnote).foregroundStyle(invoice.isOverdue ? Color.red : Color.secondary)
+                Text(invoice.listStatus).font(.footnote).foregroundStyle(invoice.isOverdue ? Color.fehlerText : Color.secondary)
             }
         }
     }
@@ -118,12 +118,12 @@ struct RechnungView: View {
         VerwaltungSchutz {
             List {
                 VerwaltungMeldung { await load() }
-                if let error { Section { Text(error).foregroundStyle(.red) } }
+                if let error { Section { MeldungText(error, .fehler) } }
                 if let invoice {
                     Section {
                         Text(invoice.payer).font(.title3.weight(.semibold))
                         if !invoice.headline.isEmpty { Text(invoice.headline) }
-                        Text(invoice.dates).font(.footnote).foregroundStyle(invoice.isOverdue ? Color.red : Color.secondary)
+                        Text(invoice.dates).font(.footnote).foregroundStyle(invoice.isOverdue ? Color.fehlerText : Color.secondary)
                     }
                     Section {
                         ForEach(Array(invoice.lines.enumerated()), id: \.offset) { _, line in
@@ -161,7 +161,7 @@ struct RechnungView: View {
                                     kassieren(invoice, accounts)
                                 }
                             } else {
-                                ProgressView()
+                                Laedt()
                             }
                         } header: {
                             Text(tr("Bar kassiert"))
@@ -193,7 +193,7 @@ struct RechnungView: View {
                         Text(tr("Storno, Mahnungen und Zahlungen entfernen im Browser."))
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .environment(\.locale, Texte.locale)
@@ -211,7 +211,7 @@ struct RechnungView: View {
             ? nil : CashDraft.amountError(draft.amount, outstanding: invoice.outstanding)
         BeschriftetesFeld(label: tr("Betrag in €"), text: $draft.amount)
             .keyboardType(.decimalPad)
-        if let problem { Text(problem).font(.footnote).foregroundStyle(.red) }
+        if let problem { MeldungText(problem, .fehler).font(.footnote) }
         DatePicker(tr("Datum"), selection: $day, in: ...Date(), displayedComponents: .date)
         if accounts.count > 1 {
             Picker(tr("Barkasse"), selection: $draft.account) {

@@ -13,7 +13,7 @@ struct BeitragsnachweiseView: View {
         let overview = model.feeProofs ?? FeeProofOverview()
         List {
             if let message = model.error {
-                Section { Text(message).foregroundStyle(.red) }
+                Section { MeldungText(message, .fehler) }
             }
             Section {
                 Text(tr("Für einen ermäßigten Beitrag braucht der Verein jedes Jahr einen aktuellen Nachweis, zum Beispiel eine Immatrikulationsbescheinigung. Ohne Nachweis gilt der normale Beitrag."))
@@ -66,7 +66,7 @@ private struct NachweisJahr: View {
         Section {
             Text(state.sentence)
             if let notice {
-                Text(notice).foregroundStyle(.green)
+                MeldungText(notice, .gut)
             }
             if state.canSubmit {
                 if let photo, let image = UIImage(data: photo) {
@@ -103,7 +103,7 @@ private struct NachweisJahr: View {
                 }
                 TextField(tr("Bemerkung (freiwillig)"), text: $note, axis: .vertical)
                 if let failure {
-                    Text(failure).foregroundStyle(.red)
+                    MeldungText(failure, .fehler)
                 }
                 Button(tr("Nachweis einreichen")) { Task { await send() } }
                     .buttonStyle(.borderedProminent)

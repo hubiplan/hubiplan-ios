@@ -157,12 +157,15 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
     public var entriesEnabled: Bool
     /// Es gibt Objekte, die Mitglieder anfragen dürfen (Bereich „Belegung“)
     public var bookingsEnabled: Bool
+    /// Schlüssel für Impressum und Datenschutzhinweise der Einheit (`/impressum/<Schlüssel>`)
+    public var imprintKey: String?
 
     enum CodingKeys: String, CodingKey {
         case id, modules, musician, company
         case competitionsEnabled = "competitions_enabled"
         case entriesEnabled = "entries_enabled"
         case bookingsEnabled = "bookings_enabled"
+        case imprintKey = "imprint_key"
         case clubName = "club_name"
         case clubId = "club_id"
         case clubDisplayName = "club_display_name"
@@ -208,6 +211,34 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         company = try c.decodeIfPresent(Bool.self, forKey: .company) ?? false
         entriesEnabled = try c.decodeIfPresent(Bool.self, forKey: .entriesEnabled) ?? false
         bookingsEnabled = try c.decodeIfPresent(Bool.self, forKey: .bookingsEnabled) ?? false
+        imprintKey = try c.decodeIfPresent(String.self, forKey: .imprintKey)
+    }
+
+    /// Name der Einheit (Anzeigename, sonst Vereinsname)
+    public var title: String { clubDisplayName.isEmpty ? clubName : clubDisplayName }
+
+    /// Zugang als Ansprechpartner einer Organisation (Firma, Verein, Behörde …)
+    public var isContact: Bool { memberKind == "organization" && !memberName.isEmpty }
+
+    /// Name der Person dieses Zugangs („Erika Musterfrau“), leer bei älteren Ständen
+    public var personName: String {
+        [firstName, lastName].filter { !$0.isEmpty }.joined(separator: " ")
+    }
+
+    /// Beschriftung in der Zugangswahl (UX-Audit 16.11., IOS-07): Verein und Person, damit sich
+    /// zwei Zugänge im selben Verein (Familie, Ansprechpartner) unterscheiden lassen.
+    public var label: String {
+        if isContact {
+            return tr("{club}: {member} (Ansprechpartner)", ["club": title, "member": memberName])
+        }
+        return personName.isEmpty ? title : tr("{club} – {name}", ["club": title, "name": personName])
+    }
+
+    /// Satz unter „Mein Konto“: als wer die App gerade auftritt
+    public var signedInAs: String {
+        isContact
+            ? tr("Angemeldet als Ansprechpartner von {member} in {title}", ["member": memberName, "title": title])
+            : tr("Angemeldet als Mitglied von {title}", ["title": title])
     }
 
     /// Meldungen zu Wettbewerben und Anlässen („Gemeldet“ unter „Wettbewerbe“)

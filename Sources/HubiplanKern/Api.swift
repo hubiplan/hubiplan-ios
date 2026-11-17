@@ -80,11 +80,27 @@ public struct Api: Sendable {
 
     // MARK: Anfragen
 
+    /// Code und lesbarer Text einer Fehlerantwort. Neben `{"detail": …}` liefert der Server bei
+    /// Prüffehlern auch eine Liste (`["Der Anmeldeschluss ist vorbei."]`), `non_field_errors`
+    /// oder Feldfehler (`{"note": ["…"]}`); auch die werden gezeigt (UX-Audit 16.11., IOS-01).
     static func errorFields(_ body: Data) -> (code: String, message: String) {
-        guard let object = try? JSONSerialization.jsonObject(with: body) as? [String: Any] else { return ("", "") }
+        guard let parsed = try? JSONSerialization.jsonObject(with: body) else { return ("", "") }
+        if let list = parsed as? [Any] { return ("", texts(list).joined(separator: " ")) }
+        guard let object = parsed as? [String: Any] else { return ("", "") }
         let code = object["code"] as? String ?? ""
-        let message = object["detail"] as? String ?? ""
-        return (code, message)
+        if let detail = object["detail"] as? String { return (code, detail) }
+        if let general = object["non_field_errors"] as? [Any], !texts(general).isEmpty {
+            return (code, texts(general).joined(separator: " "))
+        }
+        // Feldfehler (je Feld eine Liste von Texten) in fester Reihenfolge der Felder
+        let fields = object.keys.sorted().filter { $0 != "code" }.flatMap { key -> [String] in
+            (object[key] as? [Any]).map { texts($0) } ?? []
+        }
+        return (code, fields.joined(separator: " "))
+    }
+
+    private static func texts(_ list: [Any]) -> [String] {
+        list.compactMap { $0 as? String }.filter { !$0.isEmpty }
     }
 
     /// `form`: fertiger Inhalt mit eigenem `Content-Type` (Formular mit Datei) statt `json`.
@@ -138,12 +154,18 @@ public struct Api: Sendable {
         return response
     }
 
-    func expect<T: Decodable>(_ method: String, _ path: String, json: [String: Any]? = nil) async throws -> T {
-        let response = try await raw(method, path, json: json)
+    /// Anfrage, deren Antwort 2xx sein muss (sonst `ApiError` mit dem Text des Servers).
+    func checked(_ method: String, _ path: String, json: [String: Any]? = nil, extra: [String: String] = [:]) async throws -> HttpResponse {
+        let response = try await raw(method, path, json: json, extra: extra)
         guard (200...299).contains(response.status) else {
             let fields = Api.errorFields(response.body)
             throw ApiError(status: response.status, code: fields.code, message: fields.message)
         }
+        return response
+    }
+
+    func expect<T: Decodable>(_ method: String, _ path: String, json: [String: Any]? = nil) async throws -> T {
+        let response = try await checked(method, path, json: json)
         // Antworten ohne Inhalt (204) oder mit Inhalt, den die App nicht braucht
         if let ignored = Ignored() as? T { return ignored }
         do {

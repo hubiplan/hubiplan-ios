@@ -21,6 +21,10 @@ final class AppModel: ObservableObject {
     @Published var accesses: [PortalAccess] = []
     @Published var accessId: Int?
     @Published var events: [Occurrence] = []
+    /// Rückmeldungen: Fehler und Bestätigung je Termin, Termine mit laufender Anfrage
+    @Published var rsvpErrors = RueckmeldungsFehler()
+    @Published var rsvpNotices: [Int: String] = [:]
+    @Published var rsvpBusy: Set<Int> = []
     @Published var circulars: [CircularItem] = []
     /// Einheiten, an die dieses Konto Kurzmitteilungen senden darf (leer: kein Knopf)
     @Published var senders: Senders?
@@ -71,6 +75,8 @@ final class AppModel: ObservableObject {
     /// Link `hubiplan://anmelden` einer Adresse: vor dem Öffnen der Anmeldeseite nachfragen.
     @Published var browserStart: String?
     @Published var linkError: String?
+    /// Vom Server abgemeldet: so viele nicht gesendete Vorgänge liegen beiseite (IOS-08)
+    @Published var retiredDrafts = 0
     /// Gerätekalender: eingeschaltet, Erinnerung in Minuten, Zugriff verweigert
     @Published private(set) var calendarOn = KalenderEinstellung.on
     @Published private(set) var reminder = KalenderEinstellung.reminder
@@ -157,6 +163,9 @@ final class AppModel: ObservableObject {
         accesses = []
         accessId = nil
         events = []
+        rsvpErrors = RueckmeldungsFehler()
+        rsvpNotices = [:]
+        rsvpBusy = []
         circulars = []
         senders = nil
         card = nil
@@ -223,19 +232,74 @@ final class AppModel: ObservableObject {
         pending = nil
         let verifier = pendingVerifier.flatMap { $0.server == link.server ? $0.verifier : nil } ?? ""
         pendingVerifier = nil
-        loading = true
-        let id = accounts.freeId()
-        let new = makeSession(server: link.server, id: id)
-        do {
-            let paired = try await new.connect(
+        await pair(server: link.server) { new in
+            try await new.connect(
                 code: link.code, deviceName: UIDevice.current.name, appVersion: Self.build, verifier: verifier
             )
-            let entry = AccountEntry(id: id, server: link.server, display: paired.user.display, email: paired.user.email)
+        }
+    }
+
+    /// Anmeldung mit E-Mail und Passwort, die auf den zweiten Faktor wartet (IOS-06)
+    @Published var pendingLogin: (server: String, session: String)?
+
+    /// Mit E-Mail und Passwort verbinden (UX-Audit 16.11., IOS-06, wie Android). Verlangt das
+    /// Konto einen zweiten Faktor, steht danach `pendingLogin` und die App fragt den Code ab.
+    func login(server input: String, email: String, password: String) async {
+        guard let server = normalizeServer(input) else {
+            linkError = tr("Bitte die Adresse von HUBIplan angeben, z. B. verein.example.de.")
+            return
+        }
+        guard !accounts.full else {
+            linkError = tr("Mehr als {anzahl} Konten lassen sich nicht verbinden. Trenne zuerst ein Konto.", ["anzahl": "\(AccountList.limit)"])
+            return
+        }
+        await pair(server: server) { new in
+            switch try await new.login(email: email, password: password, appVersion: Self.build) {
+            case .done(let token):
+                return try await new.connect(sessionToken: token, deviceName: UIDevice.current.name, appVersion: Self.build)
+            case .needsCode(let token):
+                self.pendingLogin = (server, token)
+                return nil
+            }
+        }
+    }
+
+    /// Zweiter Faktor zur Anmeldung mit Passwort.
+    func loginCode(_ code: String) async {
+        guard let waiting = pendingLogin else { return }
+        await pair(server: waiting.server) { new in
+            do {
+                let paired = try await new.connect(
+                    sessionToken: waiting.session, code: code, deviceName: UIDevice.current.name, appVersion: Self.build
+                )
+                self.pendingLogin = nil
+                return paired
+            } catch let failure as ApiError where failure.status == 401 || failure.status == 409 {
+                // Sitzung abgelaufen: von vorn anmelden
+                self.pendingLogin = nil
+                throw failure
+            }
+        }
+    }
+
+    /// Gemeinsamer Ablauf aller Wege zum Verbinden: neues Konto anlegen, Gerät koppeln, zeigen.
+    /// `work` gibt nil zurück, wenn noch ein Schritt fehlt (zweiter Faktor).
+    private func pair(server: String, _ work: @MainActor (DeviceSession) async throws -> Paired?) async {
+        loading = true
+        let id = accounts.freeId()
+        let new = makeSession(server: server, id: id)
+        do {
+            guard let paired = try await work(new) else {
+                loading = false
+                linkError = nil
+                return
+            }
+            let entry = AccountEntry(id: id, server: server, display: paired.user.display, email: paired.user.email)
             // Dasselbe Konto noch einmal verbunden: der alte Eintrag weicht dem neuen
             if let replaced = accounts.add(entry) { await forget(replaced) }
             save()
             activate(session: new)
-            if !Demo.active { Self.adopt(server: link.server, email: paired.user.email, account: id) }
+            if !Demo.active { Self.adopt(server: server, email: paired.user.email, account: id) }
             linkError = nil
             adding = false
             loading = false
@@ -283,7 +347,10 @@ final class AppModel: ObservableObject {
         if !Demo.active { StandStore(store: Konten.secrets(account.id)).clear() }
         if !Demo.active {
             let drafts = DraftBox(files: EntwurfsOrdner(account: account.id), secrets: Konten.secrets(account.id))
-            if revoked { Self.retire(drafts, server: account.server, email: account.email) }
+            if revoked {
+                retiredDrafts = drafts.count
+                Self.retire(drafts, server: account.server, email: account.email)
+            }
             drafts.clear()
         }
         cards.clear()
@@ -296,6 +363,29 @@ final class AppModel: ObservableObject {
         save()
         activate()
         if self.account != nil { await refresh() }
+    }
+
+    /// Vor dem Trennen (UX-Audit 16.11., IOS-08): nicht gesendete Buchungen und Quittungen senden.
+    /// nil, wenn danach nichts mehr liegt; sonst ein Satz, warum es nicht ging.
+    func sendDraftsBeforeDisconnect() async -> String? {
+        guard let box = draftBox, box.count > 0 else { return nil }
+        guard adminOpen, let units = adminOverview?.units else {
+            return tr("Die Verwaltung ist gesperrt. Bitte unter „Verwaltung“ entsperren und dann noch einmal trennen.")
+        }
+        let ids = Set(box.list().map(\.unitId) + box.receipts().map(\.unitId))
+        for unit in units where ids.contains(unit.id) {
+            _ = await verwaltung(unit) { client -> Int in
+                try await client.send(drafts: box) + (try await client.send(receipts: box))
+            }
+            if let failure = adminError { return failure }
+        }
+        let left = box.count
+        guard left > 0 else { return nil }
+        return trn(
+            "1 Vorgang konnte nicht gesendet werden (z. B. ohne Verbindung oder mit Fehler). Bitte unter Verwaltung › Kasse prüfen.",
+            "{n} Vorgänge konnten nicht gesendet werden (z. B. ohne Verbindung oder mit Fehler). Bitte unter Verwaltung › Kasse prüfen.",
+            left
+        )
     }
 
     // MARK: Quarantäne (APP-04)
@@ -417,6 +507,7 @@ final class AppModel: ObservableObject {
             let circulars = try await api.circulars(accessId: access.id)
             guard epoch == self.epoch else { return }
             self.events = events
+            self.rsvpErrors.keep(only: events)
             self.circulars = circulars
         }
         if epoch == self.epoch { await planHints() }
@@ -915,7 +1006,12 @@ final class AppModel: ObservableObject {
     }
 
     func choose(access id: Int) async {
+        guard id != access?.id else { return }
         accessId = id
+        events = []
+        circulars = []
+        rsvpErrors = RueckmeldungsFehler()
+        rsvpNotices = [:]
         card = nil
         profile = nil
         invoices = nil
@@ -985,22 +1081,80 @@ final class AppModel: ObservableObject {
         do {
             try await session.api().respond(accessId: accessId, eventId: eventId, status: status)
         } catch {
-            if epoch == self.epoch { self.error = (error as? ApiError)?.text ?? ApiError(status: 0, code: "offline").text }
+            // Am Termin zeigen, nicht als allgemeinen Ladefehler (IOS-01)
+            if epoch == self.epoch {
+                rsvpErrors.failed(eventId, (error as? ApiError)?.text ?? ApiError(status: 0, code: "offline").text)
+                showEvents += 1
+            }
             return
         }
+        if epoch == self.epoch { rsvpNotices[eventId] = Rueckmeldung.gespeichert(status) }
         if epoch == self.epoch {
             calendarSynced[id] = nil
             await refresh()
         }
     }
 
-    func respond(_ event: Occurrence, status: String) async {
-        guard let access else { return }
-        await run { api in
-            try await api.respond(accessId: access.id, eventId: event.eventId, status: status)
+    /// Zu- oder Absage, Vielleicht oder Zurücknehmen (`status` nil). Ein Fehler bleibt am Termin
+    /// stehen, auch über den folgenden Abgleich hinweg (UX-Audit 16.11., IOS-01); eine gelungene
+    /// Rückmeldung bekommt einen Satz am Termin (IOS-02). Gibt den Termin danach zurück.
+    @discardableResult
+    func respond(_ event: Occurrence, status: String?, guests: Int = 0, note: String = "") async -> EventDetail? {
+        guard let access else { return nil }
+        let id = event.eventId
+        rsvpErrors.start(id)
+        rsvpNotices[id] = nil
+        rsvpBusy.insert(id)
+        defer { rsvpBusy.remove(id) }
+        let result = await portalCall { (api: Api, access: Int) async throws -> EventDetail? in
+            if let status {
+                return try await api.respond(accessId: access, eventId: id, status: status, guests: guests, note: note)
+            }
+            return try await api.withdraw(accessId: access, eventId: id)
         }
-        if let id = accounts.activeId { calendarSynced[id] = nil }
-        await refresh()
+        guard self.access?.id == access.id else { return nil }
+        switch result {
+        case .success(let detail):
+            rsvpNotices[id] = Rueckmeldung.gespeichert(status)
+            if let accountId = accounts.activeId { calendarSynced[accountId] = nil }
+            // Nur die Liste neu holen, nicht alles: Der Satz am Termin bleibt stehen
+            await reloadEvents()
+            await planHints()
+            await syncCalendar()
+            return detail
+        case .failure(let failure):
+            rsvpErrors.failed(id, failure.text)
+            return nil
+        case nil:
+            return nil
+        }
+    }
+
+    /// Ein Termin mit allen Angaben für die Detailseite.
+    func eventDetail(_ event: Occurrence) async -> Result<EventDetail, ApiError>? {
+        await portalCall { api, access in try await api.event(accessId: access, eventId: event.eventId) }
+    }
+
+    /// Anhang eines Termins zum Ansehen öffnen.
+    func openAttachment(_ event: EventDetail, _ file: EventFile) async {
+        guard let access else { return }
+        await view(name: file.shownName) { api in
+            try await api.eventAttachment(accessId: access.id, eventId: event.id, attachmentId: file.id)
+        }
+    }
+
+    /// Nur die Terminliste des gewählten Zugangs neu laden.
+    func reloadEvents() async {
+        guard let access else { return }
+        let id = access.id
+        let now = Date()
+        let end = Calendar.current.date(byAdding: .month, value: 6, to: now) ?? now
+        if case .success(let fresh) = await portalCall({ api, access in
+            try await api.events(accessId: access, from: Zeit.day(now), to: Zeit.day(end))
+        }), self.access?.id == id {
+            events = fresh
+            rsvpErrors.keep(only: fresh)
+        }
     }
 
     // MARK: Aufgaben und Helferdienste

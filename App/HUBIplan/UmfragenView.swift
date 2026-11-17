@@ -31,10 +31,10 @@ struct UmfragenView: View {
         let all = model.surveys?.surveys ?? []
         List {
             if let message = model.error {
-                Section { Text(message).foregroundStyle(.red) }
+                Section { MeldungText(message, .fehler) }
             }
             if let notice = model.taskNotice {
-                Section { Text(notice).foregroundStyle(.green) }
+                Section { MeldungText(notice, .gut) }
             }
             if all.isEmpty {
                 Text(tr("Gerade läuft keine Umfrage für dich.")).foregroundStyle(.secondary)
@@ -234,7 +234,7 @@ private struct UmfrageFrage: View {
                     }
                 }
                 if amounts.values.reduce(0, +) > q.quantityLimit {
-                    Text(tr("Zusammen höchstens {n} Stück.", ["n": q.quantityLimit])).foregroundStyle(.red)
+                    Text(tr("Zusammen höchstens {n} Stück.", ["n": q.quantityLimit])).foregroundStyle(Color.fehlerText)
                 }
             default:
                 TextField(tr("Antwort"), text: Binding(

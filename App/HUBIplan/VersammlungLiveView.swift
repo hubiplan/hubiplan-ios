@@ -15,7 +15,7 @@ struct VersammlungLiveView: View {
     var body: some View {
         List {
             if let error {
-                Section { Text(error).foregroundStyle(.red) }
+                Section { MeldungText(error, .fehler) }
                     .accessibilityAddTraits(.updatesFrequently)
             }
             if let state {
@@ -68,7 +68,7 @@ struct VersammlungLiveView: View {
             } else if closed {
                 Text(tr("Die Anmeldung zu dieser Versammlung ist nicht geöffnet.")).foregroundStyle(.secondary)
             } else {
-                HStack { Spacer(); ProgressView(); Spacer() }
+                HStack { Spacer(); Laedt(); Spacer() }
             }
         }
         .navigationTitle(tr("Versammlung läuft"))
@@ -95,6 +95,8 @@ struct VersammlungLiveView: View {
             }
             switch result {
             case .success(let fresh):
+                // Neue Abstimmung ansagen, ohne den Fokus zu verschieben (IOS-03)
+                if let text = neueAbstimmungAnsage(vorher: state, jetzt: fresh) { Ansage.sagen(text, dringend: true) }
                 state = fresh
                 closed = false
             case .failure(let failure) where failure.status == 404:

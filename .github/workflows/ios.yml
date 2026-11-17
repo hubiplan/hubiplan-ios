@@ -53,6 +53,7 @@ jobs:
           for SPRACHE in de en; do
             foto verbinden "$SPRACHE"
             foto termine "$SPRACHE" -demo 1 -reiter termine
+            foto termin "$SPRACHE" -demo 1 -reiter termine -abschnitt termin
             foto neues "$SPRACHE" -demo 1 -reiter mitteilungen
             foto senden "$SPRACHE" -demo 1 -reiter mitteilungen -abschnitt senden
             foto aufgaben "$SPRACHE" -demo 1 -reiter aufgaben

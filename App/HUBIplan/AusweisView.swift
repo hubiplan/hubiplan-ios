@@ -80,7 +80,7 @@ struct AusweisView: View {
                         Text(tr("Ohne Netz ist noch kein Ausweis gespeichert. Er erscheint, sobald die App einmal online war."))
                             .foregroundStyle(.secondary)
                     case .revoked:
-                        Text(tr("Dein Ausweis ist gesperrt. Bitte wende dich an den Vorstand.")).foregroundStyle(.red)
+                        Text(tr("Dein Ausweis ist gesperrt. Bitte wende dich an den Vorstand.")).foregroundStyle(Color.fehlerText)
                     case .none:
                         Text(tr("Für dich gibt es zurzeit keinen gültigen Ausweis, z. B. weil die Mitgliedschaft noch nicht begonnen hat oder beendet ist."))
                             .foregroundStyle(.secondary)
@@ -162,6 +162,7 @@ struct AusweisView: View {
             }
             }
             .navigationTitle(tr("Ich"))
+            .zugangsWahl()
             .navigationDestination(isPresented: $showMeetings) { VersammlungenView() }
             .navigationDestination(isPresented: $showDocuments) { DokumenteView() }
             .navigationDestination(isPresented: $showResults) { ErgebnisseView() }
@@ -403,7 +404,7 @@ struct MeineRechnungen: View {
             if model.previewBusy {
                 Text(tr("Datei wird geladen …")).font(.footnote).foregroundStyle(.secondary)
             } else if let message = model.error {
-                Text(message).font(.footnote).foregroundStyle(.red)
+                MeldungText(message, .fehler).font(.footnote)
             }
             ForEach(list.sorted) { invoice in
                 VStack(alignment: .leading, spacing: 2) {
@@ -412,7 +413,7 @@ struct MeineRechnungen: View {
                     HStack {
                         Text(invoice.stateText)
                             .font(.footnote.weight(invoice.open ? .semibold : .regular))
-                            .foregroundStyle(invoice.overdue ? Color.red : invoice.open ? Color.orange : Color.secondary)
+                            .foregroundStyle(invoice.overdue ? Color.fehlerText : invoice.open ? Color.warnText : Color.secondary)
                         Spacer(minLength: 8)
                         Text(Geld.format(invoice.total)).font(.footnote)
                     }

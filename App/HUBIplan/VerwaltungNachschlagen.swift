@@ -58,7 +58,7 @@ struct GeschaeftspartnerView: View {
                         Text(tr("Geschäftspartner anlegen und ändern geht im Browser."))
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .searchable(text: $search, placement: .navigationBarDrawer(displayMode: .always), prompt: tr("Name, Ort oder Ansprechpartner"))
@@ -156,7 +156,7 @@ struct QualifikationenView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(row.name)
-                                    Text(row.detail).font(.footnote).foregroundStyle(row.urgent ? Color.red : Color.secondary)
+                                    Text(row.detail).font(.footnote).foregroundStyle(row.urgent ? Color.fehlerText : Color.secondary)
                                 }
                             }
                         }
@@ -166,7 +166,7 @@ struct QualifikationenView: View {
                         Text(tr("Nachweise eintragen und ändern geht im Browser."))
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }
@@ -206,7 +206,7 @@ struct FristenView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.title)
-                                    Text(item.line).font(.footnote).foregroundStyle(item.urgent ? Color.red : Color.secondary)
+                                    Text(item.line).font(.footnote).foregroundStyle(item.urgent ? Color.fehlerText : Color.secondary)
                                 }
                             }
                         }
@@ -214,7 +214,7 @@ struct FristenView: View {
                         Text(tr("Pflichten anlegen und als erledigt eintragen geht im Browser."))
                     }
                 } else if model.adminError == nil {
-                    ProgressView()
+                    Laedt()
                 }
             }
             .refreshable { await load() }
@@ -246,7 +246,7 @@ private struct FristSeite: View {
         List {
             Section {
                 Text(item.title).font(.title3.weight(.semibold))
-                Text(item.line).foregroundStyle(item.urgent ? Color.red : Color.primary)
+                Text(item.line).foregroundStyle(item.urgent ? Color.fehlerText : Color.primary)
                 if let text = item.repeatText {
                     Text(text).font(.footnote).foregroundStyle(Color.secondary)
                 }
