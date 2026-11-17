@@ -60,10 +60,12 @@ extension Instance {
     public var minIosBuild: Int { minAppVersions["ios"] ?? 1 }
 
     /// Kann diese App (Buildnummer `build`) mit der Instanz arbeiten? Wie Android: Produkt muss
-    /// HUBIplan sein, die Fassung mindestens die verlangte.
-    public func check(build: Int) throws {
+    /// HUBIplan sein, die Fassung mindestens die verlangte. Ohne lesbare Buildnummer
+    /// (Entwicklungsfassung, `nil`) entfällt die Versionsprüfung, wie auf dem Server
+    /// (devices/views.py, app_too_old).
+    public func check(build: Int?) throws {
         guard product == "HUBIplan" else { throw ApiError(status: 0, code: "not_hubiplan") }
-        guard build >= minIosBuild else { throw ApiError(status: 0, code: "app_too_old") }
+        if let build, build < minIosBuild { throw ApiError(status: 0, code: "app_too_old") }
     }
 }
 

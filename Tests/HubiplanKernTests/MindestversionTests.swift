@@ -24,6 +24,16 @@ final class MindestversionTests: XCTestCase {
         XCTAssertNoThrow(try i.check(build: 1))
     }
 
+    func testUnlesbareBuildnummerUeberspringtNurDieVersionspruefung() throws {
+        // Wie der Server: Entwicklungsfassungen ohne lesbare Buildnummer gelten nicht als zu alt
+        let i = try instanz(#"{"product":"HUBIplan","api_version":1,"min_app_versions":{"ios":5}}"#)
+        XCTAssertNoThrow(try i.check(build: nil))
+        let fremd = try instanz(#"{"product":"Etwas anderes","api_version":1}"#)
+        XCTAssertThrowsError(try fremd.check(build: nil)) { error in
+            XCTAssertEqual((error as? ApiError)?.code, "not_hubiplan")
+        }
+    }
+
     func testFremdesProdukt() throws {
         let i = try instanz(#"{"product":"Etwas anderes","api_version":1}"#)
         XCTAssertThrowsError(try i.check(build: 99)) { error in
