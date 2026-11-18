@@ -38,6 +38,7 @@ struct VerbindenView: View {
                 }
                 UeberDieApp()
             }
+            .tastaturFuehrung()
             .navigationTitle("HUBIplan")
             .disabled(model.loading)
             .alert(

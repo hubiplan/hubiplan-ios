@@ -561,6 +561,7 @@ private struct NeueBuchungBlatt: View {
                     }
                 }
             }
+            .tastaturFuehrung()
             .environment(\.locale, Texte.locale)
             .disabled(saving)
             .navigationTitle(tr("Neue Buchung"))
@@ -676,6 +677,7 @@ private struct EntwurfKorrigierenBlatt: View {
                         : tr("Betrag, Datum, Text und Beleg bleiben, wie sie sind. Stimmt davon etwas nicht, verwirf den Entwurf und buche neu."))
                 }
             }
+            .tastaturFuehrung()
             .navigationTitle(tr("Entwurf korrigieren"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

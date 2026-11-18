@@ -201,8 +201,10 @@ private struct Freischalten: View {
             if withCode {
                 Section {
                     SecureField(tr("Passwort"), text: $password)
+                        .weiterFeld()
                         .textContentType(.password)
                     TextField(tr("Code aus der Authenticator-App"), text: $code)
+                        .submitLabel(.done)
                         .keyboardType(.numberPad)
                         .textContentType(.oneTimeCode)
                         .onChange(of: code) { _, value in
@@ -238,6 +240,7 @@ private struct Freischalten: View {
                 }
             }
         }
+        .tastaturFuehrung()
     }
 }
 
@@ -1081,6 +1084,7 @@ private struct StammdatenBlatt: View {
                     }
                 }
             }
+            .tastaturFuehrung()
             .disabled(saving)
             .navigationTitle(unit.isDepartment ? tr("Kontaktdaten") : tr("Stammdaten"))
             .navigationBarTitleDisplayMode(.inline)

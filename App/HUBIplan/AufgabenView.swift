@@ -84,7 +84,7 @@ struct AufgabenView: View {
                 }
             }
         } footer: {
-            Text(tr("Für dich freigegebene Aufgaben und offene Angebote deiner Einheit."))
+            Text(tr("Für dich freigegebene Aufgaben und offene Angebote deines Vereins oder deiner Gruppe."))
         }
     }
 }

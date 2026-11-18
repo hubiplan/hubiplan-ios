@@ -218,6 +218,7 @@ struct AkteBlattView: View {
                     }
                 }
             }
+            .tastaturFuehrung()
             .disabled(busy)
             .environment(\.locale, Texte.locale)
             .navigationTitle(heading)

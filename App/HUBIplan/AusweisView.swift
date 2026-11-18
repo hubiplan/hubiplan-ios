@@ -80,7 +80,7 @@ struct AusweisView: View {
                         Text(tr("Ohne Netz ist noch kein Ausweis gespeichert. Er erscheint, sobald die App einmal online war."))
                             .foregroundStyle(.secondary)
                     case .revoked:
-                        Text(tr("Dein Ausweis ist gesperrt. Bitte wende dich an den Vorstand.")).foregroundStyle(Color.fehlerText)
+                        Text(tr("Dein Ausweis ist gesperrt. Bitte wende dich an deinen Verein.")).foregroundStyle(Color.fehlerText)
                     case .none:
                         Text(tr("Für dich gibt es zurzeit keinen gültigen Ausweis, z. B. weil die Mitgliedschaft noch nicht begonnen hat oder beendet ist."))
                             .foregroundStyle(.secondary)

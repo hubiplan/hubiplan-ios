@@ -276,8 +276,11 @@ private struct MitarbeiterMelden: View {
             Text(tr("Neuen Mitarbeiter melden")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
             Text(tr("Die Person bekommt eine Mail mit dem Link zum Online-Antrag.")).font(.footnote).foregroundStyle(.secondary)
             TextField(tr("Vorname"), text: $first).textContentType(.givenName)
+                .textInputAutocapitalization(.words).weiterFeld()
             TextField(tr("Nachname"), text: $last).textContentType(.familyName)
+                .textInputAutocapitalization(.words).weiterFeld()
             TextField(tr("E-Mail"), text: $email)
+                .submitLabel(.done)
                 .textContentType(.emailAddress).keyboardType(.emailAddress)
                 .textInputAutocapitalization(.never).autocorrectionDisabled()
             if let problem { MeldungText(problem, .fehler) }

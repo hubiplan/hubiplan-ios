@@ -172,6 +172,7 @@ private struct BelegungAnfrage: View {
             ForEach(items) { Text($0.title).tag($0.id) }
         }
         TextField(tr("Zweck"), text: $title)
+            .weiterFeld()
         Toggle(tr("Ganztägig"), isOn: $allDay)
         DatePicker(tr("Beginn"), selection: $start, displayedComponents: allDay ? [.date] : [.date, .hourAndMinute])
             .environment(\.locale, Texte.locale)
@@ -395,6 +396,7 @@ private struct AbwesenheitFormular: View {
                 }
                 if let problem { MeldungText(problem, .fehler) }
             }
+            .tastaturFuehrung()
             .navigationTitle(draft.row == nil ? tr("Abwesenheit eintragen") : tr("Abwesenheit ändern"))
             .navigationBarTitleDisplayMode(.inline)
             .onChange(of: start) { key = UUID().uuidString }
@@ -482,7 +484,7 @@ struct KuendigungAbschnitt: View {
                     .font(.footnote).foregroundStyle(.secondary)
                 DatePicker(tr("Austritt zum"), selection: $exitDate, in: (Self.date(earliest) ?? Date())..., displayedComponents: [.date])
                     .environment(\.locale, Texte.locale)
-                TextField(tr("Nachricht an den Vorstand (optional)"), text: $message, axis: .vertical)
+                TextField(tr("Nachricht an den Verein (optional)"), text: $message, axis: .vertical)
                     .lineLimit(2...5)
                     .textFieldStyle(.roundedBorder)
                 if info.tooEarly(chosen) {

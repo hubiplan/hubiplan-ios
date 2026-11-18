@@ -110,12 +110,15 @@ private struct AuslageFormular: View {
             Section {
                 TextField(tr("Wofür, für wen?"), text: $draft.purpose, axis: .vertical)
                 TextField(draft.kind == "mileage" ? tr("Datum der Fahrt (JJJJ-MM-TT)") : tr("Datum des Kaufs (JJJJ-MM-TT)"), text: $draft.date)
+                    .weiterFeld()
                     .keyboardType(.numbersAndPunctuation)
             }
             if draft.kind == "mileage" {
                 Section {
                     TextField(tr("Start, Ziel und Anlass"), text: $draft.route)
+                        .weiterFeld()
                     TextField(tr("Gefahrene Kilometer (hin und zurück)"), text: $draft.km)
+                        .weiterFeld()
                         .keyboardType(.decimalPad)
                 } footer: {
                     Text(tr("{rate} je km", ["rate": Geld.format(options.kmRate)]))
@@ -124,6 +127,7 @@ private struct AuslageFormular: View {
                 Section {
                     ForEach(draft.amounts.indices, id: \.self) { i in
                         TextField(tr("Betrag in €"), text: $draft.amounts[i])
+                            .weiterFeld()
                             .keyboardType(.decimalPad)
                     }
                     if draft.amounts.count < 20 {
@@ -160,7 +164,9 @@ private struct AuslageFormular: View {
                 .pickerStyle(.segmented)
                 if draft.payout == "bank" {
                     TextField(tr("Kontoinhaber"), text: $draft.holder)
+                        .textInputAutocapitalization(.words).weiterFeld()
                     TextField(tr("IBAN"), text: $draft.iban)
+                        .weiterFeld()
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                 }
@@ -177,6 +183,7 @@ private struct AuslageFormular: View {
             }
             .disabled(busy)
         }
+        .tastaturFuehrung()
         .navigationTitle(tr("Neue Auslage"))
         .eingabeschutz(draft != start || !photos.isEmpty, disabled: busy)
     }

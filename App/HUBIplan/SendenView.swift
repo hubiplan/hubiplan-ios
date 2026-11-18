@@ -47,6 +47,7 @@ struct SendenView: View {
                 }
                 Section(tr("Betreff")) {
                     TextField(tr("Betreff"), text: $subject)
+                        .weiterFeld()
                         .onChange(of: subject) { _, new in if new.count > 200 { subject = String(new.prefix(200)) } }
                 }
                 Section {
@@ -62,6 +63,7 @@ struct SendenView: View {
                     Text(tr("{length} von {maxBody} Zeichen", ["length": text.count, "maxBody": senders.maxBody]))
                 }
             }
+            .tastaturFuehrung()
             .disabled(busy)
             .navigationTitle(tr("Kurzmitteilung senden"))
             .navigationBarTitleDisplayMode(.inline)

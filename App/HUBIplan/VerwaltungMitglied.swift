@@ -53,6 +53,7 @@ struct VorgangBlatt: View {
                     angaben
                 }
             }
+            .tastaturFuehrung()
             .disabled(busy)
             .environment(\.locale, Texte.locale)
             .navigationTitle(preview?.heading ?? title)
