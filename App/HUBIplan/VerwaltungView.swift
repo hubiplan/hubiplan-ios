@@ -809,7 +809,7 @@ struct AenderungenView: View {
                                     Text(tr("„{text}“", ["text": request.message])).font(.footnote).foregroundStyle(Color.secondary)
                                 }
                             }
-                            HStack(spacing: 12) {
+                            KnopfReihe(spacing: 12) {
                                 Button(tr("Übernehmen")) { Task { await decide(request, accept: true) } }
                                     .buttonStyle(.borderedProminent)
                                 Button(tr("Ablehnen")) { Task { await decide(request, accept: false) } }
@@ -891,8 +891,7 @@ private struct AusweisScan: View {
                     Text(tr("Halte die Kamera auf den QR-Code des Mitgliedsausweises."))
                         .font(.footnote).foregroundStyle(Color.secondary)
                 } else {
-                    Text(tr("Die Kamera ist auf diesem Gerät nicht verfügbar oder nicht erlaubt."))
-                        .foregroundStyle(Color.secondary)
+                    KameraHinweis()
                     Spacer()
                 }
                 if busy { Laedt() }

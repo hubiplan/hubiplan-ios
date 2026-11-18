@@ -15,6 +15,8 @@ struct HauptView: View {
                 .tag("termine")
             MitteilungenView()
                 .tabItem { Label(tr("Neues"), systemImage: "envelope") }
+                // Zahl der ungelesenen Mitteilungen (IOS-22, wie Android AND-15)
+                .badge(model.unreadCirculars.count)
                 .tag("mitteilungen")
             if model.accesses.contains(where: { $0.hasTodos || $0.hasHelpers }) {
                 AufgabenView()
@@ -55,6 +57,21 @@ struct HauptView: View {
                 .padding()
         }
         .onChange(of: model.showEvents) { _, _ in tab = "termine" }
+        // Vom Server abgemeldet, ein anderes Konto rückt nach: nicht still wechseln (wie Android AND-16)
+        .alert(
+            tr("Konto abgemeldet"),
+            isPresented: Binding(get: { model.signedOut != nil && !model.adding }, set: { if !$0 { model.signedOut = nil } })
+        ) {
+            Button(tr("Neu verbinden")) {
+                model.signedOut = nil
+                model.adding = true
+            }
+            Button(tr("Schließen"), role: .cancel) { model.signedOut = nil }
+        } message: {
+            if let info = model.signedOut {
+                Text(tr("{dropped} wurde auf diesem Gerät abgemeldet. Du siehst jetzt {now}.", ["dropped": info.dropped, "now": info.now]))
+            }
+        }
         // Verwaltung: nach mehr als einer Minute im Hintergrund neu entsperren
         .onChange(of: phase) { _, now in model.sceneChanged(active: now == .active) }
         // Link zum Verbinden kam von außen (hubiplan://…), während schon ein Konto verbunden ist
@@ -87,7 +104,9 @@ struct TermineView: View {
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                if let message = model.error {
+                if model.offlineSince != nil {
+                    OfflineStand()
+                } else if let message = model.error {
                     Section {
                         MeldungText(message, .fehler)
                         Button(tr("Erneut versuchen")) { Task { await model.refresh() } }
@@ -175,8 +194,9 @@ struct TerminZeile: View {
                 }
                 .accessibilityElement(children: .combine)
             }
-            if event.responseMissing {
-                HStack {
+            // Ohne Netz (gespeicherter Stand) gehen keine Rückmeldungen
+            if event.responseMissing && model.offlineSince == nil {
+                KnopfReihe {
                     Button(tr("Zusagen")) { Task { await model.respond(event, status: "yes") } }
                         .buttonStyle(.borderedProminent)
                     Button(tr("Absagen")) { Task { await model.respond(event, status: "no") } }
@@ -231,7 +251,86 @@ extension View {
 }
 
 /// „Mein Konto“: Konten, Trennen, Gerätekalender. Erreichbar über den Knopf im Reiter „Ich“.
+/// Unterseiten von „Mein Konto“ wie in der Android-App (UX-Audit 16.11., AND-25 und IOS-17):
+/// jede Einstellung in zwei Tipps statt in einer langen Seite.
+enum KontoSeite: String, CaseIterable, Identifiable {
+    case konto, einstellungen, ueber
+
+    var id: String { rawValue }
+
+    var title: String {
+        switch self {
+        case .konto: return tr("Konto")
+        case .einstellungen: return tr("Einstellungen")
+        case .ueber: return tr("Über und Rechtliches")
+        }
+    }
+
+    var hint: String {
+        switch self {
+        case .konto: return tr("Weitere Konten, Abmelden, Konto und Daten löschen")
+        case .einstellungen: return tr("Gerätekalender, Hinweise")
+        case .ueber: return tr("Hilfe, Datenschutz, Impressum, Lizenzen, Version")
+        }
+    }
+
+    var symbol: String {
+        switch self {
+        case .konto: return "person.crop.circle"
+        case .einstellungen: return "gearshape"
+        case .ueber: return "info.circle"
+        }
+    }
+}
+
 struct KontoView: View {
+    @EnvironmentObject private var model: AppModel
+    /// Vorführmodus: für das Bildschirmfoto gleich zum Gerätekalender
+    @State private var showSettings = Demo.active && Demo.section == "kalender"
+
+    var body: some View {
+            Form {
+                Section {
+                    Text(model.account?.display ?? "")
+                    Text(model.account?.email ?? "").foregroundStyle(.secondary)
+                    Text(model.account?.server ?? "").foregroundStyle(.secondary)
+                } header: {
+                    Text(tr("Verbunden als"))
+                } footer: {
+                    if let access = model.access { Text(access.signedInAs) }
+                }
+                Section {
+                    ForEach(KontoSeite.allCases) { seite in
+                        NavigationLink {
+                            KontoUnterseite(seite: seite)
+                        } label: {
+                            Label {
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(seite.title)
+                                    Text(seite.hint).font(.footnote).foregroundStyle(.secondary)
+                                }
+                            } icon: {
+                                Image(systemName: seite.symbol)
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle(tr("Mein Konto"))
+            .navigationBarTitleDisplayMode(.inline)
+            .navigationDestination(isPresented: $showSettings) { KontoUnterseite(seite: .einstellungen) }
+            .sheet(isPresented: $model.adding, onDismiss: {
+                model.pending = nil
+                model.linkError = nil
+            }) {
+                VerbindenView()
+            }
+    }
+}
+
+/// Eine Unterseite von „Mein Konto“.
+private struct KontoUnterseite: View {
+    let seite: KontoSeite
     @EnvironmentObject private var model: AppModel
     @State private var unsent = 0
     @State private var confirmDisconnect = false
@@ -250,34 +349,14 @@ struct KontoView: View {
     }
 
     var body: some View {
-            ScrollViewReader { scroll in
             Form {
-                Section(tr("Verbunden als")) {
-                    Text(model.account?.display ?? "")
-                    Text(model.account?.email ?? "").foregroundStyle(.secondary)
-                }
-                Section {
-                    Text(model.account?.server ?? "")
-                    // Wie in der Android-App unter „Mein Konto“ (IOS-27)
-                    if let server = model.account?.server {
-                        if let url = Rechtliches.myAccount(server: server) {
-                            Button(tr("Mein Konto im Browser öffnen")) { openURL(url) }
-                        }
-                        if let url = Rechtliches.help(server: server) {
-                            Button(tr("Hilfe und Anleitungen im Browser")) { openURL(url) }
-                        }
-                        if let url = Rechtliches.privacy(server: server, key: model.access?.imprintKey) {
-                            Button(tr("Datenschutzhinweise")) { openURL(url) }
-                        }
-                        if let url = Rechtliches.imprint(server: server, key: model.access?.imprintKey) {
-                            Button(tr("Impressum")) { openURL(url) }
-                        }
+                switch seite {
+                case .konto:
+                    Section {
+                    if let server = model.account?.server, let url = Rechtliches.myAccount(server: server) {
+                        Button(tr("Mein Konto im Browser öffnen")) { openURL(url) }
                     }
-                } header: {
-                    Text(tr("Instanz"))
-                } footer: {
-                    if let access = model.access { Text(access.signedInAs) }
-                }
+                    }
                 Section {
                     ForEach(model.accounts.accounts) { entry in
                         Button {
@@ -352,6 +431,11 @@ struct KontoView: View {
                     }
                     .task { await model.checkDeviceKey() }
                 }
+                    Section {
+                        // App Store und Google Play verlangen einen Weg zum Löschen von Konto und Daten in der App
+                        Button(tr("Konto und Daten löschen")) { deleteInfo = true }
+                    }
+                case .einstellungen:
                 Section {
                     Toggle(tr("Termine in den Kalender des Geräts übernehmen"), isOn: Binding(
                         get: { model.calendarOn },
@@ -372,7 +456,7 @@ struct KontoView: View {
                             .foregroundStyle(Color.fehlerText)
                     }
                 } header: {
-                    Text(tr("Gerätekalender")).id("kalender")
+                    Text(tr("Gerätekalender"))
                 } footer: {
                     Text(tr("Je Verein ein eigener Kalender „HUBIplan“. Er liegt dort, wo dein Kalender neue Termine ablegt (zum Beispiel in iCloud), und wird aktualisiert, wenn du die App öffnest, und nach jeder Rückmeldung."))
                 }
@@ -390,10 +474,21 @@ struct KontoView: View {
                 } footer: {
                     Text(tr("Etwa einen Tag vor dem Anmeldeschluss, mit den Knöpfen Zusage und Absage."))
                 }
-                UeberDieApp()
-                Section {
-                    // App Store und Google Play verlangen einen Weg zum Löschen von Konto und Daten in der App
-                    Button(tr("Konto und Daten löschen")) { deleteInfo = true }
+                case .ueber:
+                    Section {
+                    if let server = model.account?.server {
+                        if let url = Rechtliches.help(server: server) {
+                            Button(tr("Hilfe und Anleitungen im Browser")) { openURL(url) }
+                        }
+                        if let url = Rechtliches.privacy(server: server, key: model.access?.imprintKey) {
+                            Button(tr("Datenschutzhinweise")) { openURL(url) }
+                        }
+                        if let url = Rechtliches.imprint(server: server, key: model.access?.imprintKey) {
+                            Button(tr("Impressum")) { openURL(url) }
+                        }
+                    }
+                    }
+                    UeberDieApp()
                 }
             }
             .alert(tr("Konto und Daten löschen"), isPresented: $deleteInfo) {
@@ -408,22 +503,8 @@ struct KontoView: View {
             } message: {
                 Text(Rechtliches.deleteInfo(server: model.account?.server ?? ""))
             }
-            .navigationTitle(tr("Mein Konto"))
+            .navigationTitle(seite.title)
             .navigationBarTitleDisplayMode(.inline)
-            .task {
-                // Vorführmodus: für das Bildschirmfoto zum Gerätekalender springen
-                if Demo.active, Demo.section == "kalender" {
-                    try? await Task.sleep(nanoseconds: 800_000_000)
-                    scroll.scrollTo("kalender", anchor: .top)
-                }
-            }
-            }
-            .sheet(isPresented: $model.adding, onDismiss: {
-                model.pending = nil
-                model.linkError = nil
-            }) {
-                VerbindenView()
-            }
     }
 }
 

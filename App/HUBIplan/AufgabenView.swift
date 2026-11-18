@@ -146,6 +146,8 @@ struct HelferListe: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.openURL) private var openURL
     @State private var cancel: MyShift?
+    /// Eintragen ohne spätere Selbstabsage: vorher nachfragen (wie Android AND-22)
+    @State private var confirmSignup: (duty: HelperDuty, shift: HelperShift)?
 
     var body: some View {
         let data = model.helpers
@@ -167,6 +169,23 @@ struct HelferListe: View {
                     }
                 }
                 .padding(.vertical, 4)
+            }
+        }
+        .alert(
+            tr("Verbindlich eintragen?"),
+            isPresented: Binding(get: { confirmSignup != nil }, set: { if !$0 { confirmSignup = nil } })
+        ) {
+            Button(tr("Mich eintragen")) {
+                if let shift = confirmSignup?.shift { Task { await model.signup(shift) } }
+                confirmSignup = nil
+            }
+            Button(tr("Abbrechen"), role: .cancel) { confirmSignup = nil }
+        } message: {
+            if let pick = confirmSignup {
+                Text(tr(
+                    "Für {dienst}, {zeit} eintragen? Absagen geht danach nur über die Verwaltung.",
+                    ["dienst": pick.duty.name, "zeit": zeitraum(pick.shift.startsAt, pick.shift.endsAt)]
+                ))
             }
         }
         .confirmationDialog(
@@ -212,7 +231,13 @@ struct HelferListe: View {
                                 if shift.mine != nil {
                                     Text(tr("Du bist eingetragen.")).font(.footnote.weight(.semibold)).foregroundStyle(Color.accentColor)
                                 } else if plan.canSignup(shift) {
-                                    Button(tr("Mich eintragen")) { Task { await model.signup(shift) } }
+                                    Button(tr("Mich eintragen")) {
+                                        if plan.cancellableAfterSignup(shift) {
+                                            Task { await model.signup(shift) }
+                                        } else {
+                                            confirmSignup = (duty, shift)
+                                        }
+                                    }
                                         .buttonStyle(.borderedProminent)
                                         .disabled(model.loading)
                                         .padding(.top, 2)

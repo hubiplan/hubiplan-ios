@@ -166,6 +166,8 @@ private struct AbstimmungKarte: View {
                                 Text(option.label).foregroundStyle(Color.primary)
                                 Spacer()
                             }
+                            // Mindestens 44 pt: ein Fehltipp ließe sich nicht mehr ändern (IOS-15)
+                            .frame(minHeight: 44)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
@@ -208,8 +210,7 @@ struct VersammlungScan: View {
                     Text(tr("Halte die Kamera auf den QR-Code, den die Versammlungsleitung zeigt."))
                         .font(.footnote).foregroundStyle(Color.secondary)
                 } else {
-                    Text(tr("Die Kamera ist auf diesem Gerät nicht verfügbar oder nicht erlaubt."))
-                        .foregroundStyle(Color.secondary)
+                    KameraHinweis()
                     Spacer()
                 }
             }

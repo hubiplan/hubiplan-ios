@@ -157,6 +157,8 @@ public struct HelperPlan: Decodable, Equatable, Identifiable, Sendable {
     /// "self": Mitglieder tragen sich selbst ein; sonst teilt nur die Verwaltung ein
     public var signup: String
     public var maxShifts: Int?
+    /// Selbst absagen bis so viele Tage vor Beginn
+    public var cancelDays: Int
     public var note: String
     public var duties: [HelperDuty]
 
@@ -164,6 +166,7 @@ public struct HelperPlan: Decodable, Equatable, Identifiable, Sendable {
         case id, title, unit, signup, note, duties
         case eventTitle = "event_title"
         case maxShifts = "max_shifts"
+        case cancelDays = "cancel_days"
     }
 
     public init(from decoder: Decoder) throws {
@@ -174,6 +177,7 @@ public struct HelperPlan: Decodable, Equatable, Identifiable, Sendable {
         eventTitle = try c.decodeIfPresent(String.self, forKey: .eventTitle) ?? ""
         signup = try c.decodeIfPresent(String.self, forKey: .signup) ?? "self"
         maxShifts = try c.decodeIfPresent(Int.self, forKey: .maxShifts)
+        cancelDays = try c.decodeIfPresent(Int.self, forKey: .cancelDays) ?? 0
         note = try c.decodeIfPresent(String.self, forKey: .note) ?? ""
         duties = try c.decodeIfPresent([HelperDuty].self, forKey: .duties) ?? []
     }
@@ -181,6 +185,13 @@ public struct HelperPlan: Decodable, Equatable, Identifiable, Sendable {
     /// Eintragen ist möglich: Plan zum Selbsteintragen, Schicht nicht vorbei, frei, nicht schon dabei.
     public func canSignup(_ shift: HelperShift) -> Bool {
         signup == "self" && !shift.past && shift.mine == nil && shift.free > 0
+    }
+
+    /// Lässt sich der Dienst nach dem Eintragen noch selbst absagen? Wie der Server: bis
+    /// `cancel_days` Tage vor Beginn (UX-Audit 16.11., wie Android AND-22). Unlesbarer Beginn: nachfragen.
+    public func cancellableAfterSignup(_ shift: HelperShift, now: Date = Date()) -> Bool {
+        guard let start = Zeit.parse(shift.startsAt) else { return false }
+        return now < start.addingTimeInterval(-Double(cancelDays) * 86_400)
     }
 
     /// Einheit und Veranstaltung unter dem Titel.

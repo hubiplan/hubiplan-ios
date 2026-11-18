@@ -108,12 +108,15 @@ enum Konten {
 final class EntwurfsOrdner: DraftFiles, @unchecked Sendable {
     private let dir: URL
 
-    init(account: String) {
+    init(account: String, folder: String = "entwuerfe") {
         let base = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
         let safe = account.filter { $0.isASCII && ($0.isLetter || $0.isNumber || $0 == "-") }
-        dir = base.appendingPathComponent("entwuerfe", isDirectory: true)
+        dir = base.appendingPathComponent(folder, isDirectory: true)
             .appendingPathComponent(safe.isEmpty ? "konto" : "konto-\(safe)", isDirectory: true)
     }
+
+    /// Ordner für den Offline-Stand und die gelesenen Mitteilungen eines Kontos (UX-Audit 16.11., IOS-24)
+    static func offline(account: String) -> EntwurfsOrdner { EntwurfsOrdner(account: account, folder: "offline") }
 
     /// Ordner einer Quarantäne (Gesamtaudit 15.11., APP-04), benannt nach Instanz und Konto
     init(quarantine id: String) {

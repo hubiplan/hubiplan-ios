@@ -1,3 +1,5 @@
+import AVFoundation
+import HubiplanKern
 import SwiftUI
 import VisionKit
 
@@ -46,6 +48,35 @@ struct QrScanner: UIViewControllerRepresentable {
                     return
                 }
             }
+        }
+    }
+}
+
+/// Kamera verweigert: sagen, warum der Scan fehlt, und in die Einstellungen führen
+/// (UX-Audit 16.11., wie Android AND-17). Ohne Kamera am Gerät (Simulator) nur der Satz.
+struct KameraHinweis: View {
+    var alternative: String?
+    @Environment(\.openURL) private var openURL
+
+    private var denied: Bool {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        return status == .denied || status == .restricted
+    }
+
+    var body: some View {
+        if denied {
+            VStack(alignment: .leading, spacing: 8) {
+                Text(tr("Ohne Kamera lässt sich der QR-Code nicht scannen. Erlaube die Kamera in den Einstellungen.")
+                    + (alternative.map { " " + $0 } ?? ""))
+                    .foregroundStyle(Color.secondary)
+                if let url = URL(string: UIApplication.openSettingsURLString) {
+                    Button(tr("Einstellungen öffnen")) { openURL(url) }
+                        .buttonStyle(.bordered)
+                }
+            }
+        } else {
+            Text(tr("Die Kamera ist auf diesem Gerät nicht verfügbar oder nicht erlaubt."))
+                .foregroundStyle(Color.secondary)
         }
     }
 }

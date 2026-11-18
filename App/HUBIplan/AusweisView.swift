@@ -106,6 +106,10 @@ struct AusweisView: View {
                             WalletKnopf()
                         }
                     }
+                    // Verwaltung gleich unter dem Ausweis, nicht unter allen Rechnungen (UX-Audit 16.11., IOS-17)
+                    if let units = model.adminOverview?.allUnits, !units.isEmpty {
+                        IchVerweis(title: tr("Verwaltung"), detail: units.map(\.name).joined(separator: ", ")) { VerwaltungView() }
+                    }
                     if let profile = model.profile {
                         MeineDaten(profile: profile)
                         if let cancellation = profile.cancellation, cancellation.shown {
@@ -147,9 +151,6 @@ struct AusweisView: View {
                     }
                     if let documents = model.documents {
                         IchVerweis(title: tr("Dokumente"), detail: trn("1 Dokument", "{n} Dokumente", documents.count)) { DokumenteView() }
-                    }
-                    if let units = model.adminOverview?.allUnits, !units.isEmpty {
-                        IchVerweis(title: tr("Verwaltung"), detail: units.map(\.name).joined(separator: ", ")) { VerwaltungView() }
                     }
                 }
                 .frame(maxWidth: 520, alignment: .leading)
@@ -196,6 +197,11 @@ struct AusweisView: View {
 
 struct AusweisKarte: View {
     let stored: StoredCard
+    @Environment(\.dynamicTypeSize) private var schrift
+
+    /// Bei Bedienungshilfen-Größen steht der QR-Code unter den Angaben, damit der Name Platz
+    /// hat (UX-Audit 16.11., IOS-14, wie Android AND-13).
+    private var gestapelt: Bool { schrift.isAccessibilitySize }
 
     @ViewBuilder
     private func zeile(_ label: String, _ value: String) -> some View {
@@ -226,7 +232,10 @@ struct AusweisKarte: View {
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
                 .background(primary)
-                HStack(alignment: .top, spacing: 12) {
+                let anordnung = gestapelt
+                    ? AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
+                    : AnyLayout(HStackLayout(alignment: .top, spacing: 12))
+                anordnung {
                     if let data = stored.photo, let photo = UIImage(data: data) {
                         if display.isOrganization {
                             // Logo der Organisation: ganz zeigen, nicht beschneiden
@@ -255,7 +264,7 @@ struct AusweisKarte: View {
                     Spacer(minLength: 0)
                     if let qr = qrImage(stored.card.url ?? "") {
                         Image(uiImage: qr).interpolation(.none).resizable()
-                            .frame(width: 96, height: 96)
+                            .frame(width: gestapelt ? 160 : 96, height: gestapelt ? 160 : 96)
                             .accessibilityLabel(tr("QR-Code zur Prüfung"))
                     }
                 }
@@ -417,7 +426,7 @@ struct MeineRechnungen: View {
                         Spacer(minLength: 8)
                         Text(Geld.format(invoice.total)).font(.footnote)
                     }
-                    HStack(spacing: 12) {
+                    KnopfReihe(spacing: 12) {
                         Button(tr("PDF ansehen")) { Task { await model.openInvoice(invoice) } }
                             .buttonStyle(.bordered)
                         if invoice.hasCancellationPdf {
@@ -425,7 +434,7 @@ struct MeineRechnungen: View {
                                 .buttonStyle(.borderless)
                         }
                     }
-                    .font(.footnote)
+                    // Standardgröße: verkleinerte Knöpfe lagen unter 44 pt (IOS-15)
                     .disabled(model.previewBusy)
                 }
                 .padding(.vertical, 4)

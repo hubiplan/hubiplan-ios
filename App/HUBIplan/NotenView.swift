@@ -118,6 +118,8 @@ struct PultStart: Identifiable {
 /// Eine Mappe: Stücke in Programmreihenfolge, nach Nummer oder nach Titel.
 struct MappeView: View {
     let mappe: Mappe
+    /// Breite der Stücknummer wächst mit der Schrift (IOS-14)
+    @ScaledMetric(relativeTo: .headline) private var nummernBreite: CGFloat = 36
     @State private var sort = "reihenfolge"
     @State private var play: PultStart? 
 
@@ -164,7 +166,7 @@ struct MappeView: View {
                             HStack(alignment: .firstTextBaseline, spacing: 12) {
                                 if !item.number.isEmpty {
                                     Text(item.number).font(.headline.monospacedDigit()).foregroundStyle(Color.secondary)
-                                        .frame(minWidth: 36, alignment: .trailing)
+                                        .frame(minWidth: nummernBreite, alignment: .trailing)
                                 }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.title).foregroundStyle(Color.primary)

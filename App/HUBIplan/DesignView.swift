@@ -46,6 +46,8 @@ struct DatumKaestchen: View {
     let iso: String
     var allDay = false
     var gedaempft = false
+    /// Wächst mit der Schrift, damit Tag und Monat nicht abgeschnitten werden (IOS-14)
+    @ScaledMetric(relativeTo: .headline) private var breite: CGFloat = 48
 
     var body: some View {
         if let teile = Design.datumKaestchen(iso, allDay: allDay) {
@@ -55,7 +57,7 @@ struct DatumKaestchen: View {
             }
             // Geprüftes Farbpaar statt Akzentblau auf 14 % Blau (3,3 : 1, UX-Audit 16.11., IOS-11)
             .foregroundStyle(gedaempft ? Color.secondary : Color.zustand(.hinweis))
-            .frame(width: 48)
+            .frame(minWidth: breite)
             .padding(.vertical, 4)
             .background(
                 RoundedRectangle(cornerRadius: Design.radius)
@@ -159,5 +161,42 @@ struct Laedt: View {
     var body: some View {
         ProgressView { Text(text) }
             .accessibilityLabel(text)
+    }
+}
+
+/// Hinweis über Terminen und Mitteilungen, wenn sie aus dem gespeicherten Stand kommen, weil
+/// HUBIplan gerade nicht erreichbar ist (UX-Audit 16.11., IOS-24, wie Android AND-07).
+struct OfflineStand: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        if let since = model.offlineSince {
+            Section {
+                MeldungText(tr(
+                    "Gespeicherter Stand von {time}. Zusagen und Antworten gehen erst wieder mit Verbindung.",
+                    ["time": since.formatted(.dateTime.day().month().hour().minute().locale(Texte.locale))]
+                ), .hinweis)
+                Button(tr("Erneut versuchen")) { Task { await model.refresh() } }
+            }
+        }
+    }
+}
+
+/// Knöpfe nebeneinander; bei großer Schrift oder schmalem Bildschirm untereinander, statt sie
+/// abzuschneiden oder zu quetschen (UX-Audit 16.11., IOS-14, wie Android AND-13).
+struct KnopfReihe<Content: View>: View {
+    var spacing: CGFloat?
+    private let content: () -> Content
+
+    init(spacing: CGFloat? = nil, @ViewBuilder content: @escaping () -> Content) {
+        self.spacing = spacing
+        self.content = content
+    }
+
+    var body: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: spacing) { content() }
+            VStack(alignment: .leading, spacing: 8) { content() }
+        }
     }
 }

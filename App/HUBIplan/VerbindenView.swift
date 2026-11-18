@@ -179,6 +179,8 @@ struct VerbindenView: View {
                 } label: {
                     Label(tr("QR-Code von einem anderen Bildschirm scannen"), systemImage: "qrcode.viewfinder")
                 }
+            } else {
+                KameraHinweis(alternative: tr("Oder füge den Link aus dem QR-Code hier ein."))
             }
             TextField(tr("Link aus dem QR-Code"), text: $link, axis: .vertical)
                 .textInputAutocapitalization(.never)
