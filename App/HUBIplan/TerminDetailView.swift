@@ -48,6 +48,9 @@ struct TerminDetailView: View {
                     }
                 }
                 if detail.rsvp.enabled { rueckmeldung(detail) }
+                if let reg = detail.registration, reg.enabled, reg.canRegister {
+                    TeilnahmeSection(eventId: detail.id)
+                }
             } else if loadError == nil {
                 Section { Laedt() }
             }

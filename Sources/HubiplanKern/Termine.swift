@@ -265,9 +265,11 @@ public struct EventDetail: Decodable, Equatable, Sendable {
     public var owner: String
     public var rsvp: Rsvp
     public var attachments: [EventFile]
+    /// Verbindliche Anmeldung (Modul „Anmeldungen“); ohne Modul oder bei älteren Servern nil
+    public var registration: RegistrationBrief?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, description, location, address, directions, latitude, longitude, owner, rsvp, attachments
+        case id, title, description, location, address, directions, latitude, longitude, owner, rsvp, attachments, registration
         case mapLinks = "map_links"
         case isCancelled = "is_cancelled"
         case cancelNote = "cancel_note"
@@ -289,6 +291,7 @@ public struct EventDetail: Decodable, Equatable, Sendable {
         owner = try c.decodeIfPresent(String.self, forKey: .owner) ?? ""
         rsvp = try c.decodeIfPresent(Rsvp.self, forKey: .rsvp) ?? Rsvp()
         attachments = try c.decodeIfPresent([EventFile].self, forKey: .attachments) ?? []
+        registration = try c.decodeIfPresent(RegistrationBrief.self, forKey: .registration)
     }
 }
 
