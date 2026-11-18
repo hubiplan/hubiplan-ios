@@ -30,7 +30,6 @@
  "Zugesagt": "Attending",
  "Vielleicht": "Maybe",
  "Verbunden als": "Connected as",
- "Instanz": "Instance",
  "Hilfe und Anleitungen im Browser": "Help and guides in the browser",
  "Erneut versuchen": "Try again",
  "Du hast noch keinen Zugang zum Mitgliederbereich. Bitte wende dich an deinen Verein.": "You do not have access to the members' area yet. Please contact your club.",
@@ -1065,5 +1064,10 @@
   "Für {dienst}, {zeit} eintragen? Absagen geht danach nur über die Verwaltung.": "Sign up for {dienst}, {zeit}? Cancelling afterwards is only possible via the club office.",
   "Ohne Kamera lässt sich der QR-Code nicht scannen. Erlaube die Kamera in den Einstellungen.": "The QR code cannot be scanned without the camera. Allow the camera in Settings.",
   "Einstellungen öffnen": "Open Settings",
-  "Oder füge den Link aus dem QR-Code hier ein.": "Or paste the link from the QR code here."
+  "Oder füge den Link aus dem QR-Code hier ein.": "Or paste the link from the QR code here.",
+  "Einstellungen": "Settings",
+  "Über und Rechtliches": "About and legal",
+  "Weitere Konten, Abmelden, Konto und Daten löschen": "Other accounts, sign out, delete account and data",
+  "Gerätekalender, Hinweise": "Device calendar, notifications",
+  "Hilfe, Datenschutz, Impressum, Lizenzen, Version": "Help, privacy, legal notice, licences, version"
 }

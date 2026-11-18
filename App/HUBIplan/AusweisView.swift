@@ -106,6 +106,10 @@ struct AusweisView: View {
                             WalletKnopf()
                         }
                     }
+                    // Verwaltung gleich unter dem Ausweis, nicht unter allen Rechnungen (UX-Audit 16.11., IOS-17)
+                    if let units = model.adminOverview?.allUnits, !units.isEmpty {
+                        IchVerweis(title: tr("Verwaltung"), detail: units.map(\.name).joined(separator: ", ")) { VerwaltungView() }
+                    }
                     if let profile = model.profile {
                         MeineDaten(profile: profile)
                         if let cancellation = profile.cancellation, cancellation.shown {
@@ -147,9 +151,6 @@ struct AusweisView: View {
                     }
                     if let documents = model.documents {
                         IchVerweis(title: tr("Dokumente"), detail: trn("1 Dokument", "{n} Dokumente", documents.count)) { DokumenteView() }
-                    }
-                    if let units = model.adminOverview?.allUnits, !units.isEmpty {
-                        IchVerweis(title: tr("Verwaltung"), detail: units.map(\.name).joined(separator: ", ")) { VerwaltungView() }
                     }
                 }
                 .frame(maxWidth: 520, alignment: .leading)
