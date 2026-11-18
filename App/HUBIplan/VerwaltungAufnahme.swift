@@ -17,6 +17,7 @@ struct AufnahmeBlatt: View {
     @State private var busy = false
     /// Ein Schlüssel je Formular: erneutes Senden nimmt nicht doppelt auf
     @State private var key = UUID().uuidString
+    @State private var leave = false
 
     var body: some View {
         NavigationStack {
@@ -35,7 +36,7 @@ struct AufnahmeBlatt: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     if found == nil {
-                        Button(tr("Abbrechen")) { dismiss() }
+                        Button(tr("Abbrechen")) { if draft.hasInput { leave = true } else { dismiss() } }
                     } else {
                         Button(tr("Zurück")) { found = nil }
                     }
@@ -46,6 +47,12 @@ struct AufnahmeBlatt: View {
             }
             .task { await load() }
             .interactiveDismissDisabled()
+            .confirmationDialog(tr("Eingaben verwerfen?"), isPresented: $leave, titleVisibility: .visible) {
+                Button(tr("Verwerfen"), role: .destructive) { dismiss() }
+                Button(tr("Weiter bearbeiten"), role: .cancel) {}
+            } message: {
+                Text(tr("Was du in diesem Blatt eingegeben hast, geht verloren."))
+            }
         }
     }
 

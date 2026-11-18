@@ -57,8 +57,8 @@ struct VorgangBlatt: View {
             .environment(\.locale, Texte.locale)
             .navigationTitle(preview?.heading ?? title)
             .navigationBarTitleDisplayMode(.inline)
+            .eingabeschutz(!reason.isEmpty || !note.isEmpty, disabled: busy)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     if preview != nil {
                         Button(tr("Bestätigen")) { Task { await apply() } }.disabled(busy)

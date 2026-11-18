@@ -65,12 +65,15 @@ struct AufgabenVerwaltungView: View {
             }
         }
         .sheet(isPresented: $creating) {
-            NeueAufgabeBlatt(unit: unit) { id in
-                Task {
-                    await load()
-                    shown = id
+            Group {
+                NeueAufgabeBlatt(unit: unit) { id in
+                    Task {
+                        await load()
+                        shown = id
+                    }
                 }
             }
+            .verwaltungsBlatt()
         }
     }
 
@@ -218,8 +221,8 @@ private struct NeueAufgabeBlatt: View {
             .disabled(saving)
             .navigationTitle(tr("Neue Aufgabe"))
             .navigationBarTitleDisplayMode(.inline)
+            .eingabeschutz(draft != TodoDraft() || hasDate, disabled: saving)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Anlegen")) { Task { await save() } }.disabled(saving || values.body == nil)
                 }

@@ -188,24 +188,27 @@ struct QuittungBlatt: View {
             .onChange(of: draft.receives) { _, _ in draft.category = nil }
             .task { await load() }
             .fullScreenCover(item: Binding(get: { signing.map(Rolle.init) }, set: { signing = $0?.id })) { rolle in
-                UnterschriftFeld(
-                    title: rolle.id == "treasurer" ? tr("Kassierer") : draft.name.trimmingCharacters(in: .whitespaces),
-                    text: rolle.id == "treasurer" ? draft.treasurerText : draft.counterpartyText(unitName: unit.name)
-                ) { strokes in
-                    let now = Zeit.stamp(Date())
-                    if rolle.id == "treasurer" {
-                        draft.treasurer = strokes
-                        draft.treasurerAt = now
-                        draft.useStored = false
-                    } else {
-                        draft.counterparty = strokes
-                        draft.counterpartyAt = now
-                        draft.declined = ""
+                Group {
+                    UnterschriftFeld(
+                        title: rolle.id == "treasurer" ? tr("Kassierer") : draft.name.trimmingCharacters(in: .whitespaces),
+                        text: rolle.id == "treasurer" ? draft.treasurerText : draft.counterpartyText(unitName: unit.name)
+                    ) { strokes in
+                        let now = Zeit.stamp(Date())
+                        if rolle.id == "treasurer" {
+                            draft.treasurer = strokes
+                            draft.treasurerAt = now
+                            draft.useStored = false
+                        } else {
+                            draft.counterparty = strokes
+                            draft.counterpartyAt = now
+                            draft.declined = ""
+                        }
+                        signing = nil
+                    } cancel: {
+                        signing = nil
                     }
-                    signing = nil
-                } cancel: {
-                    signing = nil
                 }
+                .verwaltungsBlatt()
             }
             .alert(tr("Zahler unterschreibt nicht"), isPresented: $askDecline) {
                 TextField(tr("Grund"), text: $declineText)

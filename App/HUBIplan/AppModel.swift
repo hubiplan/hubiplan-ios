@@ -169,7 +169,7 @@ final class AppModel: ObservableObject {
         }
         guard let box = offlineBox else { return }
         let found: (id: Int, snapshot: OfflineSnapshot)?
-        if let id = access?.id ?? accessId {
+        if let id = access?.id ?? accessId ?? savedAccessId {
             found = box.load(accessId: id).map { (id, $0) }
         } else {
             found = box.latest()
@@ -263,6 +263,12 @@ final class AppModel: ObservableObject {
     }
 
     var access: PortalAccess? { accesses.first { $0.id == accessId } ?? accesses.first }
+
+    /// Zuletzt gewählter Zugang des gezeigten Kontos (IOS-25)
+    private var savedAccessId: Int? {
+        guard let account = accounts.activeId, !Demo.active else { return nil }
+        return Zustand.gespeicherterZugang(account: account)
+    }
 
     // MARK: Verbinden
 
@@ -572,7 +578,10 @@ final class AppModel: ObservableObject {
                 self.save()
             }
             self.accesses = me.portal
-            if self.access == nil { self.accessId = me.portal.first?.id }
+            // Zuletzt gewählten Zugang wieder zeigen (IOS-25), sonst den ersten
+            if self.accessId == nil || !me.portal.contains(where: { $0.id == self.accessId }) {
+                self.accessId = Zustand.zugang(saved: self.savedAccessId, available: me.portal.map(\.id))
+            }
             guard let access = self.access else {
                 self.events = []
                 self.circulars = []
@@ -1100,6 +1109,7 @@ final class AppModel: ObservableObject {
     func choose(access id: Int) async {
         guard id != access?.id else { return }
         accessId = id
+        if let account = accounts.activeId, !Demo.active { Zustand.merke(zugang: id, account: account) }
         events = []
         circulars = []
         unreadCirculars = []

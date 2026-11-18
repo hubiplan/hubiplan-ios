@@ -67,6 +67,13 @@ public struct AdmitDraft: Equatable, Sendable {
 
     private func clean(_ text: String) -> String { text.trimmingCharacters(in: .whitespacesAndNewlines) }
 
+    /// Etwas eingetragen, das beim Abbrechen verloren ginge (UX-Audit 16.11., IOS-09). Art,
+    /// Untereinheit und Eintritt setzt das Blatt selbst vor; sie zählen nicht.
+    public var hasInput: Bool {
+        [firstName, lastName, birthDate, gender, title, nameSuffix, email, phone, street, postalCode, city]
+            .contains { !clean($0).isEmpty }
+    }
+
     var birthIso: String? { clean(birthDate).isEmpty ? nil : MasterData.parseDate(birthDate) }
 
     /// Was fehlt; nil, wenn das Formular abgeschickt werden kann.

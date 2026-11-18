@@ -6,6 +6,15 @@ struct HauptView: View {
     @Environment(\.scenePhase) private var phase
     /// „Mein Konto“ liegt im Reiter „Ich“ (das iPhone zeigt höchstens fünf Reiter)
     @State private var tab = Demo.tab == "konto" ? "ausweis" : Demo.tab
+    /// Zuletzt gewählter Reiter, übersteht das Beenden durch das System (UX-Audit 16.11., IOS-25)
+    @SceneStorage("gewaehlterReiter") private var savedTab = ""
+
+    private var availableTabs: [String] {
+        var tabs = Zustand.festeReiter
+        if model.accesses.contains(where: { $0.hasTodos || $0.hasHelpers }) { tabs.append("aufgaben") }
+        if model.accesses.contains(where: { $0.hasScores }) { tabs.append("noten") }
+        return tabs
+    }
     @State private var exportURL: URL?
 
     var body: some View {
@@ -35,7 +44,10 @@ struct HauptView: View {
         .task {
             model.checkStaleQuarantine()
             await model.refresh()
+            // Nur, solange niemand schon einen anderen Reiter gewählt hat
+            if !Demo.active, tab == "termine" { tab = Zustand.reiter(savedTab, available: availableTabs, fallback: tab) }
         }
+        .onChange(of: tab) { _, new in if !Demo.active { savedTab = new } }
         // Alte Vorgänge aus beendeten Verbindungen (APP-04, FQ24): exportieren oder löschen
         .alert(
             tr("Alte Vorgänge"),
