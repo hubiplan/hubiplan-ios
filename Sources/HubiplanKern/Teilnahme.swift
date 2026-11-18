@@ -124,13 +124,21 @@ public struct RegistrationOffer: Decodable, Equatable, Sendable {
     public var guestsAllowed: Bool
     public var terms: String
     public var prices: [RegistrationPrice]
+    /// Warteliste, wenn alle Plätze vergeben sind (Stufe A3)
+    public var waitlist: Bool
+    /// Anmeldungen auf der Warteliste
+    public var waiting: Int
+    public var substituteAllowed: Bool
+    public var cancelRules: [CancelRule]
 
     enum CodingKeys: String, CodingKey {
-        case state, free, terms, prices
+        case state, free, terms, prices, waitlist, waiting
         case stateText = "state_text"
         case closesAt = "closes_at"
         case maxPersons = "max_persons"
         case guestsAllowed = "guests_allowed"
+        case substituteAllowed = "substitute_allowed"
+        case cancelRules = "cancel_rules"
     }
 
     public init(from decoder: Decoder) throws {
@@ -143,15 +151,73 @@ public struct RegistrationOffer: Decodable, Equatable, Sendable {
         guestsAllowed = try c.decodeIfPresent(Bool.self, forKey: .guestsAllowed) ?? false
         terms = try c.decodeIfPresent(String.self, forKey: .terms) ?? ""
         prices = try c.decodeIfPresent([RegistrationPrice].self, forKey: .prices) ?? []
+        waitlist = try c.decodeIfPresent(Bool.self, forKey: .waitlist) ?? false
+        waiting = try c.decodeIfPresent(Int.self, forKey: .waiting) ?? 0
+        substituteAllowed = try c.decodeIfPresent(Bool.self, forKey: .substituteAllowed) ?? false
+        cancelRules = try c.decodeIfPresent([CancelRule].self, forKey: .cancelRules) ?? []
     }
 
     /// Tarife für ein Mitglied bzw. einen Gast, die sich gerade buchen lassen.
     public func prices(member: Bool) -> [RegistrationPrice] { prices.filter { $0.bookable && $0.fits(member: member) } }
+
+    /// Anmelden geht: offen, oder voll mit Warteliste (dann auf die Warteliste).
+    public var canJoin: Bool { state == "open" || toWaitlist }
+
+    /// Neue Anmeldungen kommen auf die Warteliste.
+    public var toWaitlist: Bool { state == "full" && waitlist }
+}
+
+/// Stornostaffel: „weniger als `days` Tage vorher: `percent` %“
+public struct CancelRule: Decodable, Equatable, Sendable {
+    public var days: Int
+    public var percent: Int
+}
+
+/// Vorschau der Stornogebühr (GET …/cancel/?participants=…).
+public struct FeeQuote: Decodable, Equatable, Sendable {
+    public var base: String
+    public var percent: Int
+    public var fee: String
+    /// warum kostenfrei: "", waitlist, moved_up, event_cancelled
+    public var freeReason: String
+
+    enum CodingKeys: String, CodingKey {
+        case base, percent, fee
+        case freeReason = "free_reason"
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        base = try c.decodeIfPresent(String.self, forKey: .base) ?? "0"
+        percent = try c.decodeIfPresent(Int.self, forKey: .percent) ?? 0
+        fee = try c.decodeIfPresent(String.self, forKey: .fee) ?? "0"
+        freeReason = try c.decodeIfPresent(String.self, forKey: .freeReason) ?? ""
+    }
+
+    public var hasFee: Bool { (Geld.cents(fee) ?? 0) > 0 }
+
+    /// Wofür die Gebühr anfällt oder warum nicht (wie im Mitgliederbereich).
+    public var text: String {
+        switch freeReason {
+        case "event_cancelled": return tr("Kostenfrei: Der Termin ist abgesagt.")
+        case "waitlist": return tr("Kostenfrei: Die Anmeldung steht auf der Warteliste.")
+        case "moved_up": return tr("Kostenfrei: innerhalb von 48 Stunden nach dem Nachrücken von der Warteliste.")
+        default: break
+        }
+        if !hasFee { return tr("Es fällt keine Stornogebühr an.") }
+        if percent > 0 {
+            return tr("Stornogebühr: {fee} ({percent} % von {base} nach den Teilnahmebedingungen).", [
+                "fee": Geld.format(fee), "percent": percent, "base": Geld.format(base),
+            ])
+        }
+        return tr("Stornogebühr: {fee} (Bearbeitungsgebühr).", ["fee": Geld.format(fee)])
+    }
 }
 
 public struct RegistrationParticipant: Decodable, Equatable, Sendable, Identifiable {
     public var id: Int
     public var name: String
+    public var priceId: Int
     public var priceName: String
     public var amount: String
     /// active, cancelled
@@ -159,12 +225,14 @@ public struct RegistrationParticipant: Decodable, Equatable, Sendable, Identifia
 
     enum CodingKeys: String, CodingKey {
         case id, name, amount, status
+        case priceId = "price_id"
         case priceName = "price_name"
     }
 
     public init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id = try c.decodeIfPresent(Int.self, forKey: .id) ?? 0
+        priceId = try c.decodeIfPresent(Int.self, forKey: .priceId) ?? 0
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
         priceName = try c.decodeIfPresent(String.self, forKey: .priceName) ?? ""
         amount = try c.decodeIfPresent(String.self, forKey: .amount) ?? "0"
@@ -208,10 +276,25 @@ public struct MyRegistration: Decodable, Equatable, Sendable, Identifiable {
     public var paidState: String
     public var participants: [RegistrationParticipant]
     public var invoice: RegistrationInvoice?
+    public var waitlistPosition: Int?
+    public var movedUpAt: String?
+    public var freeCancelUntil: String?
+    public var cancelFee: String
+    public var feeInvoice: RegistrationInvoice?
+    /// Ältere Server ohne Angabe: dann gilt `can_cancel` des Angebots
+    public var canCancel: Bool?
+    public var canSubstitute: Bool
 
     enum CodingKeys: String, CodingKey {
         case id, number, status, total, participants, invoice
         case paidState = "paid_state"
+        case waitlistPosition = "waitlist_position"
+        case movedUpAt = "moved_up_at"
+        case freeCancelUntil = "free_cancel_until"
+        case cancelFee = "cancel_fee"
+        case feeInvoice = "fee_invoice"
+        case canCancel = "can_cancel"
+        case canSubstitute = "can_substitute"
     }
 
     public init(from decoder: Decoder) throws {
@@ -223,9 +306,21 @@ public struct MyRegistration: Decodable, Equatable, Sendable, Identifiable {
         paidState = try c.decodeIfPresent(String.self, forKey: .paidState) ?? "open"
         participants = try c.decodeIfPresent([RegistrationParticipant].self, forKey: .participants) ?? []
         invoice = try c.decodeIfPresent(RegistrationInvoice.self, forKey: .invoice)
+        waitlistPosition = try c.decodeIfPresent(Int.self, forKey: .waitlistPosition)
+        movedUpAt = try c.decodeIfPresent(String.self, forKey: .movedUpAt)
+        freeCancelUntil = try c.decodeIfPresent(String.self, forKey: .freeCancelUntil)
+        cancelFee = try c.decodeIfPresent(String.self, forKey: .cancelFee) ?? "0"
+        feeInvoice = try c.decodeIfPresent(RegistrationInvoice.self, forKey: .feeInvoice)
+        canCancel = try c.decodeIfPresent(Bool.self, forKey: .canCancel)
+        canSubstitute = try c.decodeIfPresent(Bool.self, forKey: .canSubstitute) ?? false
     }
 
-    public var active: Bool { status == "registered" }
+    /// Angemeldet oder auf der Warteliste (nicht abgemeldet)
+    public var active: Bool { status == "registered" || status == "waiting" }
+
+    public var waiting: Bool { status == "waiting" }
+
+    public var activeParticipants: [RegistrationParticipant] { participants.filter { $0.status == "active" } }
 
     /// Zahlungsstand in Worten, wie in der Android-App.
     public var paidText: String {
@@ -234,6 +329,7 @@ public struct MyRegistration: Decodable, Equatable, Sendable, Identifiable {
         case "paid": return tr("bezahlt")
         case "partly": return tr("teilweise bezahlt")
         case "cancelled": return tr("abgemeldet")
+        case "waiting": return tr("Warteliste")
         default: return tr("offen")
         }
     }
@@ -351,6 +447,24 @@ public enum Teilnahme {
         return nil
     }
 
+    /// Inhalt von POST …/cancel/: leer für alle, sonst nur die genannten Personen.
+    public static func cancelPayload(_ participants: [Int]) -> [String: Any] {
+        participants.isEmpty ? [:] : ["participants": participants]
+    }
+
+    /// Abfrage der Gebührenvorschau: „?participants=4,5“ oder leer für alle.
+    public static func cancelQuery(_ participants: [Int]) -> String {
+        participants.isEmpty ? "" : "?participants=" + participants.map(String.init).joined(separator: ",")
+    }
+
+    /// Inhalt von POST …/participants/<id>/: Mitglied der Familie oder Gast mit Namen.
+    public static func substitutePayload(membershipId: Int?, name: String, birthDate: String?) -> [String: Any] {
+        var item: [String: Any] = ["membership_id": membershipId.map { $0 as Any } ?? NSNull()]
+        if membershipId == nil { item["name"] = name.trimmingCharacters(in: .whitespacesAndNewlines) }
+        if let birthDate { item["birth_date"] = birthDate }
+        return item
+    }
+
     /// „Erwachsene: 29,00 € (Early Bird) · danach 35,00 €“
     public static func priceLine(_ p: RegistrationPrice) -> String {
         guard let now = p.current else { return p.label + ": " + tr("nicht mehr buchbar") }
@@ -379,7 +493,25 @@ extension Api {
         try await expect("POST", "/api/portal/\(accessId)/events/\(eventId)/registration/", json: payload)
     }
 
-    public func cancelRegistration(accessId: Int, eventId: Int, registrationId: Int) async throws -> MemberRegistration {
-        try await expect("POST", "/api/portal/\(accessId)/events/\(eventId)/registration/\(registrationId)/cancel/", json: [:])
+    public func cancelRegistration(accessId: Int, eventId: Int, registrationId: Int, participants: [Int] = []) async throws -> MemberRegistration {
+        try await expect(
+            "POST", "/api/portal/\(accessId)/events/\(eventId)/registration/\(registrationId)/cancel/",
+            json: Teilnahme.cancelPayload(participants)
+        )
+    }
+
+    public func cancelQuote(accessId: Int, eventId: Int, registrationId: Int, participants: [Int] = []) async throws -> FeeQuote {
+        try await expect(
+            "GET", "/api/portal/\(accessId)/events/\(eventId)/registration/\(registrationId)/cancel/" + Teilnahme.cancelQuery(participants)
+        )
+    }
+
+    public func substitute(
+        accessId: Int, eventId: Int, registrationId: Int, participantId: Int, payload: [String: Any]
+    ) async throws -> MemberRegistration {
+        try await expect(
+            "POST", "/api/portal/\(accessId)/events/\(eventId)/registration/\(registrationId)/participants/\(participantId)/",
+            json: payload
+        )
     }
 }
