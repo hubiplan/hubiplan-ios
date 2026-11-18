@@ -809,7 +809,7 @@ struct AenderungenView: View {
                                     Text(tr("„{text}“", ["text": request.message])).font(.footnote).foregroundStyle(Color.secondary)
                                 }
                             }
-                            HStack(spacing: 12) {
+                            KnopfReihe(spacing: 12) {
                                 Button(tr("Übernehmen")) { Task { await decide(request, accept: true) } }
                                     .buttonStyle(.borderedProminent)
                                 Button(tr("Ablehnen")) { Task { await decide(request, accept: false) } }

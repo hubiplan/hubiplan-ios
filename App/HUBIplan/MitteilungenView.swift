@@ -1,4 +1,5 @@
 import HubiplanKern
+import QuickLook
 import SwiftUI
 
 /// Reiter „Neues“: Mitteilungen des Vereins.
@@ -13,7 +14,9 @@ struct MitteilungenView: View {
                 if let notice {
                     Section { MeldungText(notice, .gut) }
                 }
-                if let message = model.error {
+                if model.offlineSince != nil {
+                    OfflineStand()
+                } else if let message = model.error {
                     Section {
                         MeldungText(message, .fehler)
                         Button(tr("Erneut versuchen")) { Task { await model.refresh() } }
@@ -26,11 +29,17 @@ struct MitteilungenView: View {
                     NavigationLink {
                         MitteilungView(item: item)
                     } label: {
+                        let unread = model.unreadCirculars.contains(item.id)
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(item.subject).font(.headline)
+                            // Neu: Punkt und Wort, nicht nur Farbe (IOS-22)
+                            if unread {
+                                Text(tr("● neu")).font(.footnote.bold()).foregroundStyle(Color.accentColor)
+                            }
+                            Text(item.subject).font(unread ? .headline.weight(.heavy) : .headline)
                             Text(kopfzeile(item)).font(.footnote).foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 4)
+                        .accessibilityElement(children: .combine)
                     }
                 }
             }
@@ -74,7 +83,6 @@ func kopfzeile(_ item: CircularItem) -> String {
 
 struct MitteilungView: View {
     @EnvironmentObject private var model: AppModel
-    @Environment(\.openURL) private var openURL
     let item: CircularItem
 
     /// Zeile mit **fett**, *kursiv* und Links (nur https, http, mailto).
@@ -115,14 +123,21 @@ struct MitteilungView: View {
                 }
                 if !item.attachments.isEmpty {
                     Divider()
+                    // Antippen öffnet den Anhang in der App (IOS-22, wie Android AND-15)
                     ForEach(item.attachments) { file in
-                        Label(file.name, systemImage: "paperclip")
+                        Button {
+                            Task { await model.openCircularAttachment(item, file) }
+                        } label: {
+                            Label(file.name, systemImage: "paperclip")
+                                .frame(maxWidth: .infinity, minHeight: 44, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .disabled(model.previewBusy || model.offlineSince != nil)
+                        .accessibilityHint(tr("Anhang öffnen"))
                     }
-                    if let access = model.access, let server = model.account?.server,
-                       let target = CircularText.webUrl(server: server, access: access.id, circular: item.id),
-                       let url = URL(string: target) {
-                        Button(tr("Anhänge im Browser öffnen")) { openURL(url) }
-                            .buttonStyle(.bordered)
+                    if model.previewBusy { ProgressView() }
+                    if let message = model.error, model.offlineSince == nil {
+                        MeldungText(message, .fehler).font(.footnote)
                     }
                 }
             }
@@ -130,6 +145,9 @@ struct MitteilungView: View {
             .padding()
             .textSelection(.enabled)
         }
+        .navigationTitle(item.sender.isEmpty ? tr("Mitteilung") : item.sender)
         .navigationBarTitleDisplayMode(.inline)
+        .quickLookPreview($model.preview)
+        .onAppear { model.circularOpened(item) }
     }
 }

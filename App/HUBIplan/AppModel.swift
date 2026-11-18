@@ -1,5 +1,6 @@
 import Foundation
 import HubiplanKern
+import Network
 import SwiftUI
 import UIKit
 
@@ -9,6 +10,12 @@ struct AdminUndo: Equatable {
     let changeSet: String
     /// Aufgabe, zu der die Änderung gehört (eigener Rückweg)
     var task: Int?
+}
+
+/// Konto, das der Server abgemeldet hat, und das Konto, das die App jetzt zeigt.
+struct SignedOutInfo: Equatable {
+    var dropped: String
+    var now: String
 }
 
 @MainActor
@@ -26,6 +33,16 @@ final class AppModel: ObservableObject {
     @Published var rsvpNotices: [Int: String] = [:]
     @Published var rsvpBusy: Set<Int> = []
     @Published var circulars: [CircularItem] = []
+    /// Ungelesene Mitteilungen des gewählten Zugangs, nur auf diesem Gerät gemerkt (IOS-22)
+    @Published var unreadCirculars: Set<Int> = []
+    /// Termine und Mitteilungen sind der Stand von diesem Zeitpunkt, weil HUBIplan gerade nicht
+    /// erreichbar ist (IOS-24); nil, solange alles frisch ist
+    @Published var offlineSince: Date?
+    /// Ein Konto wurde vom Server abgemeldet, die App zeigt jetzt ein anderes (wie Android AND-16)
+    @Published var signedOut: SignedOutInfo?
+    /// Zeitpunkt des letzten vollständigen Abrufs von Terminen und Mitteilungen
+    private var loadedAt: Date?
+    private let pathMonitor = NWPathMonitor()
     /// Einheiten, an die dieses Konto Kurzmitteilungen senden darf (leer: kein Knopf)
     @Published var senders: Senders?
     /// Ausweis des gewählten Zugangs, wie er zuletzt kam (auch ohne Netz)
@@ -123,6 +140,53 @@ final class AppModel: ObservableObject {
         if !Demo.active { Self.purgeQuarantine() }
         accounts = Demo.active ? Demo.accounts : Konten.load()
         activate()
+        watchNetwork()
+    }
+
+    /// Ablage für den Offline-Stand und die gelesenen Mitteilungen (nicht im Vorführmodus)
+    var offlineBox: OfflineBox? {
+        guard !Demo.active, let account else { return nil }
+        return OfflineBox(files: EntwurfsOrdner.offline(account: account.id), secrets: Konten.secrets(account.id))
+    }
+
+    /// Kommt das Netz zurück, während der gespeicherte Stand zu sehen ist: selbst neu laden (IOS-24).
+    private func watchNetwork() {
+        pathMonitor.pathUpdateHandler = { [weak self] path in
+            guard path.status == .satisfied else { return }
+            Task { @MainActor [weak self] in
+                guard let self, self.offlineSince != nil, !self.loading else { return }
+                await self.refresh()
+            }
+        }
+        pathMonitor.start(queue: DispatchQueue(label: "de.hubiplan.app.netz"))
+    }
+
+    /// Ohne Netz: Termine und Mitteilungen aus dem zuletzt gespeicherten Stand zeigen.
+    private func showOffline() {
+        if !events.isEmpty || !circulars.isEmpty {
+            offlineSince = loadedAt ?? offlineSince
+            if offlineSince != nil { return }
+        }
+        guard let box = offlineBox else { return }
+        let found: (id: Int, snapshot: OfflineSnapshot)?
+        if let id = access?.id ?? accessId {
+            found = box.load(accessId: id).map { (id, $0) }
+        } else {
+            found = box.latest()
+        }
+        guard let found else { return }
+        if accessId == nil { accessId = found.id }
+        events = found.snapshot.events
+        circulars = found.snapshot.circulars
+        unreadCirculars = box.unread(accessId: found.id, ids: circulars.map(\.id))
+        offlineSince = found.snapshot.savedAt
+    }
+
+    /// Mitteilung geöffnet: gilt als gelesen.
+    func circularOpened(_ item: CircularItem) {
+        guard let id = access?.id ?? accessId else { return }
+        offlineBox?.markRead(accessId: id, id: item.id)
+        unreadCirculars.remove(item.id)
     }
 
     /// Das gezeigte Konto
@@ -167,6 +231,9 @@ final class AppModel: ObservableObject {
         rsvpNotices = [:]
         rsvpBusy = []
         circulars = []
+        unreadCirculars = []
+        offlineSince = nil
+        loadedAt = nil
         senders = nil
         card = nil
         profile = nil
@@ -354,6 +421,7 @@ final class AppModel: ObservableObject {
             drafts.clear()
         }
         cards.clear()
+        offlineBox?.clear()
         Self.clearViews()
         preview = nil
         if !Demo.active { Geraetekalender.shared.remove(prefix: CalendarMark.prefix(server: account.server)) }
@@ -362,7 +430,16 @@ final class AppModel: ObservableObject {
         accounts.remove(account.id)
         save()
         activate()
+        // Vom Server abgemeldet und ein anderes Konto rückt nach: sagen statt still wechseln
+        if revoked, let now = self.account {
+            signedOut = SignedOutInfo(dropped: Self.label(account), now: Self.label(now))
+        }
         if self.account != nil { await refresh() }
+    }
+
+    /// Name und Adresse eines Kontos für Hinweise.
+    static func label(_ entry: AccountEntry) -> String {
+        entry.display.isEmpty ? entry.host : "\(entry.display) (\(entry.host))"
     }
 
     /// Vor dem Trennen (UX-Audit 16.11., IOS-08): nicht gesendete Buchungen und Quittungen senden.
@@ -503,13 +580,20 @@ final class AppModel: ObservableObject {
             }
             let now = Date()
             let end = Calendar.current.date(byAdding: .month, value: 6, to: now) ?? now
-            let events = try await api.events(accessId: access.id, from: Zeit.day(now), to: Zeit.day(end))
-            let circulars = try await api.circulars(accessId: access.id)
+            let (events, eventsJson) = try await api.eventsWithJson(accessId: access.id, from: Zeit.day(now), to: Zeit.day(end))
+            let (circulars, circularsJson) = try await api.circularsWithJson(accessId: access.id)
             guard epoch == self.epoch else { return }
             self.events = events
             self.rsvpErrors.keep(only: events)
             self.circulars = circulars
+            self.loadedAt = now
+            self.offlineSince = nil
+            if let box = self.offlineBox {
+                box.save(accessId: access.id, eventsJson: eventsJson, circularsJson: circularsJson, at: now)
+                self.unreadCirculars = box.unread(accessId: access.id, ids: circulars.map(\.id))
+            }
         }
+        if epoch == self.epoch, error != nil, session != nil { showOffline() }
         if epoch == self.epoch { await planHints() }
         if epoch == self.epoch { await refreshSenders() }
         if epoch == self.epoch { await refreshIch() }
@@ -996,6 +1080,14 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Anhang einer Mitteilung in der App ansehen statt im Browser (IOS-22).
+    func openCircularAttachment(_ item: CircularItem, _ file: CircularFile) async {
+        guard let access else { return }
+        await view(name: file.name) { api in
+            try await api.circularAttachment(accessId: access.id, circularId: item.id, attachmentId: file.id)
+        }
+    }
+
     /// Rechnung oder Stornorechnung als PDF ansehen (nur online, wird nicht gespeichert).
     func openInvoice(_ invoice: MyInvoice, cancellation: Bool = false) async {
         guard let access else { return }
@@ -1010,6 +1102,9 @@ final class AppModel: ObservableObject {
         accessId = id
         events = []
         circulars = []
+        unreadCirculars = []
+        offlineSince = nil
+        loadedAt = nil
         rsvpErrors = RueckmeldungsFehler()
         rsvpNotices = [:]
         card = nil

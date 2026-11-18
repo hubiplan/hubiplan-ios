@@ -36,7 +36,6 @@
  "Du hast noch keinen Zugang zum Mitgliederbereich. Bitte wende dich an deinen Verein.": "You do not have access to the members' area yet. Please contact your club.",
  "Neues": "News",
  "Noch keine Mitteilungen.": "No messages yet.",
- "Anhänge im Browser öffnen": "Open attachments in the browser",
  "Mitgliedsausweis": "Membership card",
  "Ohne Netz ist noch kein Ausweis gespeichert. Er erscheint, sobald die App einmal online war.": "No card has been saved for offline use yet. It appears once the app has been online.",
  "Ausweis wird geladen …": "Loading card …",
@@ -1054,5 +1053,12 @@
   "{club} – {name}": "{club} – {name}",
   "{club}: {member} (Ansprechpartner)": "{club}: {member} (contact person)",
   "Öffne HUBIplan im Browser: Mein Konto › App & andere Instanzen. Scanne den QR-Code oder kopiere den Link. Nur ein Gerät? Öffne HUBIplan im Browser des Geräts und tippe dort auf „In der HUBIplan-App öffnen“.": "Open HUBIplan in the browser: My account › App & other instances. Scan the QR code or copy the link. Only one device? Open HUBIplan in the device's browser and tap “Open in the HUBIplan app” there.",
-  "Über die App": "About the app"
+  "Über die App": "About the app",
+  "Gespeicherter Stand von {time}. Zusagen und Antworten gehen erst wieder mit Verbindung.": "Saved as of {time}. Replies and answers only go out once you are connected again.",
+  "Konto abgemeldet": "Account signed out",
+  "Neu verbinden": "Reconnect",
+  "{dropped} wurde auf diesem Gerät abgemeldet. Du siehst jetzt {now}.": "{dropped} was signed out on this device. You are now viewing {now}.",
+  "● neu": "● new",
+  "Mitteilung": "Message",
+  "Anhang öffnen": "Open attachment"
 }

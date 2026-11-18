@@ -92,7 +92,7 @@ struct BelegungView: View {
         Section {
             Text(tr("Woche vom {from} bis {until}", ["from": Zeit.plainDate(Zeit.day(monday)), "until": Zeit.plainDate(Zeit.day(until))]))
                 .font(.footnote).foregroundStyle(.secondary)
-            HStack {
+            KnopfReihe {
                 Button(tr("Vorige Woche")) { monday = Calendar.current.date(byAdding: .day, value: -7, to: monday) ?? monday }
                 Spacer()
                 Button(tr("Nächste Woche")) { monday = Calendar.current.date(byAdding: .day, value: 7, to: monday) ?? monday }
@@ -294,7 +294,7 @@ struct AbwesenheitenView: View {
                         ForEach(data.items) { row in
                             VStack(alignment: .leading, spacing: 6) {
                                 Text(zeitraum(row.startsAt, row.endsAt))
-                                HStack {
+                                KnopfReihe {
                                     Button(tr("Bearbeiten")) { notice = nil; editing = AbwesenheitEntwurf(row: row) }
                                     Spacer()
                                     Button(tr("Entfernen"), role: .destructive) { removing = row }
@@ -488,7 +488,7 @@ struct KuendigungAbschnitt: View {
                 if info.tooEarly(chosen) {
                     Text(tr("Frühestens zum {date}.", ["date": Zeit.plainDate(earliest)])).font(.footnote).foregroundStyle(Color.fehlerText)
                 }
-                HStack {
+                KnopfReihe {
                     Button(tr("Kündigung absenden"), role: .destructive) { confirm = true }
                         .buttonStyle(.borderedProminent)
                         .tint(Color.fehlerText)

@@ -100,7 +100,7 @@ struct UmfragenView: View {
                     if await model.answer(s, draft: draft) { editing = nil }
                 }
             } else if s.canChange {
-                HStack {
+                KnopfReihe {
                     Button(tr("Antwort ändern")) { editing = s.id }
                         .buttonStyle(.bordered)
                     Button(tr("Antwort zurückziehen"), role: .destructive) { withdraw = s }
@@ -146,7 +146,7 @@ private struct UmfrageFormular: View {
             if survey.anonymous {
                 Text(tr("Anonym. Deine Antwort lässt sich danach nicht mehr ändern.")).font(.footnote).foregroundStyle(.secondary)
             }
-            HStack {
+            KnopfReihe {
                 if let cancel {
                     Button(tr("Abbrechen"), action: cancel).buttonStyle(.bordered)
                 }
@@ -167,10 +167,13 @@ private struct UmfrageFrage: View {
 
     private func auswahl(_ label: String, selected: Bool, radio: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
+            // Ganze Zeile mit mindestens 44 pt antippbar (IOS-15, wie Android AND-14)
             HStack {
                 Image(systemName: selected ? (radio ? "largecircle.fill.circle" : "checkmark.square.fill") : (radio ? "circle" : "square"))
                 Text(label).foregroundStyle(Color.primary)
             }
+            .frame(minHeight: 44, alignment: .leading)
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
@@ -200,7 +203,7 @@ private struct UmfrageFrage: View {
                     Button(tr("Auswahl löschen")) { row.options = [] }.font(.footnote)
                 }
             case "yesno":
-                HStack(spacing: 16) {
+                KnopfReihe(spacing: 16) {
                     ForEach(["yes", "no", "abstain"], id: \.self) { v in
                         auswahl(surveyValueLabel(v), selected: row.value == v, radio: true) { row.value = v }
                     }
@@ -209,7 +212,7 @@ private struct UmfrageFrage: View {
                 let values = q.allowMaybe ? ["yes", "maybe", "no"] : ["yes", "no"]
                 ForEach(q.options) { o in
                     Text(umfrageOption(label: o.label, startsAt: o.startsAt, allDay: o.allDay))
-                    HStack(spacing: 16) {
+                    KnopfReihe(spacing: 16) {
                         ForEach(values, id: \.self) { v in
                             let key = String(o.id)
                             auswahl(surveyValueLabel(v), selected: row.dates?[key] == v, radio: true) {

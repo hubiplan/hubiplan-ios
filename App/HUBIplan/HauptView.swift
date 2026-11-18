@@ -15,6 +15,8 @@ struct HauptView: View {
                 .tag("termine")
             MitteilungenView()
                 .tabItem { Label(tr("Neues"), systemImage: "envelope") }
+                // Zahl der ungelesenen Mitteilungen (IOS-22, wie Android AND-15)
+                .badge(model.unreadCirculars.count)
                 .tag("mitteilungen")
             if model.accesses.contains(where: { $0.hasTodos || $0.hasHelpers }) {
                 AufgabenView()
@@ -55,6 +57,21 @@ struct HauptView: View {
                 .padding()
         }
         .onChange(of: model.showEvents) { _, _ in tab = "termine" }
+        // Vom Server abgemeldet, ein anderes Konto rückt nach: nicht still wechseln (wie Android AND-16)
+        .alert(
+            tr("Konto abgemeldet"),
+            isPresented: Binding(get: { model.signedOut != nil && !model.adding }, set: { if !$0 { model.signedOut = nil } })
+        ) {
+            Button(tr("Neu verbinden")) {
+                model.signedOut = nil
+                model.adding = true
+            }
+            Button(tr("Schließen"), role: .cancel) { model.signedOut = nil }
+        } message: {
+            if let info = model.signedOut {
+                Text(tr("{dropped} wurde auf diesem Gerät abgemeldet. Du siehst jetzt {now}.", ["dropped": info.dropped, "now": info.now]))
+            }
+        }
         // Verwaltung: nach mehr als einer Minute im Hintergrund neu entsperren
         .onChange(of: phase) { _, now in model.sceneChanged(active: now == .active) }
         // Link zum Verbinden kam von außen (hubiplan://…), während schon ein Konto verbunden ist
@@ -87,7 +104,9 @@ struct TermineView: View {
     var body: some View {
         NavigationStack(path: $path) {
             List {
-                if let message = model.error {
+                if model.offlineSince != nil {
+                    OfflineStand()
+                } else if let message = model.error {
                     Section {
                         MeldungText(message, .fehler)
                         Button(tr("Erneut versuchen")) { Task { await model.refresh() } }
@@ -175,8 +194,9 @@ struct TerminZeile: View {
                 }
                 .accessibilityElement(children: .combine)
             }
-            if event.responseMissing {
-                HStack {
+            // Ohne Netz (gespeicherter Stand) gehen keine Rückmeldungen
+            if event.responseMissing && model.offlineSince == nil {
+                KnopfReihe {
                     Button(tr("Zusagen")) { Task { await model.respond(event, status: "yes") } }
                         .buttonStyle(.borderedProminent)
                     Button(tr("Absagen")) { Task { await model.respond(event, status: "no") } }

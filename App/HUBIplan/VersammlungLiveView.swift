@@ -166,6 +166,8 @@ private struct AbstimmungKarte: View {
                                 Text(option.label).foregroundStyle(Color.primary)
                                 Spacer()
                             }
+                            // Mindestens 44 pt: ein Fehltipp ließe sich nicht mehr ändern (IOS-15)
+                            .frame(minHeight: 44)
                             .contentShape(Rectangle())
                         }
                         .buttonStyle(.plain)
