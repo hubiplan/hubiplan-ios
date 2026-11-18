@@ -328,6 +328,7 @@ struct KontoView: View {
                     }
                 }
             }
+            .tastaturFuehrung()
             .navigationTitle(tr("Mein Konto"))
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: $showSettings) { KontoUnterseite(seite: .einstellungen) }
@@ -503,6 +504,7 @@ private struct KontoUnterseite: View {
                     UeberDieApp()
                 }
             }
+            .tastaturFuehrung()
             .alert(tr("Konto und Daten löschen"), isPresented: $deleteInfo) {
                 if let url = Rechtliches.privacy(server: model.account?.server ?? "", key: model.access?.imprintKey) {
                     Button(tr("Datenschutzhinweise öffnen")) { openURL(url) }

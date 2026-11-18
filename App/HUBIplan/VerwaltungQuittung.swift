@@ -166,6 +166,7 @@ struct QuittungBlatt: View {
                     Laedt()
                 }
             }
+            .tastaturFuehrung()
             .disabled(saving)
             .navigationTitle(tr("Quittung"))
             .navigationBarTitleDisplayMode(.inline)

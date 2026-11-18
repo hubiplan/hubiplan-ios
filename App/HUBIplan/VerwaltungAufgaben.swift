@@ -216,6 +216,7 @@ private struct NeueAufgabeBlatt: View {
                     if hasDate, hasTime { Text(tr("Zeitzone: {zone}", ["zone": TodoDraft.timezone])) }
                 }
             }
+            .tastaturFuehrung()
             .environment(\.locale, Texte.locale)
             .environment(\.timeZone, Self.zone)
             .disabled(saving)

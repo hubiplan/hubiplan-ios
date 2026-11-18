@@ -184,6 +184,7 @@ struct AntragBlatt: View {
                 }
                 Section(tr("Titel")) {
                     TextField(tr("Titel"), text: $title)
+                        .weiterFeld()
                         .onChange(of: title) { _, new in if new.count > 300 { title = String(new.prefix(300)) } }
                 }
                 Section(tr("Begründung")) {
@@ -193,6 +194,7 @@ struct AntragBlatt: View {
                         .onChange(of: text) { _, new in if new.count > 10000 { text = String(new.prefix(10000)) } }
                 }
             }
+            .tastaturFuehrung()
             .navigationTitle(tr("Antrag stellen"))
             .navigationBarTitleDisplayMode(.inline)
             .eingabeschutz(!title.isEmpty || !text.isEmpty)

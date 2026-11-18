@@ -28,6 +28,9 @@ struct BeschriftetesFeld: View {
             Text(label).font(.caption).foregroundStyle(Color.secondary)
             TextField("", text: $text, axis: axis)
                 .accessibilityLabel(label)
+                // Einzeilig: Eingabetaste springt weiter; mehrzeilig bleibt sie ein Zeilenumbruch (IOS-21)
+                .submitLabel(axis == .horizontal ? .next : .return)
+                .onSubmit { if axis == .horizontal { Tastatur.weiter() } }
         }
     }
 }
@@ -230,6 +233,7 @@ struct TerminVerwaltungView: View {
             .pickerStyle(.segmented)
             .listRowSeparator(.hidden)
             TextField(tr("Name suchen"), text: $search)
+                .suchFeld()
                 .autocorrectionDisabled()
             let rows = r.rows(tab, search: search)
             if rows.isEmpty { Text(tr("Keine.")).foregroundStyle(.secondary) }
@@ -321,6 +325,7 @@ private struct AbsageBlatt: View {
                         : tr("Der Termin bleibt im Kalender, als abgesagt gekennzeichnet. Rückmeldungen bleiben erhalten."))
                 }
             }
+            .tastaturFuehrung()
             .disabled(saving)
             .navigationTitle(single != nil ? tr("Diesen Termin absagen?") : tr("Termin absagen?"))
             .navigationBarTitleDisplayMode(.inline)
@@ -395,6 +400,7 @@ private struct RueckmeldungBlatt: View {
                     }
                 }
             }
+            .tastaturFuehrung()
             .disabled(saving)
             .navigationTitle(row.name)
             .navigationBarTitleDisplayMode(.inline)
@@ -511,6 +517,7 @@ private struct NeuerTerminBlatt: View {
                     }
                 }
             }
+            .tastaturFuehrung()
             .environment(\.locale, Texte.locale)
             .disabled(saving)
             .navigationTitle(tr("Neuer Termin"))
