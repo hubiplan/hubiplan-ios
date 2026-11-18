@@ -129,6 +129,7 @@ struct TeilnahmeSection: View {
             ForEach($guests) { $g in
                 TextField(tr("Name des Gasts"), text: $g.name)
                     .textContentType(.name)
+                    .weiterFeld()
                 tarifWahl(guestPrices, selected: g.priceId ?? -1) { g.priceId = $0 }
                 if guestPrices.first(where: { $0.id == g.priceId })?.hasAge == true {
                     DatePicker(tr("Geburtsdatum"), selection: $g.birth, displayedComponents: .date)
