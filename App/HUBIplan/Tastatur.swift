@@ -11,14 +11,18 @@ enum Tastatur {
     /// Zum nächsten sichtbaren Eingabefeld springen (von oben nach unten, links vor rechts);
     /// nach dem letzten Feld schließt sich die Tastatur.
     static func weiter() {
-        guard let window = UIApplication.shared.connectedScenes
-            .compactMap({ ($0 as? UIWindowScene)?.keyWindow }).first else { return }
-        let felder = eingabefelder(in: window)
-            .filter { $0.window != nil && !$0.isHidden && $0.alpha > 0.01 && $0.isUserInteractionEnabled }
-            .map { ($0, $0.convert($0.bounds, to: window)) }
-            .sorted { a, b in abs(a.1.minY - b.1.minY) > 4 ? a.1.minY < b.1.minY : a.1.minX < b.1.minX }
-            .map(\.0)
-        if let i = felder.firstIndex(where: \.isFirstResponder), i + 1 < felder.count {
+        let szenen: [UIWindowScene] = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
+        guard let window: UIWindow = szenen.compactMap({ $0.keyWindow }).first else { return }
+        let sichtbar: [UIView] = eingabefelder(in: window).filter { (feld: UIView) -> Bool in
+            feld.window != nil && !feld.isHidden && feld.alpha > 0.01 && feld.isUserInteractionEnabled
+        }
+        let felder: [UIView] = sichtbar.sorted { (a: UIView, b: UIView) -> Bool in
+            let ra: CGRect = a.convert(a.bounds, to: window)
+            let rb: CGRect = b.convert(b.bounds, to: window)
+            if abs(ra.minY - rb.minY) > 4 { return ra.minY < rb.minY }
+            return ra.minX < rb.minX
+        }
+        if let i = felder.firstIndex(where: { (feld: UIView) -> Bool in feld.isFirstResponder }), i + 1 < felder.count {
             felder[i + 1].becomeFirstResponder()
         } else {
             fertig()
