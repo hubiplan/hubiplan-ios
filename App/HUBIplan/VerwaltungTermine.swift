@@ -92,9 +92,12 @@ struct TermineVerwaltungView: View {
             }
         }
         .sheet(isPresented: $creating) {
-            NeuerTerminBlatt(unit: unit, rsvpAllowed: list?.rsvpAllowed == true) {
-                Task { await load() }
+            Group {
+                NeuerTerminBlatt(unit: unit, rsvpAllowed: list?.rsvpAllowed == true) {
+                    Task { await load() }
+                }
             }
+            .verwaltungsBlatt()
         }
     }
 
@@ -187,18 +190,24 @@ struct TerminVerwaltungView: View {
         .navigationTitle(tr("Termin"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $cancelling) {
-            if let event {
-                AbsageBlatt(unit: unit, event: event, single: event.shown(occurrence: occurrence).single) {
-                    Task { await load() }
+            Group {
+                if let event {
+                    AbsageBlatt(unit: unit, event: event, single: event.shown(occurrence: occurrence).single) {
+                        Task { await load() }
+                    }
                 }
             }
+            .verwaltungsBlatt()
         }
         .sheet(item: $entry) { picked in
-            if let event {
-                RueckmeldungBlatt(unit: unit, event: event, row: picked.row) {
-                    Task { await load() }
+            Group {
+                if let event {
+                    RueckmeldungBlatt(unit: unit, event: event, row: picked.row) {
+                        Task { await load() }
+                    }
                 }
             }
+            .verwaltungsBlatt()
         }
     }
 
@@ -315,8 +324,8 @@ private struct AbsageBlatt: View {
             .disabled(saving)
             .navigationTitle(single != nil ? tr("Diesen Termin absagen?") : tr("Termin absagen?"))
             .navigationBarTitleDisplayMode(.inline)
+            .eingabeschutz(!note.isEmpty, disabled: saving)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Termin absagen")) { Task { await save() } }.disabled(saving)
                 }
@@ -389,8 +398,8 @@ private struct RueckmeldungBlatt: View {
             .disabled(saving)
             .navigationTitle(row.name)
             .navigationBarTitleDisplayMode(.inline)
+            .eingabeschutz(!note.isEmpty || guests > 0, disabled: saving)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Eintragen")) { Task { await save() } }.disabled(saving)
                 }
@@ -506,8 +515,8 @@ private struct NeuerTerminBlatt: View {
             .disabled(saving)
             .navigationTitle(tr("Neuer Termin"))
             .navigationBarTitleDisplayMode(.inline)
+            .eingabeschutz(draft != EventDraft() || withEnd || withDeadline, disabled: saving)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Anlegen")) { Task { await save() } }
                         .disabled(saving || draft.title.trimmingCharacters(in: .whitespaces).isEmpty)

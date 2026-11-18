@@ -84,12 +84,15 @@ struct WettbewerbeView: View {
         .navigationTitle(tr("Wettbewerbe"))
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $scanning) {
-            StandScan { text in
-                scanning = false
-                scanned(text)
+            Group {
+                StandScan { text in
+                    scanning = false
+                    scanned(text)
+                }
             }
+            .verwaltungsBlatt()
         }
-        .sheet(item: $code) { StandCodeBlatt(code: $0) }
+        .sheet(item: $code) { Group { StandCodeBlatt(code: $0) }.verwaltungsBlatt() }
         .fullScreenCover(item: $stand) { StandmodusView(session: $0) }
     }
 

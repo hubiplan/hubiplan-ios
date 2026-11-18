@@ -205,24 +205,33 @@ struct KassenbuchView: View {
             }
         }
         .sheet(isPresented: $creating) {
-            NeueBuchungBlatt(unit: unit) {
-                Task { await load() }
+            Group {
+                NeueBuchungBlatt(unit: unit) {
+                    Task { await load() }
+                }
             }
+            .verwaltungsBlatt()
         }
         .sheet(item: $fix) { draft in
-            EntwurfKorrigierenBlatt(unit: unit, line: draft.line, problem: draft.error, kind: draft.kind, account: draft.account, category: draft.category, cashOnly: false) { account, category in
-                model.draftBox?.save(draft.fixed(account: account, category: category)) == true
-            } saved: {
-                Task { await load() }
+            Group {
+                EntwurfKorrigierenBlatt(unit: unit, line: draft.line, problem: draft.error, kind: draft.kind, account: draft.account, category: draft.category, cashOnly: false) { account, category in
+                    model.draftBox?.save(draft.fixed(account: account, category: category)) == true
+                } saved: {
+                    Task { await load() }
+                }
             }
+            .verwaltungsBlatt()
         }
         .sheet(item: $fixReceipt) { receipt in
-            EntwurfKorrigierenBlatt(unit: unit, line: receipt.line, problem: receipt.error, kind: receipt.draft.kind, account: receipt.draft.account, category: receipt.draft.category, cashOnly: true) { account, category in
-                guard let category else { return false }
-                return model.draftBox?.save(receipt.fixed(account: account, category: category)) == true
-            } saved: {
-                Task { await load() }
+            Group {
+                EntwurfKorrigierenBlatt(unit: unit, line: receipt.line, problem: receipt.error, kind: receipt.draft.kind, account: receipt.draft.account, category: receipt.draft.category, cashOnly: true) { account, category in
+                    guard let category else { return false }
+                    return model.draftBox?.save(receipt.fixed(account: account, category: category)) == true
+                } saved: {
+                    Task { await load() }
+                }
             }
+            .verwaltungsBlatt()
         }
         .confirmationDialog(
             tr("Quittung verwerfen?"),
@@ -259,9 +268,12 @@ struct KassenbuchView: View {
             Text(tr("Diese Entwürfe lassen sich nicht mehr öffnen und nicht senden. Das Löschen lässt sich nicht rückgängig machen."))
         }
         .sheet(isPresented: $receipt) {
-            QuittungBlatt(unit: unit) {
-                Task { await load() }
+            Group {
+                QuittungBlatt(unit: unit) {
+                    Task { await load() }
+                }
             }
+            .verwaltungsBlatt()
         }
     }
 
@@ -553,8 +565,9 @@ private struct NeueBuchungBlatt: View {
             .disabled(saving)
             .navigationTitle(tr("Neue Buchung"))
             .navigationBarTitleDisplayMode(.inline)
+            // Konto und Kategorie setzt das Laden vor; zählt nur, was die Person eingibt (IOS-09)
+            .eingabeschutz(jpeg != nil || !draft.amount.isEmpty || !draft.text.isEmpty || !draft.counterparty.isEmpty, disabled: saving)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Buchen")) { Task { await save() } }.disabled(saving || !ready)
                 }

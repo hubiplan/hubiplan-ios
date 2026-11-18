@@ -195,10 +195,8 @@ struct AntragBlatt: View {
             }
             .navigationTitle(tr("Antrag stellen"))
             .navigationBarTitleDisplayMode(.inline)
+            .eingabeschutz(!title.isEmpty || !text.isEmpty)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(tr("Abbrechen")) { dismiss() }
-                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Einreichen")) {
                         Task {

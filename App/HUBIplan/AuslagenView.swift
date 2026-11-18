@@ -82,6 +82,8 @@ private struct AuslageFormular: View {
     let options: ExpenseOptions
     let done: (ExpenseClaim) -> Void
     @State private var draft: ExpenseDraft
+    /// Ausgangsstand, um Änderungen zu erkennen (IOS-09)
+    private let start: ExpenseDraft
     @State private var photos: [Data] = []
     @State private var busy = false
     @State private var failure: String?
@@ -91,7 +93,9 @@ private struct AuslageFormular: View {
     init(options: ExpenseOptions, done: @escaping (ExpenseClaim) -> Void) {
         self.options = options
         self.done = done
-        _draft = State(initialValue: ExpenseDraft(date: Zeit.day(Date()), payee: options.payee))
+        let start = ExpenseDraft(date: Zeit.day(Date()), payee: options.payee)
+        self.start = start
+        _draft = State(initialValue: start)
     }
 
     var body: some View {
@@ -174,11 +178,7 @@ private struct AuslageFormular: View {
             .disabled(busy)
         }
         .navigationTitle(tr("Neue Auslage"))
-        .toolbar {
-            ToolbarItem(placement: .cancellationAction) {
-                Button(tr("Abbrechen")) { dismiss() }
-            }
-        }
+        .eingabeschutz(draft != start || !photos.isEmpty, disabled: busy)
     }
 
     private func send(submit: Bool) async {

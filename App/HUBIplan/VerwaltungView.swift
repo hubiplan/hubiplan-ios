@@ -73,17 +73,28 @@ private struct VerwaltungHinweis: View {
 
 /// Zeigt den Inhalt nur bei offenem Vorstandsschlüssel, sonst die Bitte zu entsperren.
 /// Im App-Umschalter und bei inaktiver App ist der Inhalt verdeckt.
+///
+/// Sperrt die Verwaltung nach einer Pause, bleibt der Inhalt unter der Sperre erhalten und wird
+/// nur abgedeckt (UX-Audit 16.11., IOS-10): Offene Blätter und Eingaben überstehen das
+/// Entsperren. Blätter decken sich mit `verwaltungsBlatt()` selbst ab. Erst wenn der Schlüssel
+/// ganz weg ist (Sperren auf dem Gerät, neu freischalten), fällt der Inhalt weg.
 struct VerwaltungSchutz<Inhalt: View>: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var phase
     @ViewBuilder let inhalt: () -> Inhalt
+    /// Einmal geöffnet: Inhalt bleibt bei einer Pausensperre stehen
+    @State private var geoeffnet = false
 
     var body: some View {
-        if model.adminOpen {
+        if model.adminOpen || (geoeffnet && model.adminSealed) {
             inhalt()
                 .simultaneousGesture(TapGesture().onEnded { model.adminTouched() })
+                .allowsHitTesting(model.adminOpen)
+                .accessibilityHidden(!model.adminOpen)
                 .overlay {
-                    if phase != .active && !Demo.active {
+                    if !model.adminOpen {
+                        VerwaltungGesperrt()
+                    } else if phase != .active && !Demo.active {
                         ZStack {
                             Color(.systemBackground)
                             Image(systemName: "lock.fill").font(.largeTitle).foregroundStyle(Color.secondary)
@@ -92,22 +103,62 @@ struct VerwaltungSchutz<Inhalt: View>: View {
                         .accessibilityHidden(true)
                     }
                 }
+                .onAppear { if model.adminOpen { geoeffnet = true } }
+                .onChange(of: model.adminOpen) { _, open in if open { geoeffnet = true } }
         } else {
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    Text(tr("Zum Öffnen mit Face ID, Touch ID oder Gerätecode entsperren."))
-                    if let message = model.adminError { MeldungText(message, .fehler) }
-                    Button(tr("Entsperren")) { Task { await model.openAdmin() } }
-                        .buttonStyle(.borderedProminent)
-                        .disabled(model.adminBusy || !model.adminSealed)
-                }
-                .frame(maxWidth: 520, alignment: .leading)
-                .frame(maxWidth: .infinity)
-                .padding()
-            }
-            .task { await model.openAdmin() }
+            VerwaltungGesperrt()
         }
     }
+}
+
+/// Bitte zu entsperren, deckend über dem Inhalt der Verwaltung.
+struct VerwaltungGesperrt: View {
+    @EnvironmentObject private var model: AppModel
+    /// In einem Blatt: Schließen anbieten, wenn sich die Verwaltung nicht mehr entsperren lässt
+    var close: (() -> Void)?
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(tr("Zum Öffnen mit Face ID, Touch ID oder Gerätecode entsperren."))
+                if let message = model.adminError { MeldungText(message, .fehler) }
+                Button(tr("Entsperren")) { Task { await model.openAdmin() } }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(model.adminBusy || !model.adminSealed)
+                if let close, !model.adminSealed {
+                    Button(tr("Schließen"), action: close).buttonStyle(.bordered)
+                }
+            }
+            .frame(maxWidth: 520, alignment: .leading)
+            .frame(maxWidth: .infinity)
+            .padding()
+        }
+        .background(Color(.systemBackground))
+        .task { await model.openAdmin() }
+    }
+}
+
+/// Blatt der Verwaltung (IOS-10): bei gesperrter Verwaltung abgedeckt, Eingaben bleiben stehen.
+/// Tippen und Schreiben im Blatt zählen als Bedienung und verlängern die fünf Minuten.
+private struct VerwaltungsBlatt: ViewModifier {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+
+    func body(content: Content) -> some View {
+        content
+            .simultaneousGesture(TapGesture().onEnded { model.adminTouched() })
+            .accessibilityHidden(!model.adminOpen)
+            .overlay {
+                if !model.adminOpen { VerwaltungGesperrt(close: { dismiss() }).ignoresSafeArea(.container, edges: .bottom) }
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UITextField.textDidChangeNotification)) { _ in model.adminTouched() }
+            .onReceive(NotificationCenter.default.publisher(for: UITextView.textDidChangeNotification)) { _ in model.adminTouched() }
+    }
+}
+
+extension View {
+    /// Für Inhalte von `.sheet` und `.fullScreenCover` innerhalb der Verwaltung.
+    func verwaltungsBlatt() -> some View { modifier(VerwaltungsBlatt()) }
 }
 
 private struct Freischalten: View {
@@ -361,12 +412,15 @@ private struct VerwaltungStart: View {
         .navigationDestination(isPresented: $showQualifications) { QualifikationenView(unit: unit) }
         .navigationDestination(isPresented: $showObligations) { FristenView(unit: unit) }
         .sheet(isPresented: $scanning) {
-            AusweisScan(unit: unit) { result in
-                scanning = false
-                check = Geprueft(check: result)
+            Group {
+                AusweisScan(unit: unit) { result in
+                    scanning = false
+                    check = Geprueft(check: result)
+                }
             }
+            .verwaltungsBlatt()
         }
-        .sheet(item: $check) { AusweisErgebnis(unit: unit, check: $0.check) }
+        .sheet(item: $check) { Group { AusweisErgebnis(unit: unit, check: $0.check) }.verwaltungsBlatt() }
         .task {
             // Vorführmodus: für das Bildschirmfoto gleich das Ergebnis einer Prüfung
             guard Demo.active, Demo.section == "ausweispruefung" else { return }
@@ -543,11 +597,14 @@ struct MitgliederView: View {
                 }
             }
             .sheet(isPresented: $admitting) {
-                AufnahmeBlatt(unit: unit) { member in
-                    // Neue Akte gleich zeigen, Liste auffrischen
-                    shown = member.id
-                    Task { await load(reset: true) }
+                Group {
+                    AufnahmeBlatt(unit: unit) { member in
+                        // Neue Akte gleich zeigen, Liste auffrischen
+                        shown = member.id
+                        Task { await load(reset: true) }
+                    }
                 }
+                .verwaltungsBlatt()
             }
         }
         .navigationTitle(tr("Mitglieder"))
@@ -677,19 +734,28 @@ struct MitgliedView: View {
                 }
             }
             .sheet(item: $blatt) { wanted in
-                if let member {
-                    AkteBlattView(unit: unit, member: member, blatt: wanted, fields: daten.fields) { await load() }
+                Group {
+                    if let member {
+                        AkteBlattView(unit: unit, member: member, blatt: wanted, fields: daten.fields) { await load() }
+                    }
                 }
+                .verwaltungsBlatt()
             }
             .sheet(item: $vorgang) { wanted in
-                if let member {
-                    VorgangBlatt(unit: unit, member: member, vorgang: wanted) { updated in self.member = updated }
+                Group {
+                    if let member {
+                        VorgangBlatt(unit: unit, member: member, vorgang: wanted) { updated in self.member = updated }
+                    }
                 }
+                .verwaltungsBlatt()
             }
             .sheet(isPresented: $editing) {
-                if let member {
-                    StammdatenBlatt(unit: unit, member: member) { updated in self.member = updated }
+                Group {
+                    if let member {
+                        StammdatenBlatt(unit: unit, member: member) { updated in self.member = updated }
+                    }
                 }
+                .verwaltungsBlatt()
             }
         }
         .navigationTitle(tr("Mitgliedsakte"))
@@ -1018,8 +1084,8 @@ private struct StammdatenBlatt: View {
             .disabled(saving)
             .navigationTitle(unit.isDepartment ? tr("Kontaktdaten") : tr("Stammdaten"))
             .navigationBarTitleDisplayMode(.inline)
+            .eingabeschutz(!values.isEmpty && keys.contains { (values[$0] ?? "") != (before[$0] ?? "") }, disabled: saving)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Speichern")) { Task { await save() } }.disabled(saving)
                 }

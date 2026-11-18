@@ -138,6 +138,18 @@ struct AkteBlattView: View {
     @State private var error: String?
     @State private var busy = false
     @State private var ready = false
+    /// Stand nach dem Laden, um Änderungen zu erkennen (IOS-09)
+    @State private var ausgang: Stand?
+
+    private struct Stand: Equatable {
+        let title: Int?
+        let date: Date
+        let note: String
+        let input: [Int: String]
+        let draft: MandateDraft
+    }
+
+    private var stand: Stand { Stand(title: title, date: date, note: note, input: input, draft: draft) }
 
     private var heading: String {
         switch blatt {
@@ -210,8 +222,8 @@ struct AkteBlattView: View {
             .environment(\.locale, Texte.locale)
             .navigationTitle(heading)
             .navigationBarTitleDisplayMode(.inline)
+            .eingabeschutz(ausgang.map { $0 != stand } ?? false, disabled: busy)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(action) { Task { await save() } }.disabled(busy)
                 }
@@ -269,6 +281,7 @@ struct AkteBlattView: View {
             // Vorführmodus: ausgefülltes Blatt für das Bildschirmfoto (Prüf-IBAN aus der Bankenliteratur)
             if Demo.active { draft.iban = "DE02 1203 0000 0000 2020 51" }
         }
+        ausgang = stand
     }
 
     private func save() async {
