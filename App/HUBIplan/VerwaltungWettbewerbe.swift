@@ -92,7 +92,7 @@ struct WettbewerbeView: View {
             }
             .verwaltungsBlatt()
         }
-        .sheet(item: $code) { Group { StandCodeBlatt(code: $0) }.verwaltungsBlatt() }
+        .sheet(item: $code) { code in Group { StandCodeBlatt(code: code) }.verwaltungsBlatt() }
         .fullScreenCover(item: $stand) { StandmodusView(session: $0) }
     }
 

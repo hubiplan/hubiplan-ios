@@ -420,7 +420,7 @@ private struct VerwaltungStart: View {
             }
             .verwaltungsBlatt()
         }
-        .sheet(item: $check) { Group { AusweisErgebnis(unit: unit, check: $0.check) }.verwaltungsBlatt() }
+        .sheet(item: $check) { geprueft in Group { AusweisErgebnis(unit: unit, check: geprueft.check) }.verwaltungsBlatt() }
         .task {
             // Vorführmodus: für das Bildschirmfoto gleich das Ergebnis einer Prüfung
             guard Demo.active, Demo.section == "ausweispruefung" else { return }
