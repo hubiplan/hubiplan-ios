@@ -1060,5 +1060,10 @@
   "{dropped} wurde auf diesem Gerät abgemeldet. Du siehst jetzt {now}.": "{dropped} was signed out on this device. You are now viewing {now}.",
   "● neu": "● new",
   "Mitteilung": "Message",
-  "Anhang öffnen": "Open attachment"
+  "Anhang öffnen": "Open attachment",
+  "Verbindlich eintragen?": "Sign up for good?",
+  "Für {dienst}, {zeit} eintragen? Absagen geht danach nur über die Verwaltung.": "Sign up for {dienst}, {zeit}? Cancelling afterwards is only possible via the club office.",
+  "Ohne Kamera lässt sich der QR-Code nicht scannen. Erlaube die Kamera in den Einstellungen.": "The QR code cannot be scanned without the camera. Allow the camera in Settings.",
+  "Einstellungen öffnen": "Open Settings",
+  "Oder füge den Link aus dem QR-Code hier ein.": "Or paste the link from the QR code here."
 }

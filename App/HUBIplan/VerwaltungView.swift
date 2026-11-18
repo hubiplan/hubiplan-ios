@@ -891,8 +891,7 @@ private struct AusweisScan: View {
                     Text(tr("Halte die Kamera auf den QR-Code des Mitgliedsausweises."))
                         .font(.footnote).foregroundStyle(Color.secondary)
                 } else {
-                    Text(tr("Die Kamera ist auf diesem Gerät nicht verfügbar oder nicht erlaubt."))
-                        .foregroundStyle(Color.secondary)
+                    KameraHinweis()
                     Spacer()
                 }
                 if busy { Laedt() }

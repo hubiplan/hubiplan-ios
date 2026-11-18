@@ -40,6 +40,8 @@ struct WettbewerbeView: View {
                         } label: {
                             Label(tr("Stand-QR scannen"), systemImage: "qrcode.viewfinder")
                         }
+                    } else {
+                        KameraHinweis()
                     }
                 } footer: {
                     Text(tr("Im Standmodus erfasst du Punkte, tippst Treffer auf der Scheibe an oder lässt ein Foto auswerten, auch ohne Empfang. Neue Wettbewerbe legst du im Browser an."))
