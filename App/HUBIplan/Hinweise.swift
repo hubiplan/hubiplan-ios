@@ -39,7 +39,19 @@ final class Hinweise: NSObject, UNUserNotificationCenterDelegate {
         }
     }
 
+    /// Zustand der Erlaubnis, ohne zu fragen (UX-Audit 16.11., IOS-16).
+    enum Erlaubnis { case erlaubt, verweigert, offen }
+
+    static func erlaubnis() async -> Erlaubnis {
+        switch await UNUserNotificationCenter.current().notificationSettings().authorizationStatus {
+        case .authorized, .provisional, .ephemeral: return .erlaubt
+        case .denied: return .verweigert
+        default: return .offen
+        }
+    }
+
     /// Erlaubnis für Mitteilungen erfragen (einmal; danach entscheidet die Einstellung des Geräts).
+    /// Nur, wenn die Person es selbst will: Schalter in „Mein Konto“ oder „Erinnern lassen“ bei den Terminen.
     static func erlauben() async -> Bool {
         let center = UNUserNotificationCenter.current()
         switch await center.notificationSettings().authorizationStatus {
@@ -55,7 +67,8 @@ final class Hinweise: NSObject, UNUserNotificationCenterDelegate {
         let prefix = RueckmeldeHinweis.prefix(account: account)
         let pending = await center.pendingNotificationRequests().map(\.identifier).filter { $0.hasPrefix(prefix) }
         center.removePendingNotificationRequests(withIdentifiers: pending)
-        guard on, !hints.isEmpty, await erlauben() else { return }
+        // Nie ungefragt die Systemabfrage zeigen (IOS-16): planen nur mit Erlaubnis
+        guard on, !hints.isEmpty, await erlaubnis() == .erlaubt else { return }
         for hint in hints {
             let content = UNMutableNotificationContent()
             content.title = tr("Rückmeldung fehlt: {title}", ["title": hint.title])

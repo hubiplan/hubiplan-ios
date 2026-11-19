@@ -31,7 +31,7 @@ final class VersammlungLiveTests: XCTestCase {
         XCTAssertNil(ok.problem)
         let other = LiveTarget.from(scan: url, server: "https://andere.example.de", clubId: 7)
         XCTAssertNil(other.target)
-        XCTAssertEqual(other.problem, "Der QR-Code gehört zu einer anderen HUBIplan-Instanz.")
+        XCTAssertEqual(other.problem, "Der QR-Code gehört zu einer anderen HUBIplan-Adresse.")
         XCTAssertNil(LiveTarget.from(scan: url, server: "https://verein.example.de", clubId: 8).target)
         // Ältere Serverstände ohne club_id: nur die Instanz zählt
         XCTAssertEqual(LiveTarget.from(scan: url, server: "https://verein.example.de", clubId: 0).target?.meetingId, 12)

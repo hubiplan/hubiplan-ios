@@ -35,7 +35,7 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         ITSAppUsesNonExemptEncryption: false
-        NSCameraUsageDescription: Die Kamera liest den QR-Code, mit dem du die App mit deinem Verein verbindest, und in der Verwaltung den QR-Code eines Mitgliedsausweises; außerdem fotografierst du damit Belege für das Kassenbuch und Scheiben im Standmodus der Wettbewerbe.
+        NSCameraUsageDescription: Die Kamera liest den QR-Code, mit dem du die App mit deinem Verein verbindest, und in der Verwaltung den QR-Code eines Mitgliedsausweises; außerdem fotografierst du damit Belege und Ergebnisse.
         NSCalendarsFullAccessUsageDescription: Die App trägt die Termine deines Vereins in einen eigenen Kalender ein und hält sie dort aktuell.
         NSFaceIDUsageDescription: Mit Face ID öffnest du die Verwaltung deines Vereins in der App.
         CFBundleURLTypes:

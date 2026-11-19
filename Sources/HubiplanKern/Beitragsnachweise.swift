@@ -112,10 +112,10 @@ public struct FeeYearState: Decodable, Equatable, Identifiable, Sendable {
             if let until = proof?.validUntil { return tr("Anerkannt, gültig bis {day}.", ["day": Zeit.plainDate(until)]) }
             return tr("Anerkannt.")
         case "pending":
-            return tr("Eingegangen, der Vorstand prüft ihn noch. Bis dahin gilt die Ermäßigung.")
+            return tr("Eingegangen, dein Verein prüft ihn noch. Bis dahin gilt die Ermäßigung.")
         case "question":
-            if let note = proof?.note, !note.isEmpty { return tr("Rückfrage des Vorstands: {note}", ["note": note]) }
-            return tr("Der Vorstand hat eine Rückfrage.")
+            if let note = proof?.note, !note.isEmpty { return tr("Rückfrage deines Vereins: {note}", ["note": note]) }
+            return tr("Dein Verein hat eine Rückfrage.")
         case "missing":
             return tr("Bis {day} ist kein Nachweis eingegangen; für dieses Jahr gilt der normale Beitrag.", ["day": Zeit.plainDate(final)])
         default:

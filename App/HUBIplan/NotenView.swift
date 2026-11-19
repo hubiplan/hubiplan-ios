@@ -98,7 +98,7 @@ struct NotenView: View {
                     }.joined(separator: " · "))
                         .font(.footnote).foregroundStyle(Color.secondary)
                     if hit.item.sheets.isEmpty {
-                        Text(tr("Keine Noten für deine Stimme")).font(.footnote).foregroundStyle(Color.fehlerText)
+                        ZustandText(tr("Keine Noten für deine Stimme"), .fehler).font(.footnote)
                     }
                 }
             }
@@ -140,7 +140,7 @@ struct MappeView: View {
         List {
             Section {
                 if mappe.cancelled {
-                    Text(tr("Abgesagt: Noten gibt es dafür nicht mehr.")).foregroundStyle(Color.fehlerText)
+                    ZustandText(tr("Abgesagt: Noten gibt es dafür nicht mehr."), .fehler)
                 }
                 Text(mappeZeile(mappe)).font(.footnote).foregroundStyle(.secondary)
                 if !mappe.note.isEmpty { Text(mappe.note) }
@@ -174,7 +174,7 @@ struct MappeView: View {
                                         Text(item.credit).font(.footnote).foregroundStyle(Color.secondary)
                                     }
                                     if item.sheets.isEmpty {
-                                        Text(tr("Keine Noten für deine Stimme")).font(.footnote).foregroundStyle(Color.fehlerText)
+                                        ZustandText(tr("Keine Noten für deine Stimme"), .fehler).font(.footnote)
                                     }
                                 }
                             }
@@ -343,7 +343,8 @@ struct NotenPult: View {
 
     /// Nach drei Sekunden springen, außer „Bleiben“.
     private func autoJump(_ shown: Vorgabe) async {
-        guard let target = shown.mappe else { return }
+        // Mit VoiceOver kein Sprung von selbst: die Person entscheidet mit „Jetzt öffnen“ (IOS-13)
+        guard let target = shown.mappe, !UIAccessibility.isVoiceOverRunning else { return }
         try? await Task.sleep(nanoseconds: 3_000_000_000)
         guard !Task.isCancelled, vorgabe == shown else { return }
         jump(target, shown.piece)
@@ -388,6 +389,18 @@ struct NotenPult: View {
                 if let document {
                     PdfSeite(document: document, page: at.page)
                         .accessibilityLabel(tr("Seite {seite} von {seiten}", ["seite": at.page + 1, "seiten": pages]))
+                        // Blättern und Schließen ohne Sehen: Wischen nach oben/unten und Aktionen
+                        // (UX-Audit 16.11., IOS-13)
+                        .accessibilityAdjustableAction { direction in
+                            switch direction {
+                            case .increment: step(Blaettern.weiter)
+                            case .decrement: step(Blaettern.rueck)
+                            @unknown default: break
+                            }
+                        }
+                        .accessibilityAction(named: tr("Nächste Seite")) { step(Blaettern.weiter) }
+                        .accessibilityAction(named: tr("Vorige Seite")) { step(Blaettern.rueck) }
+                        .accessibilityAction(named: tr("Schließen")) { dismiss() }
                 } else if let failed {
                     VStack(spacing: 12) {
                         MeldungText(failed, .fehler).multilineTextAlignment(.center)

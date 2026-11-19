@@ -23,6 +23,10 @@ final class IchTests: XCTestCase {
         let list = try await Api(server: server, transport: net, tokens: FakeTokens("hpd_a")).myInvoices(accessId: 3)
         XCTAssertEqual(net.seen.first?.url, "https://verein.example.de/api/portal/3/invoices/")
         XCTAssertEqual(list.sorted.map(\.id), [2, 3, 1])
+        // IOS-17: auf „Ich“ nur die offenen, ohne offene die neueste
+        XCTAssertEqual(list.preview.map(\.id), [2, 3])
+        let paid = try JSONDecoder().decode(MyInvoices.self, from: Data(#"{"invoices":[{"id":8,"status":"paid"},{"id":7,"status":"paid"}]}"#.utf8))
+        XCTAssertEqual(paid.preview.map(\.id), [8])
         XCTAssertEqual(list.openSum, "1.272,50\u{00A0}€")
         XCTAssertEqual(list.sorted[0].headline, "R-2026-0031 · 01.11.2026 · Zug 1")
         XCTAssertEqual(list.sorted[0].stateText, "Offen: 1.260,50\u{00A0}€, fällig am 30.11.2026")

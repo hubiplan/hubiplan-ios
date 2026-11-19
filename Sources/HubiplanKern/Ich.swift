@@ -186,6 +186,13 @@ public struct MyInvoices: Decodable, Equatable, Sendable {
     /// Offene zuerst, sonst wie geliefert (neueste oben).
     public var sorted: [MyInvoice] { invoices.filter(\.open) + invoices.filter { !$0.open } }
 
+    /// Für die Seite „Ich“: offene Rechnungen (höchstens drei), ohne offene nur die neueste.
+    /// Alle stehen auf einer eigenen Seite (UX-Audit 16.11., IOS-17).
+    public var preview: [MyInvoice] {
+        let open = invoices.filter(\.open)
+        return open.isEmpty ? Array(invoices.prefix(1)) : Array(open.prefix(3))
+    }
+
     /// Summe der offenen Beträge als Text, nil ohne offene.
     public var openSum: String? {
         let amounts = invoices.filter(\.open).compactMap { Geld.cents($0.outstanding) }

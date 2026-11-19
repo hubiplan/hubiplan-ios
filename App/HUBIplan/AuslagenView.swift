@@ -52,7 +52,7 @@ struct AuslagenView: View {
                             .font(.headline)
                         Text(claim.line).font(.footnote).foregroundStyle(.secondary)
                         if claim.asksMe {
-                            Text(tr("Die Kasse hat eine Rückfrage.")).font(.footnote).foregroundStyle(Color.fehlerText)
+                            ZustandText(tr("Die Kasse hat eine Rückfrage."), .warnung).font(.footnote)
                         }
                     }
                 }
@@ -108,17 +108,22 @@ private struct AuslageFormular: View {
                 .pickerStyle(.segmented)
             }
             Section {
-                TextField(tr("Wofür, für wen?"), text: $draft.purpose, axis: .vertical)
-                TextField(draft.kind == "mileage" ? tr("Datum der Fahrt (JJJJ-MM-TT)") : tr("Datum des Kaufs (JJJJ-MM-TT)"), text: $draft.date)
-                    .weiterFeld()
-                    .keyboardType(.numbersAndPunctuation)
+                BeschriftetesFeld(label: tr("Wofür, für wen?"), text: $draft.purpose, axis: .vertical)
+                // Datum zum Auswählen statt Tippen, höchstens heute (UX-Audit 16.11., IOS-20)
+                DatePicker(
+                    draft.kind == "mileage" ? tr("Datum der Fahrt") : tr("Datum des Kaufs"),
+                    selection: Binding(
+                        get: { kalendertag(draft.date) ?? Date() },
+                        set: { draft.date = Zeit.day($0) }
+                    ),
+                    in: ...Date(),
+                    displayedComponents: .date
+                )
             }
             if draft.kind == "mileage" {
                 Section {
-                    TextField(tr("Start, Ziel und Anlass"), text: $draft.route)
-                        .weiterFeld()
-                    TextField(tr("Gefahrene Kilometer (hin und zurück)"), text: $draft.km)
-                        .weiterFeld()
+                    BeschriftetesFeld(label: tr("Start, Ziel und Anlass"), text: $draft.route)
+                    BeschriftetesFeld(label: tr("Gefahrene Kilometer (hin und zurück)"), text: $draft.km)
                         .keyboardType(.decimalPad)
                 } footer: {
                     Text(tr("{rate} je km", ["rate": Geld.format(options.kmRate)]))
@@ -126,9 +131,11 @@ private struct AuslageFormular: View {
             } else {
                 Section {
                     ForEach(draft.amounts.indices, id: \.self) { i in
-                        TextField(tr("Betrag in €"), text: $draft.amounts[i])
-                            .weiterFeld()
-                            .keyboardType(.decimalPad)
+                        BeschriftetesFeld(
+                            label: draft.amounts.count > 1 ? tr("Betrag {n} in €", ["n": i + 1]) : tr("Betrag in €"),
+                            text: $draft.amounts[i]
+                        )
+                        .keyboardType(.decimalPad)
                     }
                     if draft.amounts.count < 20 {
                         Button(tr("Weitere Position")) { draft.amounts.append("") }
@@ -159,14 +166,14 @@ private struct AuslageFormular: View {
             Section {
                 Picker(tr("Auszahlung"), selection: $draft.payout) {
                     Text(tr("Überweisung")).tag("bank")
-                    Text(tr("bar")).tag("cash")
+                    Text(tr("Bar")).tag("cash")
                 }
                 .pickerStyle(.segmented)
                 if draft.payout == "bank" {
-                    TextField(tr("Kontoinhaber"), text: $draft.holder)
-                        .textInputAutocapitalization(.words).weiterFeld()
-                    TextField(tr("IBAN"), text: $draft.iban)
-                        .weiterFeld()
+                    BeschriftetesFeld(label: tr("Kontoinhaber"), text: $draft.holder)
+                        .textInputAutocapitalization(.words)
+                    BeschriftetesFeld(label: tr("IBAN"), text: $draft.iban)
+                        .keyboardType(.asciiCapable)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
                 }
@@ -177,18 +184,29 @@ private struct AuslageFormular: View {
                 Section { MeldungText(failure, .fehler) }
             }
             Section {
-                Button(tr("Einreichen")) { Task { await send(submit: true) } }
-                    .buttonStyle(.borderedProminent)
                 Button(tr("Als Entwurf speichern")) { Task { await send(submit: false) } }
+                    .disabled(busy)
+            } footer: {
+                // Was zum Einreichen fehlt, steht hier, bevor etwas gesendet wird (IOS-20)
+                if let missing { Text(missing) }
             }
-            .disabled(busy)
         }
         .tastaturFuehrung()
         .navigationTitle(tr("Neue Auslage"))
+        .toolbar {
+            // Bestätigen oben rechts wie in jedem Blatt; erst aktiv, wenn alles da ist (IOS-20)
+            ToolbarItem(placement: .confirmationAction) {
+                Button(tr("Einreichen")) { Task { await send(submit: true) } }
+                    .disabled(busy || missing != nil)
+            }
+        }
         .eingabeschutz(draft != start || !photos.isEmpty, disabled: busy)
     }
 
+    private var missing: String? { draft.missing(photos: photos.count, today: Zeit.day(Date())) }
+
     private func send(submit: Bool) async {
+        if submit, missing != nil { return }
         busy = true
         failure = nil
         defer { busy = false }
@@ -251,7 +269,7 @@ private struct AuslageView: View {
                 if c.asksMe {
                     Section {
                         if let question = c.question {
-                            Text(tr("Rückfrage der Kasse: {text}", ["text": question])).foregroundStyle(Color.fehlerText)
+                            ZustandText(tr("Rückfrage der Kasse: {text}", ["text": question]), .warnung)
                         }
                         TextField(tr("Deine Antwort"), text: $answer, axis: .vertical)
                         Button(tr("Antwort senden")) {
@@ -315,7 +333,7 @@ private struct AuslageView: View {
                 Laedt()
             }
         }
-        .navigationTitle(tr("Auslagen"))
+        .navigationTitle(claim.map { $0.number.isEmpty ? tr("Entwurf") : $0.number } ?? tr("Auslage"))
         .task { await load() }
         .refreshable { await load() }
         .confirmationDialog(

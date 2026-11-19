@@ -61,7 +61,7 @@ public struct LiveTarget: Equatable, Hashable, Identifiable, Sendable {
         guard let link = MeetingLink.parse(text) else {
             return (nil, tr("Das ist kein QR-Code zum Anmelden in einer Versammlung."))
         }
-        if link.server != server { return (nil, tr("Der QR-Code gehört zu einer anderen HUBIplan-Instanz.")) }
+        if link.server != server { return (nil, tr("Der QR-Code gehört zu einer anderen HUBIplan-Adresse.")) }
         if clubId != 0 && link.clubId != clubId {
             return (nil, tr("Der QR-Code gehört zu einem anderen Verein. Wähle unter „Ich“ oben links den passenden Zugang."))
         }

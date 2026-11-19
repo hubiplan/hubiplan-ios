@@ -88,8 +88,9 @@ struct HauptView: View {
         .onChange(of: phase) { _, now in model.sceneChanged(active: now == .active) }
         // Link zum Verbinden kam von außen (hubiplan://…), während schon ein Konto verbunden ist
         .verbindenFrage(aktiv: !model.adding)
+        // Kurzer Titel, der Fehlertext steht darunter (IOS-23)
         .alert(
-            model.linkError ?? "",
+            tr("Das hat nicht geklappt"),
             isPresented: Binding(get: { !model.adding && model.linkError != nil }, set: { if !$0 { model.linkError = nil } })
         ) {
             Button(tr("Schließen"), role: .cancel) {
@@ -97,13 +98,14 @@ struct HauptView: View {
                 model.retiredDrafts = 0
             }
         } message: {
-            if model.retiredDrafts > 0 {
-                Text(trn(
+            Text([
+                model.linkError ?? "",
+                model.retiredDrafts > 0 ? trn(
                     "1 nicht gesendeter Vorgang der Kasse bleibt verschlüsselt auf diesem Gerät. Er kommt zurück, wenn du dasselbe Konto wieder verbindest.",
                     "{n} nicht gesendete Vorgänge der Kasse bleiben verschlüsselt auf diesem Gerät. Sie kommen zurück, wenn du dasselbe Konto wieder verbindest.",
                     model.retiredDrafts
-                ))
-            }
+                ) : "",
+            ].filter { !$0.isEmpty }.joined(separator: "\n\n"))
         }
     }
 }
@@ -130,6 +132,9 @@ struct TermineView: View {
                 } else if model.events.isEmpty && !model.loading && model.error == nil {
                     Text(tr("Keine Termine in den nächsten Monaten.")).foregroundStyle(.secondary)
                 }
+                if model.offerHints {
+                    HinweisAngebot()
+                }
                 ForEach(model.events) { event in
                     TerminZeile(event: event)
                 }
@@ -144,6 +149,7 @@ struct TermineView: View {
             }
             .zugangsWahl()
             .refreshable { await model.refresh() }
+            .lesebreite()
             .overlay { if model.loading && model.events.isEmpty { Laedt() } }
         }
     }
@@ -179,6 +185,10 @@ struct TerminZeile: View {
         }
     }
 
+    private var canRespond: Bool {
+        event.responseMissing && model.offlineSince == nil
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
             NavigationLink(value: event.key) {
@@ -206,13 +216,23 @@ struct TerminZeile: View {
                 }
                 .accessibilityElement(children: .combine)
             }
+            // VoiceOver: Zusagen und Absagen als Aktionen der Terminzeile, ohne weitere Wischschritte
+            // (UX-Audit 16.11., IOS-13)
+            .accessibilityActions {
+                if canRespond {
+                    Button(tr("Zusagen")) { Task { await model.respond(event, status: "yes") } }
+                    Button(tr("Absagen")) { Task { await model.respond(event, status: "no") } }
+                }
+            }
             // Ohne Netz (gespeicherter Stand) gehen keine Rückmeldungen
-            if event.responseMissing && model.offlineSince == nil {
+            if canRespond {
                 KnopfReihe {
                     Button(tr("Zusagen")) { Task { await model.respond(event, status: "yes") } }
                         .buttonStyle(.borderedProminent)
+                        .accessibilityLabel(tr("Zusagen: {title}", ["title": event.title]))
                     Button(tr("Absagen")) { Task { await model.respond(event, status: "no") } }
                         .buttonStyle(.bordered)
+                        .accessibilityLabel(tr("Absagen: {title}", ["title": event.title]))
                 }
                 .disabled(model.rsvpBusy.contains(event.eventId))
                 .padding(.top, 2)
@@ -397,7 +417,7 @@ private struct KontoUnterseite: View {
                 } header: {
                     Text(tr("Konten"))
                 } footer: {
-                    Text(tr("Für mehrere Vereine mit eigener HUBIplan-Instanz. Tippe ein Konto an, um es zu zeigen."))
+                    Text(tr("Für mehrere Vereine, jeder mit eigener HUBIplan-Adresse. Tippe ein Konto an, um es zu zeigen."))
                 }
                 Section {
                     Button(tr("Auf diesem Gerät abmelden …"), role: .destructive) { askDisconnect() }
@@ -467,6 +487,7 @@ private struct KontoUnterseite: View {
                     if model.calendarDenied {
                         Text(tr("Ohne Zugriff auf den Kalender bleiben die Termine nur in der App. Du kannst ihn in den Einstellungen des Geräts unter HUBIplan erlauben."))
                             .foregroundStyle(Color.fehlerText)
+                        EinstellungenKnopf()
                     }
                 } header: {
                     Text(tr("Gerätekalender"))
@@ -475,18 +496,21 @@ private struct KontoUnterseite: View {
                 }
                 Section {
                     Toggle(tr("Hinweis, wenn eine Rückmeldung fehlt"), isOn: Binding(
-                        get: { model.hintsOn && !model.hintsDenied },
+                        // Steht nur auf „an“, wenn das Gerät Mitteilungen auch erlaubt (IOS-16)
+                        get: { model.hintsOn && !model.hintsDenied && !model.hintsUndecided },
                         set: { on in Task { await model.setHints(on: on) } }
                     ))
                     if model.hintsDenied {
                         Text(tr("Mitteilungen sind für HUBIplan ausgeschaltet. Du kannst sie in den Einstellungen des Geräts unter HUBIplan erlauben."))
                             .foregroundStyle(Color.fehlerText)
+                        EinstellungenKnopf()
                     }
                 } header: {
                     Text(tr("Hinweise"))
                 } footer: {
                     Text(tr("Etwa einen Tag vor dem Anmeldeschluss, mit den Knöpfen Zusage und Absage."))
                 }
+                .task { await model.refreshHintPermission() }
                 case .ueber:
                     Section {
                     if let server = model.account?.server {
@@ -578,5 +602,41 @@ struct LizenzenView: View {
         }
         .navigationTitle(tr("Lizenzen"))
         .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+/// Erinnerungen erst anbieten, wenn es einen Anlass gibt: ein Termin wartet auf deine Rückmeldung
+/// (UX-Audit 16.11., IOS-16). Die Systemabfrage kommt erst nach „Erinnern lassen“.
+struct HinweisAngebot: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        Section {
+            VStack(alignment: .leading, spacing: 10) {
+                Label(tr("Soll die App dich erinnern, wenn eine Rückmeldung fehlt?"), systemImage: "bell")
+                    .font(.subheadline.weight(.semibold))
+                Text(tr("Etwa einen Tag vor dem Anmeldeschluss, mit den Knöpfen Zusage und Absage. Das Gerät fragt dich danach einmal nach der Erlaubnis."))
+                    .font(.footnote)
+                    .foregroundStyle(Color.secondary)
+                HStack(spacing: 12) {
+                    Button(tr("Erinnern lassen")) { Task { await model.setHints(on: true) } }
+                        .buttonStyle(.borderedProminent)
+                    Button(tr("Nicht jetzt")) { model.dismissHintOffer() }
+                        .buttonStyle(.bordered)
+                }
+            }
+            .padding(.vertical, 4)
+        }
+    }
+}
+
+/// Weg in die Einstellungen des Geräts, wenn eine Erlaubnis fehlt (IOS-16)
+struct EinstellungenKnopf: View {
+    @Environment(\.openURL) private var openURL
+
+    var body: some View {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            Button(tr("Einstellungen öffnen")) { openURL(url) }
+        }
     }
 }

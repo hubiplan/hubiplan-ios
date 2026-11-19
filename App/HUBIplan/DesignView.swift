@@ -154,6 +154,38 @@ struct MeldungText: View {
     }
 }
 
+/// Zustand in einer Liste (Rückfrage, Fehler am Feld, überfällig): Symbol und Farbe, damit die
+/// Bedeutung auch ohne Farbe erkennbar ist (UX-Audit 16.11., IOS-12). Anders als `MeldungText`
+/// ohne Ansage, weil viele Zeilen gleichzeitig sichtbar sein können.
+struct ZustandText: View {
+    let text: String
+    let zustand: Design.Zustand
+
+    init(_ text: String, _ zustand: Design.Zustand = .fehler) {
+        self.text = text
+        self.zustand = zustand
+    }
+
+    private var symbol: String {
+        switch zustand {
+        case .gut: return "checkmark.circle"
+        case .fehler: return "exclamationmark.triangle"
+        case .warnung: return "exclamationmark.circle"
+        case .hinweis: return "info.circle"
+        case .neutral: return "circle"
+        }
+    }
+
+    var body: some View {
+        Label {
+            Text(text)
+        } icon: {
+            Image(systemName: symbol).accessibilityHidden(true)
+        }
+        .foregroundStyle(zustand == .neutral ? Color.secondary : Color.zustand(zustand))
+    }
+}
+
 /// Ladeanzeige mit Text, für VoiceOver beschriftet (IOS-28).
 struct Laedt: View {
     var text = tr("Wird geladen …")
@@ -199,4 +231,24 @@ struct KnopfReihe<Content: View>: View {
             VStack(alignment: .leading, spacing: 8) { content() }
         }
     }
+}
+
+/// Auf dem iPad und im Querformat laufen Listen nicht über die ganze Breite: Inhalt mittig mit
+/// Lesebreite (UX-Audit 16.11., IOS-26). Auf dem iPhone im Hochformat ändert sich nichts.
+private struct Lesebreite: ViewModifier {
+    @Environment(\.horizontalSizeClass) private var breite
+
+    func body(content: Content) -> some View {
+        if breite == .regular {
+            GeometryReader { area in
+                content.contentMargins(.horizontal, max(16, (area.size.width - 720) / 2), for: .scrollContent)
+            }
+        } else {
+            content
+        }
+    }
+}
+
+extension View {
+    func lesebreite() -> some View { modifier(Lesebreite()) }
 }

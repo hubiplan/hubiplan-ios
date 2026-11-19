@@ -34,7 +34,7 @@ struct BelegungView: View {
             if let error {
                 Section {
                     MeldungText(error, .fehler)
-                    Button(tr("Erneut laden")) { Task { await load() } }
+                    Button(tr("Erneut versuchen")) { Task { await load() } }
                 }
             }
             if let data {
@@ -46,7 +46,7 @@ struct BelegungView: View {
                         BelegungAnfrage(items: data.items) { await load() }
                     }
                     Section(tr("Meine Anfragen und Buchungen")) {
-                        if let notice { Text(notice) }
+                        if let notice { MeldungText(notice, .gut) }
                         if let problem { MeldungText(problem, .fehler) }
                         if data.own.isEmpty { Text(tr("Noch keine.")).foregroundStyle(.secondary) }
                         ForEach(data.own) { booking in
@@ -183,10 +183,10 @@ private struct BelegungAnfrage: View {
         }
         TextField(tr("Notiz (optional)"), text: $note, axis: .vertical).lineLimit(2...5)
         if times == nil {
-            Text(tr("Das Ende liegt vor dem Beginn.")).font(.footnote).foregroundStyle(Color.fehlerText)
+            ZustandText(tr("Das Ende liegt vor dem Beginn."), .fehler).font(.footnote)
         }
         if let problem { MeldungText(problem, .fehler) }
-        if let notice { Text(notice) }
+        if let notice { MeldungText(notice, .gut) }
         Button(busy ? tr("Wird gesendet …") : tr("Anfrage senden")) { Task { await send() } }
             .buttonStyle(.borderedProminent)
             .disabled(busy || title.trimmingCharacters(in: .whitespaces).isEmpty || times == nil || item == nil)
@@ -274,7 +274,7 @@ struct AbwesenheitenView: View {
             if let error {
                 Section {
                     MeldungText(error, .fehler)
-                    Button(tr("Erneut laden")) { Task { await load() } }
+                    Button(tr("Erneut versuchen")) { Task { await load() } }
                 }
             }
             if let data {
@@ -284,7 +284,7 @@ struct AbwesenheitenView: View {
                     Section {
                         Text(tr("Trage Zeiträume ein, in denen du nicht mitspielen kannst. Eine Begründung wird nicht erfasst. Bestehende Einteilungen bleiben erhalten; bitte dort zusätzlich absagen."))
                             .font(.footnote).foregroundStyle(.secondary)
-                        if let notice { Text(notice) }
+                        if let notice { MeldungText(notice, .gut) }
                         if let problem { MeldungText(problem, .fehler) }
                         Button(tr("Abwesenheit eintragen")) { notice = nil; editing = AbwesenheitEntwurf(row: nil) }
                     }
@@ -392,7 +392,7 @@ private struct AbwesenheitFormular: View {
                 DatePicker(tr("Von"), selection: $start).environment(\.locale, Texte.locale)
                 DatePicker(tr("Bis"), selection: $end).environment(\.locale, Texte.locale)
                 if end <= start {
-                    Text(tr("Das Ende der Abwesenheit muss nach dem Beginn liegen.")).font(.footnote).foregroundStyle(Color.fehlerText)
+                    ZustandText(tr("Das Ende der Abwesenheit muss nach dem Beginn liegen."), .fehler).font(.footnote)
                 }
                 if let problem { MeldungText(problem, .fehler) }
             }
@@ -471,7 +471,7 @@ struct KuendigungAbschnitt: View {
                 .buttonStyle(.bordered)
             }
             if let pending = info.pending {
-                Text(tr("Deine Kündigung zum {date} vom {sent} wartet auf den Vorstand.", [
+                Text(tr("Deine Kündigung zum {date} vom {sent} wartet auf Bearbeitung durch deinen Verein.", [
                     "date": Zeit.plainDate(pending.exitDate),
                     "sent": Zeit.plainDate(pending.createdAt),
                 ]))
@@ -488,17 +488,17 @@ struct KuendigungAbschnitt: View {
                     .lineLimit(2...5)
                     .textFieldStyle(.roundedBorder)
                 if info.tooEarly(chosen) {
-                    Text(tr("Frühestens zum {date}.", ["date": Zeit.plainDate(earliest)])).font(.footnote).foregroundStyle(Color.fehlerText)
+                    ZustandText(tr("Frühestens zum {date}.", ["date": Zeit.plainDate(earliest)]), .fehler).font(.footnote)
                 }
                 KnopfReihe {
-                    Button(tr("Kündigung absenden"), role: .destructive) { confirm = true }
+                    // Gewöhnlicher Knopf; rot ist erst die Bestätigung in der Rückfrage (IOS-23)
+                    Button(tr("Weiter")) { confirm = true }
                         .buttonStyle(.borderedProminent)
-                        .tint(Color.fehlerText)
                         .disabled(busy || info.tooEarly(chosen))
                     Button(tr("Abbrechen")) { open = false }.disabled(busy)
                 }
             }
-            if let notice { Text(notice) }
+            if let notice { MeldungText(notice, .gut) }
             if let problem { MeldungText(problem, .fehler) }
             ForEach(info.requests.filter { !$0.pending }) { item in
                 VStack(alignment: .leading, spacing: 2) {
@@ -509,7 +509,7 @@ struct KuendigungAbschnitt: View {
                     ]))
                     .font(.footnote).foregroundStyle(.secondary)
                     if !item.response.isEmpty {
-                        Text(tr("Antwort des Vorstands: {text}", ["text": item.response])).font(.footnote)
+                        Text(tr("Antwort deines Vereins: {text}", ["text": item.response])).font(.footnote)
                     }
                 }
                 .accessibilityElement(children: .combine)
@@ -519,7 +519,7 @@ struct KuendigungAbschnitt: View {
             Button(tr("Kündigung absenden"), role: .destructive) { Task { await send() } }
             Button(tr("Abbrechen"), role: .cancel) {}
         } message: {
-            Text(tr("Du trittst zum {date} aus. Der Vorstand bestätigt die Kündigung per Mail.", ["date": Zeit.plainDate(chosen)]))
+            Text(tr("Du trittst zum {date} aus. Dein Verein bestätigt die Kündigung per Mail.", ["date": Zeit.plainDate(chosen)]))
         }
         .alert(
             tr("Kündigung zurücknehmen?"),

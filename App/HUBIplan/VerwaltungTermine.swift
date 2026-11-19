@@ -327,7 +327,7 @@ private struct AbsageBlatt: View {
             }
             .tastaturFuehrung()
             .disabled(saving)
-            .navigationTitle(single != nil ? tr("Diesen Termin absagen?") : tr("Termin absagen?"))
+            .navigationTitle(single != nil ? tr("Diesen Termin absagen") : tr("Termin absagen"))
             .navigationBarTitleDisplayMode(.inline)
             .eingabeschutz(!note.isEmpty, disabled: saving)
             .toolbar {
@@ -372,6 +372,7 @@ private struct RueckmeldungBlatt: View {
     let row: ResponseRow
     let done: () -> Void
     @State private var status = "yes"
+    @State private var confirmRemove = false
     @State private var guests = 0
     @State private var note = ""
     @State private var error: String?
@@ -396,7 +397,8 @@ private struct RueckmeldungBlatt: View {
                 }
                 if row.status != nil {
                     Section {
-                        Button(tr("Rückmeldung entfernen"), role: .destructive) { Task { await remove() } }
+                        // Rückfrage, denn es gibt kein Rückgängig (IOS-23)
+                        Button(tr("Rückmeldung entfernen"), role: .destructive) { confirmRemove = true }
                     }
                 }
             }
@@ -409,6 +411,12 @@ private struct RueckmeldungBlatt: View {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(tr("Eintragen")) { Task { await save() } }.disabled(saving)
                 }
+            }
+            .confirmationDialog(tr("Rückmeldung entfernen?"), isPresented: $confirmRemove, titleVisibility: .visible) {
+                Button(tr("Rückmeldung entfernen"), role: .destructive) { Task { await remove() } }
+                Button(tr("Abbrechen"), role: .cancel) {}
+            } message: {
+                Text(tr("{name} gilt danach wieder als „Noch offen“.", ["name": row.name]))
             }
             .onAppear {
                 status = row.status == "no" ? "no" : "yes"

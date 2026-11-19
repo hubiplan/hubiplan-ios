@@ -43,7 +43,7 @@ struct MitteilungenView: View {
                     }
                 }
             }
-            .navigationTitle(tr("Neues"))
+            .navigationTitle(tr("Mitteilungen"))
             .zugangsWahl()
             .toolbar {
                 if let senders = model.senders, !senders.senders.isEmpty {
@@ -66,6 +66,7 @@ struct MitteilungenView: View {
                 }
             }
             .refreshable { await model.refresh() }
+            .lesebreite()
             .overlay { if model.loading && model.circulars.isEmpty { Laedt() } }
         }
     }
@@ -135,7 +136,7 @@ struct MitteilungView: View {
                         .disabled(model.previewBusy || model.offlineSince != nil)
                         .accessibilityHint(tr("Anhang öffnen"))
                     }
-                    if model.previewBusy { ProgressView() }
+                    if model.previewBusy { Laedt(text: tr("Datei wird geladen …")) }
                     if let message = model.error, model.offlineSince == nil {
                         MeldungText(message, .fehler).font(.footnote)
                     }

@@ -1,0 +1,4 @@
+/* System permission prompts in English (UX audit 16/11, IOS-16) */
+"NSCameraUsageDescription" = "The camera reads the QR code that connects the app to your club and, in administration, the QR code on a membership card. You also use it to photograph receipts and results.";
+"NSCalendarsFullAccessUsageDescription" = "The app adds your club's events to a calendar of its own and keeps them up to date.";
+"NSFaceIDUsageDescription" = "Use Face ID to open your club's administration in the app.";

@@ -128,4 +128,29 @@ final class AuslagenTests: XCTestCase {
             XCTAssertEqual(error.message, "Bitte angeben, wofür das war.")
         }
     }
+
+    /// IOS-20: Einreichen erst, wenn alles da ist; kein Datum in der Zukunft.
+    func testFehlendeAngabenVorDemEinreichen() {
+        var d = ExpenseDraft(date: "2099-01-02", payee: ExpensePayee(holder: "Anna Muster", iban: "DE89 3704 0044 0532 0130 00"))
+        XCTAssertEqual(d.missing(photos: 1, today: "2099-01-05"), "Bitte angeben, wofür das Geld ausgegeben wurde.")
+        d.purpose = "Hemden für die Jugend"
+        XCTAssertEqual(d.missing(photos: 1, today: "2099-01-05"), "Bitte mindestens einen Betrag angeben.")
+        d.amounts = ["12,5x"]
+        XCTAssertEqual(d.missing(photos: 1, today: "2099-01-05"), "Bitte jeden Betrag als Zahl angeben, zum Beispiel 12,50.")
+        d.amounts = ["45,90", ""]
+        XCTAssertEqual(d.missing(photos: 0, today: "2099-01-05"), "Bitte ein Foto des Belegs hinzufügen.")
+        XCTAssertNil(d.missing(photos: 1, today: "2099-01-05"))
+        XCTAssertEqual(d.missing(photos: 1, today: "2099-01-01"), "Bitte ein Datum bis heute wählen.")
+        d.iban = "DE89"
+        XCTAssertEqual(d.missing(photos: 1, today: "2099-01-05"), "Bitte eine gültige IBAN angeben.")
+        d.payout = "cash"
+        XCTAssertNil(d.missing(photos: 1, today: "2099-01-05"))
+        d.kind = "mileage"
+        XCTAssertEqual(d.missing(photos: 0, today: "2099-01-05"), "Bitte Start, Ziel und Anlass der Fahrt angeben.")
+        d.route = "Musterstadt – Beispielhausen, Kreistreffen"
+        d.km = "0"
+        XCTAssertEqual(d.missing(photos: 0, today: "2099-01-05"), "Bitte die gefahrenen Kilometer angeben.")
+        d.km = "42,5"
+        XCTAssertNil(d.missing(photos: 0, today: "2099-01-05"))
+    }
 }

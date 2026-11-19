@@ -58,6 +58,7 @@ struct AufgabenView: View {
             .zugangsWahl()
             .navigationDestination(for: Int.self) { id in AufgabeView(id: id) }
             .refreshable { await model.refreshTasks() }
+            .lesebreite()
             .task { await model.refreshTasks() }
             .onDisappear { model.taskNotice = nil }
         }
@@ -163,6 +164,7 @@ struct HelferListe: View {
                     if data?.canCancel(shift.id) == true {
                         Button(tr("Dienst absagen"), role: .destructive) { cancel = shift }
                             .buttonStyle(.bordered)
+                            .accessibilityLabel(tr("Dienst absagen: {title}", ["title": shift.title]))
                             .disabled(model.loading)
                     } else {
                         Text(tr("Absage nur über die Verwaltung")).font(.footnote).foregroundStyle(.secondary)
@@ -229,7 +231,7 @@ struct HelferListe: View {
                                     Text(shift.names.joined(separator: ", ")).font(.footnote).foregroundStyle(.secondary)
                                 }
                                 if shift.mine != nil {
-                                    Text(tr("Du bist eingetragen.")).font(.footnote.weight(.semibold)).foregroundStyle(Color.accentColor)
+                                    ZustandText(tr("Du bist eingetragen."), .gut).font(.footnote.weight(.semibold))
                                 } else if plan.canSignup(shift) {
                                     Button(tr("Mich eintragen")) {
                                         if plan.cancellableAfterSignup(shift) {
@@ -239,6 +241,7 @@ struct HelferListe: View {
                                         }
                                     }
                                         .buttonStyle(.borderedProminent)
+                                        .accessibilityLabel(tr("Mich eintragen: {title}", ["title": duty.line + ", " + zeitraum(shift.startsAt, shift.endsAt)]))
                                         .disabled(model.loading)
                                         .padding(.top, 2)
                                 }
