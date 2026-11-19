@@ -1106,6 +1106,15 @@ final class AppModel: ObservableObject {
         }
     }
 
+    /// Eintrittskarten einer Anmeldung ansehen (nur online, wird nicht gespeichert).
+    func openTickets(eventId: Int, registration: MyRegistration) async {
+        guard let access else { return }
+        let name = Ansicht.safeName("eintrittskarten-" + registration.number + ".pdf", fallback: "eintrittskarten.pdf")
+        await view(name: name) { api in
+            try await api.registrationTickets(accessId: access.id, eventId: eventId, registrationId: registration.id)
+        }
+    }
+
     func choose(access id: Int) async {
         guard id != access?.id else { return }
         accessId = id

@@ -225,4 +225,15 @@ final class TeilnahmeTests: XCTestCase {
         let json = #"{"id":5,"title":"Sommerfest","starts_at":"2099-06-13T14:00:00+02:00","ends_at":"2099-06-13T18:00:00+02:00","programme":"14:00 Begrüßung"}"#
         XCTAssertEqual(try JSONDecoder().decode(EventDetail.self, from: Data(json.utf8)).programme, "14:00 Begrüßung")
     }
+
+    func testEintrittskartenNurMitAngabeDesServers() async throws {
+        XCTAssertFalse(try XCTUnwrap(decode().mine.first).hasTickets)
+        let neu = antwort.replacingOccurrences(of: #""paid_state":"open""#, with: #""has_tickets":true,"paid_state":"open""#)
+        let d = try JSONDecoder().decode(MemberRegistration.self, from: Data(neu.utf8))
+        XCTAssertTrue(try XCTUnwrap(d.mine.first).hasTickets)
+        let net = FakeTransport([.success(HttpResponse(status: 200, body: Data("%PDF-1.4".utf8)))])
+        let api = Api(server: "https://verein.example.de", transport: net, tokens: FakeTokens("hpd_a"))
+        _ = try await api.registrationTickets(accessId: 3, eventId: 5, registrationId: 9)
+        XCTAssertEqual(net.seen[0].url, "https://verein.example.de/api/portal/3/events/5/registration/9/tickets/")
+    }
 }

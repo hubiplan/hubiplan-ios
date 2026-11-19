@@ -311,6 +311,8 @@ public struct MyRegistration: Decodable, Equatable, Sendable, Identifiable {
     /// Ältere Server ohne Angabe: dann gilt `can_cancel` des Angebots
     public var canCancel: Bool?
     public var canSubstitute: Bool
+    /// Eintrittskarten mit QR-Code als PDF (A6; ältere Server: keine)
+    public var hasTickets: Bool
     /// Zusatzleistungen je Anmeldung
     public var bookings: [Booking]
 
@@ -324,6 +326,7 @@ public struct MyRegistration: Decodable, Equatable, Sendable, Identifiable {
         case feeInvoice = "fee_invoice"
         case canCancel = "can_cancel"
         case canSubstitute = "can_substitute"
+        case hasTickets = "has_tickets"
     }
 
     public init(from decoder: Decoder) throws {
@@ -342,6 +345,7 @@ public struct MyRegistration: Decodable, Equatable, Sendable, Identifiable {
         feeInvoice = try c.decodeIfPresent(RegistrationInvoice.self, forKey: .feeInvoice)
         canCancel = try c.decodeIfPresent(Bool.self, forKey: .canCancel)
         canSubstitute = try c.decodeIfPresent(Bool.self, forKey: .canSubstitute) ?? false
+        hasTickets = try c.decodeIfPresent(Bool.self, forKey: .hasTickets) ?? false
         bookings = try c.decodeIfPresent([Booking].self, forKey: .bookings) ?? []
     }
 
@@ -561,6 +565,11 @@ extension Api {
             "POST", "/api/portal/\(accessId)/events/\(eventId)/registration/\(registrationId)/cancel/",
             json: Teilnahme.cancelPayload(participants)
         )
+    }
+
+    /// Eintrittskarten einer Anmeldung als PDF, eine Karte mit QR-Code je Person (A6).
+    public func registrationTickets(accessId: Int, eventId: Int, registrationId: Int) async throws -> Data {
+        try await file("/api/portal/\(accessId)/events/\(eventId)/registration/\(registrationId)/tickets/")
     }
 
     public func cancelQuote(accessId: Int, eventId: Int, registrationId: Int, participants: [Int] = []) async throws -> FeeQuote {
