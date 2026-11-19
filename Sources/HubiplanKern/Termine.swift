@@ -32,11 +32,13 @@ public struct Occurrence: Decodable, Equatable, Identifiable, Sendable {
     /// "yes", "no", "maybe" oder nil (noch keine Rückmeldung)
     public var myResponse: String?
     public var rsvpDeadline: String?
+    /// "members", "board" oder "public"; ältere Server ohne Angabe
+    public var visibility: String
 
     public var id: String { key }
 
     enum CodingKeys: String, CodingKey {
-        case key, title, location, address, note, category, owner
+        case key, title, location, address, note, category, owner, visibility
         case eventId = "event_id"
         case startsAt = "starts_at"
         case endsAt = "ends_at"
@@ -64,7 +66,11 @@ public struct Occurrence: Decodable, Equatable, Identifiable, Sendable {
         rsvpEnabled = try c.decodeIfPresent(Bool.self, forKey: .rsvpEnabled) ?? false
         myResponse = try c.decodeIfPresent(String.self, forKey: .myResponse)
         rsvpDeadline = try c.decodeIfPresent(String.self, forKey: .rsvpDeadline)
+        visibility = try c.decodeIfPresent(String.self, forKey: .visibility) ?? ""
     }
+
+    /// Termin „nur Vorstand“: sehen nur Vorstandsmitglieder (wie in der Android-App).
+    public var nurVorstand: Bool { visibility == "board" }
 
     public var start: Date? { Zeit.parse(startsAt) }
     public var end: Date? { Zeit.parse(endsAt) }
@@ -269,9 +275,11 @@ public struct EventDetail: Decodable, Equatable, Sendable {
     public var attachments: [EventFile]
     /// Verbindliche Anmeldung (Modul „Anmeldungen“); ohne Modul oder bei älteren Servern nil
     public var registration: RegistrationBrief?
+    /// "members", "board" oder "public"
+    public var visibility: String
 
     enum CodingKeys: String, CodingKey {
-        case id, title, description, location, address, directions, programme, latitude, longitude, owner, rsvp, attachments, registration
+        case id, title, description, location, address, directions, programme, latitude, longitude, owner, rsvp, attachments, registration, visibility
         case mapLinks = "map_links"
         case isCancelled = "is_cancelled"
         case cancelNote = "cancel_note"
@@ -295,7 +303,10 @@ public struct EventDetail: Decodable, Equatable, Sendable {
         rsvp = try c.decodeIfPresent(Rsvp.self, forKey: .rsvp) ?? Rsvp()
         attachments = try c.decodeIfPresent([EventFile].self, forKey: .attachments) ?? []
         registration = try c.decodeIfPresent(RegistrationBrief.self, forKey: .registration)
+        visibility = try c.decodeIfPresent(String.self, forKey: .visibility) ?? ""
     }
+
+    public var nurVorstand: Bool { visibility == "board" }
 }
 
 /// Texte zur eigenen Rückmeldung, gleich wie in der Android-App (UX-Audit 16.11., IOS-05).

@@ -4,6 +4,17 @@ import XCTest
 final class TermineTests: XCTestCase {
     private let server = "https://verein.example.de"
 
+    /// Termine „nur Vorstand“ sind gekennzeichnet; ältere Server ohne Angabe: kein Hinweis
+    /// (gleicher Fall wie in der Android-App).
+    func testVorstandsterminIstGekennzeichnet() throws {
+        let occ = try JSONDecoder().decode(Occurrence.self, from: Data(#"{"key":"7","event_id":7,"title":"Vorstandssitzung","starts_at":"2099-03-05T19:30:00+01:00","ends_at":"2099-03-05T21:30:00+01:00","visibility":"board"}"#.utf8))
+        XCTAssertTrue(occ.nurVorstand)
+        let alt = try JSONDecoder().decode(Occurrence.self, from: Data(#"{"key":"8","event_id":8,"title":"Sommerfest","starts_at":"2099-06-13T14:00:00+02:00","ends_at":"2099-06-13T18:00:00+02:00"}"#.utf8))
+        XCTAssertFalse(alt.nurVorstand)
+        let detail = try JSONDecoder().decode(EventDetail.self, from: Data(#"{"id":7,"title":"Vorstandssitzung","visibility":"board"}"#.utf8))
+        XCTAssertTrue(detail.nurVorstand)
+    }
+
     func testTermineLesen() async throws {
         let net = FakeTransport([FakeTransport.json(200, #"{"items":[{"key":"12:2026-11-20","event_id":12,"title":"Zugversammlung","starts_at":"2026-11-20T19:00:00+01:00","ends_at":"2026-11-20T21:00:00+01:00","location":"Vereinsheim","category":{"name":"Versammlung","color":"blau"},"owner":"Zug 1","rsvp_enabled":true,"my_response":null,"neu":true},{"key":"13","event_id":13,"title":"Schützenfest","starts_at":"2026-08-28T00:00:00+02:00","ends_at":"2026-08-31T23:59:59.999+02:00","all_day":true,"is_cancelled":true,"rsvp_enabled":true,"my_response":"yes"}]}"#)])
         let events = try await Api(server: server, transport: net, tokens: FakeTokens("hpd_a")).events(accessId: 3, from: "2026-11-01", to: "2027-05-01")

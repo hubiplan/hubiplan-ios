@@ -212,6 +212,9 @@ struct TerminZeile: View {
                                 symbol: statusSymbol
                             )
                         }
+                        if event.nurVorstand && !event.isCancelled {
+                            Abzeichen(tr("nur Vorstand"), .hinweis)
+                        }
                     }
                 }
                 .accessibilityElement(children: .combine)
