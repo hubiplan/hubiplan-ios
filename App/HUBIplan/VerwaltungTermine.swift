@@ -122,6 +122,7 @@ struct TerminVerwaltungView: View {
     let occurrence: String?
     @State private var event: AdminEvent?
     @State private var responses: AdminResponses?
+    @State private var checkIns: CheckInList?
     @State private var tab = AdminResponses.Tab.yes
     @State private var search = ""
     @State private var cancelling = false
@@ -182,6 +183,15 @@ struct TerminVerwaltungView: View {
                     }
                     if let responses {
                         liste(responses, canEnter: event.rsvp.canEnter && event.canEdit)
+                    }
+                    // Termine mit verbindlicher Anmeldung: Einlass vor Ort (A6/A7)
+                    if let checkIns {
+                        Section(tr("Einlass")) {
+                            Text(checkIns.stand)
+                            NavigationLink(tr("Teilnehmende einlassen")) {
+                                EinlassView(unit: unit, eventId: id)
+                            }
+                        }
                     }
                 } else if model.adminError == nil {
                     Laedt()
@@ -268,15 +278,19 @@ struct TerminVerwaltungView: View {
 
     private func load() async {
         let id = self.id
-        let result = await model.verwaltung(unit) { client -> (AdminEvent, AdminResponses?) in
+        let result = await model.verwaltung(unit) { client -> (AdminEvent, AdminResponses?, CheckInList?) in
             let event = try await client.event(id)
             var list: AdminResponses?
             if event.rsvp.canViewList { list = try await client.responses(id) }
-            return (event, list)
+            // Ohne Zu- und Absagen: Anmeldung mit Einlass? Fehlt sie, bleibt der Bereich weg.
+            var entries: CheckInList?
+            if !event.rsvp.enabled { entries = try? await client.checkIns(id) }
+            return (event, list, entries)
         }
         if let result {
             event = result.0
             responses = result.1
+            checkIns = result.2
         }
     }
 
