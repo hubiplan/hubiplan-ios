@@ -257,6 +257,8 @@ public struct EventDetail: Decodable, Equatable, Sendable {
     public var location: String
     public var address: String
     public var directions: String
+    /// Ablauf oder Programm (Stufe A5); ältere Server ohne Angabe
+    public var programme: String
     public var latitude: Double?
     public var longitude: Double?
     public var mapLinks: MapLinks
@@ -269,7 +271,7 @@ public struct EventDetail: Decodable, Equatable, Sendable {
     public var registration: RegistrationBrief?
 
     enum CodingKeys: String, CodingKey {
-        case id, title, description, location, address, directions, latitude, longitude, owner, rsvp, attachments, registration
+        case id, title, description, location, address, directions, programme, latitude, longitude, owner, rsvp, attachments, registration
         case mapLinks = "map_links"
         case isCancelled = "is_cancelled"
         case cancelNote = "cancel_note"
@@ -283,6 +285,7 @@ public struct EventDetail: Decodable, Equatable, Sendable {
         location = try c.decodeIfPresent(String.self, forKey: .location) ?? ""
         address = try c.decodeIfPresent(String.self, forKey: .address) ?? ""
         directions = try c.decodeIfPresent(String.self, forKey: .directions) ?? ""
+        programme = try c.decodeIfPresent(String.self, forKey: .programme) ?? ""
         latitude = try c.decodeIfPresent(Double.self, forKey: .latitude)
         longitude = try c.decodeIfPresent(Double.self, forKey: .longitude)
         mapLinks = try c.decodeIfPresent(MapLinks.self, forKey: .mapLinks) ?? MapLinks()
