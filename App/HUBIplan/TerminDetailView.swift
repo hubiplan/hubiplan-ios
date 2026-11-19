@@ -101,6 +101,9 @@ struct TerminDetailView: View {
                 if !owner.isEmpty {
                     Text(owner).font(.footnote).foregroundStyle(.secondary)
                 }
+                if event.nurVorstand || detail?.nurVorstand == true {
+                    Abzeichen(tr("nur Vorstand"), .hinweis)
+                }
             }
             if event.isCancelled || (!series && detail?.isCancelled == true) {
                 let text = event.note.isEmpty ? (series ? "" : detail?.cancelNote ?? "") : event.note
