@@ -130,9 +130,16 @@ public struct RegistrationOffer: Decodable, Equatable, Sendable {
     public var waiting: Int
     public var substituteAllowed: Bool
     public var cancelRules: [CancelRule]
+    /// Stufe A5: Verpflegung, Minderjährige, Zusatzleistungen und Zusatzfragen
+    public var catering: Bool
+    public var minors: Bool
+    public var healthAllowed: Bool
+    public var addons: [AddOn]
+    public var questions: [Question]
 
     enum CodingKeys: String, CodingKey {
-        case state, free, terms, prices, waitlist, waiting
+        case state, free, terms, prices, waitlist, waiting, catering, minors, addons, questions
+        case healthAllowed = "health_allowed"
         case stateText = "state_text"
         case closesAt = "closes_at"
         case maxPersons = "max_persons"
@@ -155,7 +162,23 @@ public struct RegistrationOffer: Decodable, Equatable, Sendable {
         waiting = try c.decodeIfPresent(Int.self, forKey: .waiting) ?? 0
         substituteAllowed = try c.decodeIfPresent(Bool.self, forKey: .substituteAllowed) ?? false
         cancelRules = try c.decodeIfPresent([CancelRule].self, forKey: .cancelRules) ?? []
+        catering = try c.decodeIfPresent(Bool.self, forKey: .catering) ?? false
+        minors = try c.decodeIfPresent(Bool.self, forKey: .minors) ?? false
+        healthAllowed = try c.decodeIfPresent(Bool.self, forKey: .healthAllowed) ?? false
+        addons = try c.decodeIfPresent([AddOn].self, forKey: .addons) ?? []
+        questions = try c.decodeIfPresent([Question].self, forKey: .questions) ?? []
     }
+
+    /// Zusatzleistungen je Person ("person") oder je Anmeldung ("registration")
+    public func addons(per: String) -> [AddOn] { addons.filter { $0.isActive && $0.per == per } }
+
+    /// Zusatzfragen je Person oder Anmeldung; Allergien nur, wenn es Essen gibt (F11)
+    public func questions(per: String) -> [Question] {
+        questions.filter { $0.isActive && $0.per == per && ($0.kind != "health" || healthAllowed) }
+    }
+
+    /// Fragt die Anmeldung nach Allergien und Unverträglichkeiten?
+    public var asksHealth: Bool { questions(per: "person").contains { $0.kind == "health" } }
 
     /// Tarife für ein Mitglied bzw. einen Gast, die sich gerade buchen lassen.
     public func prices(member: Bool) -> [RegistrationPrice] { prices.filter { $0.bookable && $0.fits(member: member) } }
@@ -222,9 +245,11 @@ public struct RegistrationParticipant: Decodable, Equatable, Sendable, Identifia
     public var amount: String
     /// active, cancelled
     public var status: String
+    public var bookings: [Booking]
+    public var guardians: [Guardian]
 
     enum CodingKeys: String, CodingKey {
-        case id, name, amount, status
+        case id, name, amount, status, bookings, guardians
         case priceId = "price_id"
         case priceName = "price_name"
     }
@@ -237,6 +262,8 @@ public struct RegistrationParticipant: Decodable, Equatable, Sendable, Identifia
         priceName = try c.decodeIfPresent(String.self, forKey: .priceName) ?? ""
         amount = try c.decodeIfPresent(String.self, forKey: .amount) ?? "0"
         status = try c.decodeIfPresent(String.self, forKey: .status) ?? "active"
+        bookings = try c.decodeIfPresent([Booking].self, forKey: .bookings) ?? []
+        guardians = try c.decodeIfPresent([Guardian].self, forKey: .guardians) ?? []
     }
 
     /// „Kim Muster: Kinder, 15,00 €“ bzw. mit „(abgemeldet)“.
@@ -284,9 +311,11 @@ public struct MyRegistration: Decodable, Equatable, Sendable, Identifiable {
     /// Ältere Server ohne Angabe: dann gilt `can_cancel` des Angebots
     public var canCancel: Bool?
     public var canSubstitute: Bool
+    /// Zusatzleistungen je Anmeldung
+    public var bookings: [Booking]
 
     enum CodingKeys: String, CodingKey {
-        case id, number, status, total, participants, invoice
+        case id, number, status, total, participants, invoice, bookings
         case paidState = "paid_state"
         case waitlistPosition = "waitlist_position"
         case movedUpAt = "moved_up_at"
@@ -313,6 +342,7 @@ public struct MyRegistration: Decodable, Equatable, Sendable, Identifiable {
         feeInvoice = try c.decodeIfPresent(RegistrationInvoice.self, forKey: .feeInvoice)
         canCancel = try c.decodeIfPresent(Bool.self, forKey: .canCancel)
         canSubstitute = try c.decodeIfPresent(Bool.self, forKey: .canSubstitute) ?? false
+        bookings = try c.decodeIfPresent([Booking].self, forKey: .bookings) ?? []
     }
 
     /// Angemeldet oder auf der Warteliste (nicht abgemeldet)
@@ -340,10 +370,12 @@ public struct RegistrationPerson: Decodable, Equatable, Sendable, Identifiable {
     public var name: String
     public var registered: Bool
     public var hasBirthDate: Bool
+    /// unter 18 am Veranstaltungstag (nur mit „Minderjährige möglich“)
+    public var minor: Bool
     public var id: Int { membershipId }
 
     enum CodingKeys: String, CodingKey {
-        case name, registered
+        case name, registered, minor
         case membershipId = "membership_id"
         case hasBirthDate = "has_birth_date"
     }
@@ -354,6 +386,7 @@ public struct RegistrationPerson: Decodable, Equatable, Sendable, Identifiable {
         name = try c.decodeIfPresent(String.self, forKey: .name) ?? ""
         registered = try c.decodeIfPresent(Bool.self, forKey: .registered) ?? false
         hasBirthDate = try c.decodeIfPresent(Bool.self, forKey: .hasBirthDate) ?? false
+        minor = try c.decodeIfPresent(Bool.self, forKey: .minor) ?? false
     }
 }
 
@@ -384,17 +417,25 @@ public struct RegistrationChoice: Equatable, Sendable {
     public var priceId: Int
     /// ISO-Datum, nur bei Tarifen mit Altersgrenze ohne bekanntes Geburtsdatum
     public var birthDate: String?
+    public var extras: RegistrationExtras
+    /// Erziehungsberechtigte nötig (unter 18 bei „Minderjährige möglich“)
+    public var minor: Bool
 
-    public init(membershipId: Int?, name: String = "", priceId: Int, birthDate: String? = nil) {
+    public init(
+        membershipId: Int?, name: String = "", priceId: Int, birthDate: String? = nil,
+        extras: RegistrationExtras = RegistrationExtras(), minor: Bool = false
+    ) {
         self.membershipId = membershipId
         self.name = name
         self.priceId = priceId
         self.birthDate = birthDate
+        self.extras = extras
+        self.minor = minor
     }
 }
 
 public enum RegistrationGap: Equatable, Sendable {
-    case nobody, tooMany, name, birthDate, terms
+    case nobody, tooMany, name, birthDate, addon, answer, guardian, consent, terms
 
     public func text(max: Int) -> String {
         switch self {
@@ -402,6 +443,10 @@ public enum RegistrationGap: Equatable, Sendable {
         case .tooMany: return tr("Höchstens {n} Personen je Anmeldung.", ["n": max])
         case .name: return tr("Bitte für jede Person den Namen angeben.")
         case .birthDate: return tr("Für diesen Tarif brauchen wir das Geburtsdatum.")
+        case .addon: return tr("Bitte bei jeder Pflicht-Zusatzleistung etwas wählen.")
+        case .answer: return tr("Bitte alle Pflichtfragen beantworten.")
+        case .guardian: return tr("Unter 18: Bitte Name, Telefonnummer und E-Mail einer oder eines Erziehungsberechtigten angeben.")
+        case .consent: return tr("Bitte der Verarbeitung der Angaben zu Allergien zustimmen oder das Feld leer lassen.")
         case .terms: return tr("Bitte die Teilnahmebedingungen bestätigen.")
         }
     }
@@ -409,26 +454,35 @@ public enum RegistrationGap: Equatable, Sendable {
 
 public enum Teilnahme {
     /// Inhalt von POST …/registration/ (Kennzeichen `app`: angemeldet über die App).
-    public static func payload(_ persons: [RegistrationChoice], note: String, termsAccepted: Bool) -> [String: Any] {
+    public static func payload(
+        _ persons: [RegistrationChoice], note: String, termsAccepted: Bool,
+        extras: RegistrationExtras = RegistrationExtras(), healthConsent: Bool = false, asksHealth: Bool = false
+    ) -> [String: Any] {
         let list: [[String: Any]] = persons.map { p in
             var item: [String: Any] = ["membership_id": p.membershipId.map { $0 as Any } ?? NSNull(), "price_id": p.priceId]
             if p.membershipId == nil { item["name"] = p.name.trimmingCharacters(in: .whitespacesAndNewlines) }
             if let birth = p.birthDate { item["birth_date"] = birth }
+            item.merge(p.extras.json(minor: p.minor, health: asksHealth)) { _, new in new }
             return item
         }
-        return [
+        var result: [String: Any] = [
             "persons": list,
             "note": note.trimmingCharacters(in: .whitespacesAndNewlines),
             "terms_accepted": termsAccepted,
             "app": true,
         ]
+        result.merge(extras.json(minor: false, health: false)) { _, new in new }
+        if healthConsent { result["health_consent"] = true }
+        return result
     }
 
     /// Voraussichtliche Summe in Cent nach den aktuellen Preisstufen; verbindlich rechnet der Server.
-    public static func sumCents(_ offer: RegistrationOffer, _ persons: [RegistrationChoice]) -> Int {
-        persons.reduce(0) { sum, p in
+    public static func sumCents(
+        _ offer: RegistrationOffer, _ persons: [RegistrationChoice], extras: RegistrationExtras = RegistrationExtras()
+    ) -> Int {
+        persons.reduce(extras.cents(offer)) { sum, p in
             let amount = offer.prices.first { $0.id == p.priceId }?.current?.amount
-            return sum + (amount.flatMap(Geld.cents) ?? 0)
+            return sum + (amount.flatMap(Geld.cents) ?? 0) + p.extras.cents(offer)
         }
     }
 
@@ -437,12 +491,21 @@ public enum Teilnahme {
         _ offer: RegistrationOffer,
         _ persons: [RegistrationChoice],
         needsBirthDate: (RegistrationChoice) -> Bool,
-        termsAccepted: Bool
+        termsAccepted: Bool,
+        extras: RegistrationExtras = RegistrationExtras(),
+        healthConsent: Bool = false
     ) -> RegistrationGap? {
         if persons.isEmpty { return .nobody }
         if persons.count > offer.maxPersons { return .tooMany }
         if persons.contains(where: { $0.membershipId == nil && $0.name.trimmingCharacters(in: .whitespaces).isEmpty }) { return .name }
         if persons.contains(where: { needsBirthDate($0) && $0.birthDate == nil }) { return .birthDate }
+        for p in persons {
+            if let gap = p.extras.gap(offer, per: "person", minor: p.minor) { return gap }
+        }
+        if let gap = extras.gap(offer, per: "registration", minor: false) { return gap }
+        if offer.asksHealth && persons.contains(where: { !$0.extras.health.trimmingCharacters(in: .whitespaces).isEmpty }) && !healthConsent {
+            return .consent
+        }
         if !offer.terms.isEmpty && !termsAccepted { return .terms }
         return nil
     }

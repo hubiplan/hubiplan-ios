@@ -1,7 +1,7 @@
 import XCTest
 @testable import HubiplanKern
 
-/// Verbindliche Anmeldung mit Teilnahmegebühr (HUBIplan A1–A3), gleiche Fälle wie
+/// Verbindliche Anmeldung mit Teilnahmegebühr (HUBIplan A1–A5), gleiche Fälle wie
 /// `AnmeldungenTest` in der Android-App. Alle Daten erfunden.
 final class TeilnahmeTests: XCTestCase {
     override func setUp() { Texte.language = "de" }
@@ -159,5 +159,70 @@ final class TeilnahmeTests: XCTestCase {
         XCTAssertEqual(familie["membership_id"] as? Int, 8)
         XCTAssertNil(familie["name"])
         XCTAssertTrue(JSONSerialization.isValidJSONObject(gast))
+    }
+
+    private let zusatz = #"""
+    {"event_id":5,"can_cancel":true,
+     "offer":{"id":1,"state":"open","state_text":"Anmeldung offen","max_persons":4,"guests_allowed":true,"terms":"",
+      "prices":[{"id":11,"name":"Erwachsene","is_active":true,"current":{"id":21,"amount":"29.00"}}],
+      "catering":false,"minors":true,"health_allowed":true,
+      "addons":[{"id":1,"name":"Busfahrt","per":"person","choices":[{"id":2,"name":"Busfahrt","amount":"12.00","capacity":1,"free":0}]},
+                {"id":3,"name":"Menü","kind":"meal","per":"person","required":true,
+                 "choices":[{"id":4,"name":"Schnitzel","amount":"0.00"},{"id":5,"name":"Lachs","amount":"3.00"}]}],
+      "questions":[{"id":7,"text":"Tischwunsch","kind":"text","per":"registration","required":true},
+                   {"id":8,"text":"Allergien","kind":"health","per":"person"}]},
+     "persons":[{"membership_id":8,"name":"Kim Muster","self":false,"registered":false,"has_birth_date":true,"minor":true}],
+     "mine":[{"id":3,"number":"A2099-0003","status":"registered","total":"44.00","paid_state":"open",
+              "participants":[{"id":4,"name":"Anna Muster","membership_id":7,"price_id":11,"price_name":"Erwachsene","amount":"29.00",
+                               "bookings":[{"id":1,"choice_id":2,"addon_id":1,"name":"Busfahrt","amount":"12.00"},
+                                           {"id":2,"choice_id":5,"addon_id":3,"name":"Menü: Lachs","amount":"3.00"}]}],
+              "bookings":[]}]}
+    """#
+
+    func testZusatzleistungenFragenUndErziehungsberechtigte() throws {
+        let d = try JSONDecoder().decode(MemberRegistration.self, from: Data(zusatz.utf8))
+        let offer = d.offer
+        XCTAssertTrue(offer.minors && offer.asksHealth)
+        XCTAssertTrue(offer.addons[0].choices[0].full)
+        XCTAssertEqual(offer.addons[1].choices[1].label, "Lachs (+3,00\u{00A0}€)")
+        XCTAssertTrue(d.persons[0].minor)
+        XCTAssertEqual(
+            Booking.line(d.mine[0].participants[0].bookings),
+            "Busfahrt (12,00\u{00A0}€), Menü: Lachs (3,00\u{00A0}€)"
+        )
+        let anna = RegistrationChoice(membershipId: 7, priceId: 11, extras: RegistrationExtras(addons: [3: 5], health: " Nüsse "))
+        XCTAssertEqual(Teilnahme.sumCents(offer, [anna]), 3200)
+        let none: (RegistrationChoice) -> Bool = { _ in false }
+        // Pflichtfrage je Anmeldung fehlt, dann Einwilligung
+        XCTAssertEqual(Teilnahme.missing(offer, [anna], needsBirthDate: none, termsAccepted: true), .answer)
+        let reg = RegistrationExtras(answers: [7: .text("am Fenster")])
+        XCTAssertEqual(Teilnahme.missing(offer, [anna], needsBirthDate: none, termsAccepted: true, extras: reg), .consent)
+        XCTAssertNil(Teilnahme.missing(offer, [anna], needsBirthDate: none, termsAccepted: true, extras: reg, healthConsent: true))
+        // Menü ist Pflicht, unter 18 Erziehungsberechtigte
+        let kim = RegistrationChoice(membershipId: 8, priceId: 11, minor: true)
+        XCTAssertEqual(Teilnahme.missing(offer, [kim], needsBirthDate: none, termsAccepted: true, extras: reg), .addon)
+        var kimMenu = kim
+        kimMenu.extras = RegistrationExtras(addons: [3: 4])
+        XCTAssertEqual(Teilnahme.missing(offer, [kimMenu], needsBirthDate: none, termsAccepted: true, extras: reg), .guardian)
+        var kimOk = kimMenu
+        kimOk.extras.guardians = [Guardian(name: "Anna Muster", phone: "0123 456789", email: "anna@example.org")]
+        XCTAssertNil(Teilnahme.missing(offer, [kimOk], needsBirthDate: none, termsAccepted: true, extras: reg))
+        let payload = Teilnahme.payload([anna, kimOk], note: "", termsAccepted: true, extras: reg, healthConsent: true, asksHealth: true)
+        let persons = try XCTUnwrap(payload["persons"] as? [[String: Any]])
+        XCTAssertEqual((persons[0]["addons"] as? [String: Int])?["3"], 5)
+        XCTAssertEqual(persons[0]["health"] as? String, "Nüsse")
+        XCTAssertNil(persons[0]["guardians"])
+        let guardians = try XCTUnwrap(persons[1]["guardians"] as? [[String: String]])
+        XCTAssertEqual(guardians[0]["phone"], "0123 456789")
+        XCTAssertEqual((payload["answers"] as? [String: Any])?["7"] as? String, "am Fenster")
+        XCTAssertEqual(payload["health_consent"] as? Bool, true)
+        XCTAssertTrue(JSONSerialization.isValidJSONObject(payload))
+        XCTAssertTrue(Teilnahme.isMinor("2012-05-04", start: "2029-05-03T10:00:00+02:00"))
+        XCTAssertFalse(Teilnahme.isMinor("2012-05-04", start: "2030-05-04T10:00:00+02:00"))
+    }
+
+    func testTerminMitAblauf() throws {
+        let json = #"{"id":5,"title":"Sommerfest","starts_at":"2099-06-13T14:00:00+02:00","ends_at":"2099-06-13T18:00:00+02:00","programme":"14:00 Begrüßung"}"#
+        XCTAssertEqual(try JSONDecoder().decode(EventDetail.self, from: Data(json.utf8)).programme, "14:00 Begrüßung")
     }
 }

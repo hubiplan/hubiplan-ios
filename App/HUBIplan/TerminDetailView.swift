@@ -34,6 +34,9 @@ struct TerminDetailView: View {
                 if !detail.description.isEmpty {
                     Section(tr("Beschreibung")) { Text(detail.description) }
                 }
+                if !detail.programme.isEmpty {
+                    Section(tr("Ablauf")) { Text(detail.programme) }
+                }
                 if !detail.attachments.isEmpty {
                     Section(tr("Anhänge")) {
                         ForEach(detail.attachments) { file in
@@ -49,7 +52,7 @@ struct TerminDetailView: View {
                 }
                 if detail.rsvp.enabled { rueckmeldung(detail) }
                 if let reg = detail.registration, reg.enabled, reg.canRegister {
-                    TeilnahmeSection(eventId: detail.id)
+                    TeilnahmeSection(eventId: detail.id, start: event.startsAt)
                 }
             } else if loadError == nil {
                 Section { Laedt() }

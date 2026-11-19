@@ -8,6 +8,8 @@ import SwiftUI
 struct TeilnahmeSection: View {
     @EnvironmentObject private var model: AppModel
     let eventId: Int
+    /// Erster Tag (ISO), für „unter 18“ bei „Minderjährige möglich“
+    var start: String?
 
     @State private var data: MemberRegistration?
     @State private var failure: String?
@@ -15,6 +17,9 @@ struct TeilnahmeSection: View {
     @State private var busy = false
     @State private var chosen: [Int: Int] = [:]
     @State private var births: [Int: Date] = [:]
+    @State private var extras: [Int: RegistrationExtras] = [:]
+    @State private var regExtras = RegistrationExtras()
+    @State private var consent = false
     @State private var guests: [Guest] = []
     @State private var note = ""
     @State private var terms = false
@@ -33,6 +38,9 @@ struct TeilnahmeSection: View {
         var name = ""
         var priceId: Int?
         var birth = Date()
+        /// Geburtsdatum ausdrücklich gewählt (sonst zählt es als fehlend)
+        var birthSet = false
+        var extras = RegistrationExtras()
     }
 
     var body: some View {
@@ -98,12 +106,14 @@ struct TeilnahmeSection: View {
                 }
                 ForEach(reg.participants) { p in
                     Text(p.line)
+                    if !p.bookings.isEmpty { Text(Booking.line(p.bookings)).font(.footnote).foregroundStyle(.secondary) }
                     if p.status == "active" && reg.canSubstitute {
                         Button(tr("Ersatzperson für {name}", ["name": p.name])) { replacing = Replacing(reg: reg, participant: p) }
                             .buttonStyle(.borderless)
                             .disabled(busy)
                     }
                 }
+                if !reg.bookings.isEmpty { Text(Booking.line(reg.bookings)).font(.footnote).foregroundStyle(.secondary) }
                 if (Geld.cents(reg.cancelFee) ?? 0) > 0 {
                     Text(tr("Stornogebühr {fee}", ["fee": Geld.format(reg.cancelFee)])).font(.footnote)
                 }
@@ -146,12 +156,17 @@ struct TeilnahmeSection: View {
             .disabled(busy || memberPrices.isEmpty)
             if let price = chosen[person.membershipId] {
                 tarifWahl(memberPrices, selected: price) { chosen[person.membershipId] = $0 }
-                if memberPrices.first(where: { $0.id == price })?.hasAge == true && !person.hasBirthDate {
+                if (memberPrices.first(where: { $0.id == price })?.hasAge == true || offer.minors) && !person.hasBirthDate {
                     DatePicker(tr("Geburtsdatum"), selection: Binding(
                         get: { births[person.membershipId] ?? Date() },
                         set: { births[person.membershipId] = $0 }
                     ), displayedComponents: .date)
                 }
+                ZusatzFelder(
+                    offer: offer, per: "person",
+                    value: Binding(get: { extras[person.membershipId] ?? RegistrationExtras() }, set: { extras[person.membershipId] = $0 }),
+                    enabled: !busy, minor: minderjaehrig(person)
+                )
             }
         }
         if offer.guestsAllowed && !guestPrices.isEmpty {
@@ -160,9 +175,13 @@ struct TeilnahmeSection: View {
                     .textContentType(.name)
                     .weiterFeld()
                 tarifWahl(guestPrices, selected: g.priceId ?? -1) { g.priceId = $0 }
-                if guestPrices.first(where: { $0.id == g.priceId })?.hasAge == true {
-                    DatePicker(tr("Geburtsdatum"), selection: $g.birth, displayedComponents: .date)
+                if guestPrices.first(where: { $0.id == g.priceId })?.hasAge == true || offer.minors {
+                    DatePicker(tr("Geburtsdatum"), selection: Binding(
+                        get: { g.birth },
+                        set: { g.birth = $0; g.birthSet = true }
+                    ), displayedComponents: .date)
                 }
+                ZusatzFelder(offer: offer, per: "person", value: $g.extras, enabled: !busy, minor: minderjaehrig(g))
                 Button(tr("Gast entfernen"), role: .destructive) { guests.removeAll { $0.id == g.id } }
                     .buttonStyle(.borderless)
             }
@@ -171,6 +190,7 @@ struct TeilnahmeSection: View {
             }
             .disabled(busy || chosen.count + guests.count >= offer.maxPersons)
         }
+        ZusatzFelder(offer: offer, per: "registration", value: $regExtras, enabled: !busy)
         TextField(tr("Bemerkung (optional)"), text: $note, axis: .vertical)
             .onChange(of: note) { _, now in if now.count > 500 { note = String(now.prefix(500)) } }
         if !offer.terms.isEmpty {
@@ -179,7 +199,11 @@ struct TeilnahmeSection: View {
             Toggle(tr("Ich habe die Teilnahmebedingungen gelesen und akzeptiere sie."), isOn: $terms)
         }
         let persons = auswahl(d)
-        let sum = Teilnahme.sumCents(offer, persons)
+        let sum = Teilnahme.sumCents(offer, persons, extras: regExtras)
+        if gesundheit(offer, persons) {
+            Toggle(tr("Ich willige ein, dass der Verein die Angaben zu Allergien und Unverträglichkeiten für die Planung des Essens verarbeitet."), isOn: $consent)
+                .disabled(busy)
+        }
         if !persons.isEmpty { Text(tr("Summe: {sum}", ["sum": Geld.format(cents: sum)])).font(.headline) }
         if let closes = offer.closesAt, let date = Zeit.parse(closes) {
             Text(tr("Abmelden ist bis {when} möglich.", ["when": date.formatted(.dateTime.day().month().year().locale(Texte.locale))]))
@@ -204,16 +228,48 @@ struct TeilnahmeSection: View {
 
     private var ohneTarif: Bool { chosen.values.contains(-1) || guests.contains { $0.priceId == nil } }
 
+    /// Unter 18 am ersten Tag: Mitglied laut Server oder nach dem eingegebenen Geburtsdatum
+    private func minderjaehrig(_ person: RegistrationPerson) -> Bool {
+        guard data?.offer.minors == true else { return false }
+        return person.minor || Teilnahme.isMinor(births[person.membershipId].map { Zeit.day($0) }, start: start)
+    }
+
+    private func minderjaehrig(_ g: Guest) -> Bool {
+        data?.offer.minors == true && g.birthSet && Teilnahme.isMinor(Zeit.day(g.birth), start: start)
+    }
+
+    /// Wird nach Allergien gefragt und hat jemand etwas eingetragen?
+    private func gesundheit(_ offer: RegistrationOffer, _ persons: [RegistrationChoice]) -> Bool {
+        offer.asksHealth && persons.contains { !$0.extras.health.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
+    }
+
+    /// Braucht dieser Tarif (oder „Minderjährige möglich“) ein Geburtsdatum, das der Verein nicht kennt?
+    private func brauchtGeburtsdatum(_ d: MemberRegistration, _ c: RegistrationChoice) -> Bool {
+        let age = d.offer.prices.first { $0.id == c.priceId }?.hasAge ?? false
+        let known = c.membershipId.flatMap { id in d.persons.first { $0.membershipId == id }?.hasBirthDate } ?? false
+        return (age || d.offer.minors) && !known
+    }
+
+    /// Geburtsdatum zählt erst, wenn es gewählt wurde; sonst meldet `missing` es als fehlend.
     private func auswahl(_ d: MemberRegistration) -> [RegistrationChoice] {
         let ages = Set(d.offer.prices.filter(\.hasAge).map(\.id))
+        let minors = d.offer.minors
         let members = chosen.filter { $0.value >= 0 }.sorted { $0.key < $1.key }.map { id, price in
-            let known = d.persons.first { $0.membershipId == id }?.hasBirthDate ?? false
-            let birth = ages.contains(price) && !known ? Zeit.day(births[id] ?? Date()) : nil
-            return RegistrationChoice(membershipId: id, priceId: price, birthDate: birth)
+            let person = d.persons.first { $0.membershipId == id }
+            let known = person?.hasBirthDate ?? false
+            let birth = (ages.contains(price) || minors) && !known ? births[id].map { Zeit.day($0) } : nil
+            return RegistrationChoice(
+                membershipId: id, priceId: price, birthDate: birth,
+                extras: extras[id] ?? RegistrationExtras(), minor: person.map { minderjaehrig($0) } ?? false
+            )
         }
         let others = guests.compactMap { g -> RegistrationChoice? in
             guard let price = g.priceId else { return nil }
-            return RegistrationChoice(membershipId: nil, name: g.name, priceId: price, birthDate: ages.contains(price) ? Zeit.day(g.birth) : nil)
+            let birth = (ages.contains(price) || minors) && g.birthSet ? Zeit.day(g.birth) : nil
+            return RegistrationChoice(
+                membershipId: nil, name: g.name, priceId: price, birthDate: birth,
+                extras: g.extras, minor: minderjaehrig(g)
+            )
         }
         return members + others
     }
@@ -233,20 +289,30 @@ struct TeilnahmeSection: View {
 
     private func anmelden(_ d: MemberRegistration) {
         let persons = auswahl(d)
-        // Geburtsdatum kommt hier immer aus dem Datumsfeld; offen bleibt nur, was fehlt
-        gap = Teilnahme.missing(d.offer, persons, needsBirthDate: { _ in false }, termsAccepted: terms)
+        let health = gesundheit(d.offer, persons) && consent
+        gap = Teilnahme.missing(
+            d.offer, persons, needsBirthDate: { brauchtGeburtsdatum(d, $0) }, termsAccepted: terms,
+            extras: regExtras, healthConsent: health
+        )
         guard gap == nil, !ohneTarif else { return }
         let text = note
         let accepted = terms
+        let common = regExtras
+        let asks = d.offer.asksHealth
         let id = eventId
         let done = d.offer.toWaitlist
             ? tr("Du stehst auf der Warteliste. Die Bestätigung kommt per E-Mail.")
             : tr("Angemeldet. Die Bestätigung kommt per E-Mail.")
         senden(done) { api, access in
-            try await api.register(accessId: access, eventId: id, payload: Teilnahme.payload(persons, note: text, termsAccepted: accepted))
+            try await api.register(accessId: access, eventId: id, payload: Teilnahme.payload(
+                persons, note: text, termsAccepted: accepted, extras: common, healthConsent: health, asksHealth: asks
+            ))
         } done: {
             chosen = [:]
             births = [:]
+            extras = [:]
+            regExtras = RegistrationExtras()
+            consent = false
             guests = []
             note = ""
             terms = false
