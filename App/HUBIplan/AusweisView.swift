@@ -75,12 +75,12 @@ struct AusweisView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     switch CardAnzeige.from(stored: model.card, offline: model.cardOffline) {
                     case .loading:
-                        Text(tr("Ausweis wird geladen …")).foregroundStyle(.secondary)
+                        Laedt(text: tr("Ausweis wird geladen …"))
                     case .offlineEmpty:
                         Text(tr("Ohne Netz ist noch kein Ausweis gespeichert. Er erscheint, sobald die App einmal online war."))
                             .foregroundStyle(.secondary)
                     case .revoked:
-                        Text(tr("Dein Ausweis ist gesperrt. Bitte wende dich an deinen Verein.")).foregroundStyle(Color.fehlerText)
+                        ZustandText(tr("Dein Ausweis ist gesperrt. Bitte wende dich an deinen Verein."), .fehler)
                     case .none:
                         Text(tr("Für dich gibt es zurzeit keinen gültigen Ausweis, z. B. weil die Mitgliedschaft noch nicht begonnen hat oder beendet ist."))
                             .foregroundStyle(.secondary)
@@ -117,7 +117,7 @@ struct AusweisView: View {
                         }
                     }
                     if let invoices = model.invoices {
-                        MeineRechnungen(list: invoices).id("rechnungen")
+                        MeineRechnungen(list: invoices, kurz: !(Demo.active && Demo.section == "rechnungen")).id("rechnungen")
                     }
                     if let mandate = model.mandate {
                         MeinMandat(state: mandate)
@@ -401,6 +401,8 @@ struct MeineDaten: View {
 struct MeineRechnungen: View {
     @EnvironmentObject private var model: AppModel
     let list: MyInvoices
+    /// Auf „Ich“ nur offene (IOS-17); alle auf der eigenen Seite
+    var kurz = false
 
     var body: some View {
         IchAbschnitt(title: tr("Rechnungen")) {
@@ -411,24 +413,25 @@ struct MeineRechnungen: View {
                 Text(tr("Offen insgesamt: {betrag}", ["betrag": sum])).font(.body.weight(.semibold))
             }
             if model.previewBusy {
-                Text(tr("Datei wird geladen …")).font(.footnote).foregroundStyle(.secondary)
+                Laedt(text: tr("Datei wird geladen …")).font(.footnote)
             } else if let message = model.error {
                 MeldungText(message, .fehler).font(.footnote)
             }
-            ForEach(list.sorted) { invoice in
+            ForEach(kurz ? list.preview : list.sorted) { invoice in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(invoice.subject.isEmpty ? invoice.number : invoice.subject)
                     Text(invoice.headline).font(.footnote).foregroundStyle(.secondary)
                     HStack {
-                        Text(invoice.stateText)
+                        // Überfällig, offen, bezahlt auch ohne Farbe unterscheidbar (IOS-12)
+                        ZustandText(invoice.stateText, invoice.overdue ? .fehler : invoice.open ? .warnung : .gut)
                             .font(.footnote.weight(invoice.open ? .semibold : .regular))
-                            .foregroundStyle(invoice.overdue ? Color.fehlerText : invoice.open ? Color.warnText : Color.secondary)
                         Spacer(minLength: 8)
                         Text(Geld.format(invoice.total)).font(.footnote)
                     }
                     KnopfReihe(spacing: 12) {
                         Button(tr("PDF ansehen")) { Task { await model.openInvoice(invoice) } }
                             .buttonStyle(.bordered)
+                            .accessibilityLabel(tr("PDF ansehen: {title}", ["title": invoice.subject.isEmpty ? invoice.number : invoice.subject]))
                         if invoice.hasCancellationPdf {
                             Button(tr("Stornorechnung")) { Task { await model.openInvoice(invoice, cancellation: true) } }
                                 .buttonStyle(.borderless)
@@ -451,10 +454,32 @@ struct MeineRechnungen: View {
                     .accessibilityElement(children: .combine)
                 }
             }
-            if !list.invoices.isEmpty {
+            if kurz, list.invoices.count > list.preview.count {
+                IchVerweis(title: tr("Alle Rechnungen"), detail: trn("1 Rechnung", "{n} Rechnungen", list.invoices.count)) {
+                    AlleRechnungen()
+                }
+            } else if !list.invoices.isEmpty {
                 Text(tr("Rechnungen öffnet die App nur online und speichert sie nicht."))
                     .font(.footnote).foregroundStyle(.secondary)
             }
         }
+    }
+}
+
+/// Alle Rechnungen auf einer eigenen Seite (IOS-17)
+struct AlleRechnungen: View {
+    @EnvironmentObject private var model: AppModel
+
+    var body: some View {
+        ScrollView {
+            if let invoices = model.invoices {
+                MeineRechnungen(list: invoices)
+                    .frame(maxWidth: 520, alignment: .leading)
+                    .frame(maxWidth: .infinity)
+                    .padding()
+            }
+        }
+        .navigationTitle(tr("Rechnungen"))
+        .quickLookPreview($model.preview)
     }
 }

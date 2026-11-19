@@ -29,6 +29,7 @@ struct WettbewerbeView: View {
     @State private var stand: StandSitzung?
     @State private var scanning = false
     @State private var demoShown = false
+    @State private var ending: (AdminCompetition, [StandAccess])?
 
     var body: some View {
         VerwaltungSchutz {
@@ -44,7 +45,7 @@ struct WettbewerbeView: View {
                         KameraHinweis()
                     }
                 } footer: {
-                    Text(tr("Im Standmodus erfasst du Punkte, tippst Treffer auf der Scheibe an oder lässt ein Foto auswerten, auch ohne Empfang. Neue Wettbewerbe legst du im Browser an."))
+                    Text(tr("Im Standmodus erfasst du Ergebnisse direkt vor Ort, auch ohne Empfang, und kannst ein Foto auswerten lassen. Neue Wettbewerbe legst du im Browser an."))
                 }
                 VerwaltungMeldung { await load() }
                 if let error { Section { MeldungText(error, .fehler) } }
@@ -69,7 +70,8 @@ struct WettbewerbeView: View {
                             Button(tr("Standmodus öffnen")) { Task { await open(competition) } }
                             Button(tr("QR-Code für weiteres Gerät")) { Task { await share(competition) } }
                             if !active.isEmpty {
-                                Button(tr("Standzugang beenden"), role: .destructive) { Task { await end(competition, active) } }
+                                // Rückfrage: Geräte am Stand verlieren sofort den Zugang (IOS-23)
+                                Button(tr("Standzugang beenden"), role: .destructive) { ending = (competition, active) }
                             }
                         }
                         .disabled(busy)
@@ -94,6 +96,19 @@ struct WettbewerbeView: View {
         }
         .sheet(item: $code) { code in Group { StandCodeBlatt(code: code) }.verwaltungsBlatt() }
         .fullScreenCover(item: $stand) { StandmodusView(session: $0) }
+        .confirmationDialog(
+            tr("Standzugang beenden?"),
+            isPresented: Binding(get: { ending != nil }, set: { if !$0 { ending = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button(tr("Standzugang beenden"), role: .destructive) {
+                if let target = ending { Task { await end(target.0, target.1) } }
+                ending = nil
+            }
+            Button(tr("Abbrechen"), role: .cancel) { ending = nil }
+        } message: {
+            Text(tr("Geräte am Stand können danach nichts mehr erfassen."))
+        }
     }
 
     private func load() async {
@@ -177,7 +192,7 @@ struct WettbewerbeView: View {
             return
         }
         guard link.server == model.account?.server else {
-            error = tr("Der QR-Code gehört zu einer anderen HUBIplan-Instanz.")
+            error = tr("Der QR-Code gehört zu einer anderen HUBIplan-Adresse.")
             return
         }
         error = nil

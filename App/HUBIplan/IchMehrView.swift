@@ -47,7 +47,7 @@ struct ErgebnisseView: View {
             if let error {
                 Section {
                     MeldungText(error, .fehler)
-                    Button(tr("Erneut laden")) { Task { await load() } }
+                    Button(tr("Erneut versuchen")) { Task { await load() } }
                 }
             }
             if model.access?.hasEntries == true {
@@ -150,7 +150,7 @@ private struct RanglisteView: View {
                     Text("\(detail.titles[index].title): \(detail.titles[index].name)").bold()
                 }
                 if !detail.prizes.isEmpty {
-                    Text(tr("Pfänder")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                    Text(tr("Preise")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
                     ForEach(detail.prizes.indices, id: \.self) { Text(detail.prizes[$0].line) }
                 }
                 ForEach(detail.scorings.indices, id: \.self) { index in
@@ -167,7 +167,7 @@ private struct RanglisteView: View {
                     }
                 }
             } else if error == nil {
-                Text(tr("Wird geladen …")).font(.footnote).foregroundStyle(.secondary)
+                Laedt().font(.footnote)
             }
         }
         .padding(.vertical, 4)
@@ -207,7 +207,7 @@ struct MitarbeiterView: View {
             if let error {
                 Section {
                     MeldungText(error, .fehler)
-                    Button(tr("Erneut laden")) { Task { await load() } }
+                    Button(tr("Erneut versuchen")) { Task { await load() } }
                 }
             }
             if let data {

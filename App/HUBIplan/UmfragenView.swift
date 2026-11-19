@@ -165,7 +165,8 @@ private struct UmfrageFrage: View {
     let question: SurveyQuestion
     @Binding var row: SurveyAnswerRow
 
-    private func auswahl(_ label: String, selected: Bool, radio: Bool, action: @escaping () -> Void) -> some View {
+    /// `kontext`: wozu die Auswahl gehört (Tag bei der Terminfindung), für VoiceOver (IOS-13)
+    private func auswahl(_ label: String, selected: Bool, radio: Bool, kontext: String? = nil, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             // Ganze Zeile mit mindestens 44 pt antippbar (IOS-15, wie Android AND-14)
             HStack {
@@ -176,6 +177,7 @@ private struct UmfrageFrage: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityLabel(kontext.map { "\($0): \(label)" } ?? label)
         .accessibilityAddTraits(selected ? [.isButton, .isSelected] : .isButton)
     }
 
@@ -211,11 +213,12 @@ private struct UmfrageFrage: View {
             case "dates":
                 let values = q.allowMaybe ? ["yes", "maybe", "no"] : ["yes", "no"]
                 ForEach(q.options) { o in
-                    Text(umfrageOption(label: o.label, startsAt: o.startsAt, allDay: o.allDay))
+                    let tag = umfrageOption(label: o.label, startsAt: o.startsAt, allDay: o.allDay)
+                    Text(tag).accessibilityHidden(true)
                     KnopfReihe(spacing: 16) {
                         ForEach(values, id: \.self) { v in
                             let key = String(o.id)
-                            auswahl(surveyValueLabel(v), selected: row.dates?[key] == v, radio: true) {
+                            auswahl(surveyValueLabel(v), selected: row.dates?[key] == v, radio: true, kontext: tag) {
                                 var dates = row.dates ?? [:]
                                 dates[key] = v
                                 row.dates = dates
@@ -237,7 +240,7 @@ private struct UmfrageFrage: View {
                     }
                 }
                 if amounts.values.reduce(0, +) > q.quantityLimit {
-                    Text(tr("Zusammen höchstens {n} Stück.", ["n": q.quantityLimit])).foregroundStyle(Color.fehlerText)
+                    ZustandText(tr("Zusammen höchstens {n} Stück.", ["n": q.quantityLimit]), .fehler)
                 }
             default:
                 TextField(tr("Antwort"), text: Binding(
@@ -248,6 +251,9 @@ private struct UmfrageFrage: View {
                 .textFieldStyle(.roundedBorder)
             }
         }
+        // Antworten als Gruppe mit der Frage als Beschriftung (IOS-13)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(q.text)
     }
 }
 
@@ -287,7 +293,7 @@ struct UmfrageErgebnis: View {
                                 let label = umfrageOption(label: o.label, startsAt: o.startsAt, allDay: o.allDay)
                                 let count = o.capacity.map { "\(o.count) / \($0)" } ?? "\(o.count)"
                                 let extra = q.kind == "dates" && o.maybe > 0 ? " " + tr("+{n} vielleicht", ["n": o.maybe]) : ""
-                                zeile(q.best.contains(o.id) ? "★ " + label : label, count: o.count, total: base, names: o.names, text: count + extra)
+                                zeile(q.best.contains(o.id) ? tr("{label} · meiste Stimmen", ["label": label]) : label, count: o.count, total: base, names: o.names, text: count + extra)
                             }
                         }
                     }

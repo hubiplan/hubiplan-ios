@@ -69,6 +69,6 @@ final class TexteTests: XCTestCase {
         XCTAssertEqual(ApiError(status: 500).text, "Das hat nicht geklappt (500). Bitte später erneut versuchen.")
         XCTAssertEqual(ApiError(status: 401, code: "device_not_authenticated", message: "x").text, "Dieses Gerät ist abgemeldet. Bitte neu verbinden.")
         Texte.language = "en"
-        XCTAssertEqual(ApiError(status: 200, code: "format").text, "The instance's answer could not be read. The app may be too old.")
+        XCTAssertEqual(ApiError(status: 200, code: "format").text, "HUBIplan's answer could not be read. The app may be too old.")
     }
 }

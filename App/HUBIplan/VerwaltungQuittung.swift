@@ -160,7 +160,7 @@ struct QuittungBlatt: View {
                 } else if noChoices {
                     Section {
                         Text(tr("Ohne Netz und ohne gespeicherte Auswahl. Bitte einmal mit Netz öffnen."))
-                        Button(tr("Erneut laden")) { Task { await load() } }
+                        Button(tr("Erneut versuchen")) { Task { await load() } }
                     }
                 } else if error == nil {
                     Laedt()

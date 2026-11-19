@@ -140,12 +140,12 @@ extension ApiError {
         if code == "not_hubiplan" { return tr("Unter dieser Adresse läuft kein HUBIplan.") }
         if status == 0 {
             if code == "format" || code == "too_large" {
-                return tr("Die Antwort der Instanz war nicht lesbar. Vielleicht ist die App zu alt.")
+                return tr("Die Antwort von HUBIplan war nicht lesbar. Vielleicht ist die App zu alt.")
             }
             return tr("Keine Verbindung. Bitte prüfe das Netz und versuche es erneut.")
         }
         if mustReconnect { return tr("Dieses Gerät ist abgemeldet. Bitte neu verbinden.") }
-        if code == "format" { return tr("Die Antwort der Instanz war nicht lesbar. Vielleicht ist die App zu alt.") }
+        if code == "format" { return tr("Die Antwort von HUBIplan war nicht lesbar. Vielleicht ist die App zu alt.") }
         if !message.isEmpty { return message }
         return tr("Das hat nicht geklappt ({status}). Bitte später erneut versuchen.", ["status": status])
     }

@@ -35,7 +35,7 @@ struct VerwaltungView: View {
             } else {
                 VerwaltungHinweis(
                     text: tr("Die Verwaltung ist gerade nicht verfügbar. Bitte Verbindung und Berechtigung prüfen."),
-                    action: tr("Erneut laden")
+                    action: tr("Erneut versuchen")
                 ) {
                     Task { await model.loadAdmin() }
                 }
@@ -273,8 +273,8 @@ private struct VerwaltungStart: View {
             Section {
                 if units.count > 1 {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(tr("Verwaltete Einheit")).font(.caption).foregroundStyle(Color.secondary)
-                        Picker(tr("Verwaltete Einheit"), selection: Binding(get: { unit.key }, set: { unitKey = $0 })) {
+                        Text(tr("Einheit")).font(.caption).foregroundStyle(Color.secondary)
+                        Picker(tr("Einheit"), selection: Binding(get: { unit.key }, set: { unitKey = $0 })) {
                             ForEach(units, id: \.key) { Text($0.name).tag($0.key) }
                         }
                         .labelsHidden()
@@ -282,7 +282,7 @@ private struct VerwaltungStart: View {
                     }
                 } else {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(tr("Verwaltete Einheit")).font(.caption).foregroundStyle(Color.secondary)
+                        Text(tr("Einheit")).font(.caption).foregroundStyle(Color.secondary)
                         Text(unit.name)
                     }
                 }
@@ -364,7 +364,7 @@ private struct VerwaltungStart: View {
                     NavigationLink {
                         WettbewerbeView(unit: unit)
                     } label: {
-                        Bereich(symbol: "scope", title: tr("Wettbewerbe"), hint: tr("Schießen im Standmodus erfassen, auch ohne Empfang"))
+                        Bereich(symbol: "trophy", title: tr("Wettbewerbe"), hint: tr("Ergebnisse am Stand erfassen, auch ohne Empfang"))
                     }
                 }
                 if unit.sections.contains(.finance) {
@@ -431,12 +431,12 @@ private struct VerwaltungStart: View {
         }
         .refreshable { await load() }
         .task(id: unit.key) { await load() }
-        .confirmationDialog(
-            tr("Danach musst du die Verwaltung mit Passwort und Zwei-Faktor-Code neu freischalten."),
-            isPresented: $confirmLock, titleVisibility: .visible
-        ) {
+        // Kurzer Titel, Erklärung darunter (UX-Audit 16.11., IOS-23)
+        .confirmationDialog(tr("Verwaltung sperren?"), isPresented: $confirmLock, titleVisibility: .visible) {
             Button(tr("Verwaltung sperren"), role: .destructive) { Task { await model.lockAdmin() } }
             Button(tr("Abbrechen"), role: .cancel) {}
+        } message: {
+            Text(tr("Danach musst du die Verwaltung mit Passwort und Zwei-Faktor-Code neu freischalten."))
         }
     }
 
@@ -825,7 +825,7 @@ struct VerwaltungMeldung: View {
         if let message = model.adminError {
             Section {
                 MeldungText(message, .fehler)
-                if let reload { Button(tr("Erneut laden")) { Task { await reload() } } }
+                if let reload { Button(tr("Erneut versuchen")) { Task { await reload() } } }
             }
         }
         if let notice = model.adminNotice {

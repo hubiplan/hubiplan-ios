@@ -30,7 +30,7 @@ private struct Meldungen: View {
             Section { MeldungText(notice, .gut) }
         }
         if model.previewBusy {
-            Section { Text(tr("Datei wird geladen …")).foregroundStyle(.secondary) }
+            Section { Laedt(text: tr("Datei wird geladen …")) }
         }
     }
 }

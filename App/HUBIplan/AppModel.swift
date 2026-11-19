@@ -101,6 +101,10 @@ final class AppModel: ObservableObject {
     /// Hinweis „Rückmeldung fehlt“ an; Mitteilungen in den Geräteeinstellungen verboten
     @Published private(set) var hintsOn = Hinweise.on
     @Published var hintsDenied = false
+    /// Das Gerät hat noch nie nach Mitteilungen gefragt (IOS-16): dann bieten die Termine „Erinnern lassen“ an
+    @Published var hintsUndecided = false
+    /// „Nicht jetzt“ beim Angebot „Erinnern lassen“
+    @Published var hintOfferDismissed = UserDefaults.standard.bool(forKey: "hinweis_angebot_weg")
     /// Zählt hoch, wenn die App über einen Kalendereintrag geöffnet wurde (dann Reiter „Termine“)
     @Published var showEvents = 0
 
@@ -903,7 +907,7 @@ final class AppModel: ObservableObject {
             if let index = self.meetings?.upcoming.firstIndex(where: { $0.id == meeting.id }) {
                 self.meetings?.upcoming[index].motions = motions
             }
-            self.taskNotice = tr("Antrag eingereicht. Der Vorstand entscheidet, ob er auf die Tagesordnung kommt.")
+            self.taskNotice = tr("Antrag eingereicht. Dein Verein entscheidet, ob er auf die Tagesordnung kommt.")
             sent = true
         }
         return sent
@@ -1172,8 +1176,28 @@ final class AppModel: ObservableObject {
     /// Hinweise für den gezeigten Zugang neu planen (nach jedem Abgleich und jeder Rückmeldung).
     func planHints() async {
         guard !Demo.active, let account, let access else { return }
+        await refreshHintPermission()
         let hints = RueckmeldeHinweis.plan(events, accessId: access.id, account: account.id)
         await Hinweise.plan(hints, account: account.id, unit: access.clubName)
+    }
+
+    /// Erlaubnis frisch lesen, z. B. beim Öffnen von „Mein Konto“ (in den Einstellungen geändert?).
+    func refreshHintPermission() async {
+        let state = await Hinweise.erlaubnis()
+        hintsDenied = state == .verweigert
+        hintsUndecided = state == .offen
+    }
+
+    /// Angebot „Erinnern lassen“ bei den Terminen: nur, solange das Gerät noch nicht gefragt hat
+    /// und ein Termin ohne Rückmeldung mit Anmeldeschluss wartet.
+    var offerHints: Bool {
+        guard !Demo.active, hintsOn, hintsUndecided, !hintOfferDismissed, let account, let access else { return false }
+        return !RueckmeldeHinweis.plan(events, accessId: access.id, account: account.id).isEmpty
+    }
+
+    func dismissHintOffer() {
+        hintOfferDismissed = true
+        UserDefaults.standard.set(true, forKey: "hinweis_angebot_weg")
     }
 
     /// Schalter in „Mein Konto“; beim Einschalten fragt das Gerät einmal nach der Erlaubnis.
@@ -1182,6 +1206,7 @@ final class AppModel: ObservableObject {
         hintsOn = on
         if on {
             hintsDenied = !(await Hinweise.erlauben())
+            hintsUndecided = false
             await planHints()
         } else if let account {
             await Hinweise.clear(account: account.id)

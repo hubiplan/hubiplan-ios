@@ -236,6 +236,30 @@ public struct ExpenseDraft: Equatable, Sendable {
         if submit { out.append(("submit", "true")) }
         return out
     }
+
+    /// Was zum Einreichen noch fehlt, oder nil (UX-Audit 16.11., IOS-20): Unvollständiges geht
+    /// nicht erst an den Server. Ein Entwurf darf unvollständig sein. `today` ist „JJJJ-MM-TT“.
+    public func missing(photos: Int, today: String) -> String? {
+        if purpose.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return tr("Bitte angeben, wofür das Geld ausgegeben wurde.") }
+        if date.count != 10 || date > today { return tr("Bitte ein Datum bis heute wählen.") }
+        if kind == "mileage" {
+            if route.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { return tr("Bitte Start, Ziel und Anlass der Fahrt angeben.") }
+            if parseKm(km) == nil { return tr("Bitte die gefahrenen Kilometer angeben.") }
+        } else {
+            let filled = amounts.filter { !$0.trimmingCharacters(in: .whitespaces).isEmpty }
+            if filled.isEmpty { return tr("Bitte mindestens einen Betrag angeben.") }
+            if filled.contains(where: { Geld.parseInput($0) == nil }) { return tr("Bitte jeden Betrag als Zahl angeben, zum Beispiel 12,50.") }
+            if photos == 0 { return tr("Bitte ein Foto des Belegs hinzufügen.") }
+        }
+        if payout == "bank" {
+            if holder.trimmingCharacters(in: .whitespaces).isEmpty { return tr("Bitte den Kontoinhaber angeben.") }
+            let iban = cleanIban(iban)
+            if iban.count < 15 || iban.count > 34 || !iban.allSatisfy({ $0.isASCII && ($0.isLetter || $0.isNumber) }) {
+                return tr("Bitte eine gültige IBAN angeben.")
+            }
+        }
+        return nil
+    }
 }
 
 private func jsonText(_ value: Any) -> String {
