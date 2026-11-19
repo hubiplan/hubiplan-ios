@@ -1,7 +1,7 @@
 import XCTest
 @testable import HubiplanKern
 
-/// Verbindliche Anmeldung mit Teilnahmegebühr (HUBIplan A1/A2), gleiche Fälle wie
+/// Verbindliche Anmeldung mit Teilnahmegebühr (HUBIplan A1–A3), gleiche Fälle wie
 /// `AnmeldungenTest` in der Android-App. Alle Daten erfunden.
 final class TeilnahmeTests: XCTestCase {
     override func setUp() { Texte.language = "de" }
@@ -106,5 +106,58 @@ final class TeilnahmeTests: XCTestCase {
         XCTAssertNil(try JSONDecoder().decode(EventDetail.self, from: Data(alt.utf8)).registration)
         let ohne = #"{"id":5,"title":"Sommerfest","starts_at":"2099-06-13T14:00:00+02:00","ends_at":"2099-06-13T18:00:00+02:00","registration":null}"#
         XCTAssertNil(try JSONDecoder().decode(EventDetail.self, from: Data(ohne.utf8)).registration)
+    }
+
+    private let warteliste = #"""
+    {"event_id":5,"can_cancel":true,
+     "offer":{"id":1,"state":"full","state_text":"Alle Plätze sind vergeben.","closes_at":"2099-06-01T23:59:00+02:00",
+      "capacity":2,"free":0,"taken":2,"max_persons":4,"guests_allowed":true,"terms":"","prices":[],
+      "waitlist":true,"waiting":1,"substitute_allowed":true,"cancel_rules":[{"days":30,"percent":50}],
+      "cancel_fee_fixed":"5.00","expire_unpaid_days":null},
+     "persons":[],
+     "mine":[{"id":3,"number":"A2099-0002","status":"waiting","total":"35.00","paid_state":"waiting",
+              "participants":[{"id":4,"name":"Anna Muster","membership_id":7,"price_id":11,"price_name":"Erwachsene",
+                               "amount":"35.00","status":"active"}],
+              "invoice":null,"waitlist_position":1,"moved_up_at":null,"free_cancel_until":null,
+              "cancel_fee":"0.00","fee_invoice":null,"can_cancel":true,"can_substitute":true}]}
+    """#
+
+    func testWartelisteUndStornostaffelLesen() throws {
+        let d = try JSONDecoder().decode(MemberRegistration.self, from: Data(warteliste.utf8))
+        XCTAssertTrue(d.offer.canJoin)
+        XCTAssertTrue(d.offer.toWaitlist)
+        XCTAssertEqual(d.offer.cancelRules.first?.percent, 50)
+        let mine = try XCTUnwrap(d.mine.first)
+        XCTAssertTrue(mine.active && mine.waiting)
+        XCTAssertEqual(mine.waitlistPosition, 1)
+        XCTAssertEqual(mine.canCancel, true)
+        XCTAssertEqual(mine.activeParticipants.first?.priceId, 11)
+        XCTAssertEqual(mine.paidText, "Warteliste")
+        // Älterer Stand ohne Warteliste: voll heißt nicht anmeldbar, can_cancel fehlt
+        var alt = try decode()
+        XCTAssertNil(alt.mine.first?.canCancel)
+        alt.offer.state = "full"
+        XCTAssertFalse(alt.offer.canJoin)
+    }
+
+    func testGebuehrenvorschauUndAnfragen() throws {
+        let q = try JSONDecoder().decode(FeeQuote.self, from: Data(#"{"base":"35.00","percent":50,"fee":"22.50","free_reason":""}"#.utf8))
+        XCTAssertTrue(q.hasFee)
+        XCTAssertEqual(q.text, "Stornogebühr: 22,50\u{00A0}€ (50 % von 35,00\u{00A0}€ nach den Teilnahmebedingungen).")
+        let frei = try JSONDecoder().decode(FeeQuote.self, from: Data(#"{"base":"35.00","percent":0,"fee":"0.00","free_reason":"moved_up"}"#.utf8))
+        XCTAssertFalse(frei.hasFee)
+        XCTAssertEqual(frei.text, "Kostenfrei: innerhalb von 48 Stunden nach dem Nachrücken von der Warteliste.")
+        XCTAssertEqual(Teilnahme.cancelQuery([]), "")
+        XCTAssertEqual(Teilnahme.cancelQuery([4, 5]), "?participants=4,5")
+        XCTAssertTrue(Teilnahme.cancelPayload([]).isEmpty)
+        XCTAssertEqual(Teilnahme.cancelPayload([4])["participants"] as? [Int], [4])
+        let gast = Teilnahme.substitutePayload(membershipId: nil, name: " Erna Ersatz ", birthDate: "1980-03-04")
+        XCTAssertTrue(gast["membership_id"] is NSNull)
+        XCTAssertEqual(gast["name"] as? String, "Erna Ersatz")
+        XCTAssertEqual(gast["birth_date"] as? String, "1980-03-04")
+        let familie = Teilnahme.substitutePayload(membershipId: 8, name: "ignoriert", birthDate: nil)
+        XCTAssertEqual(familie["membership_id"] as? Int, 8)
+        XCTAssertNil(familie["name"])
+        XCTAssertTrue(JSONSerialization.isValidJSONObject(gast))
     }
 }

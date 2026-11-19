@@ -2,8 +2,9 @@ import HubiplanKern
 import SwiftUI
 
 /// Verbindliche Anmeldung mit Teilnahmegebühr am Termin, wie in der Android-App
-/// (`AnmeldungSection.kt`): Tarife mit Preisstufe, eigene Anmeldungen mit Rechnung und
-/// Abmelden, Formular für sich, die Familie und Gäste.
+/// (`AnmeldungSection.kt`): Tarife mit Preisstufe, eigene Anmeldungen mit Rechnung,
+/// Warteliste, Abmelden mit Vorschau der Stornogebühr (auch einzelner Personen) und
+/// Ersatzperson, Formular für sich, die Familie und Gäste.
 struct TeilnahmeSection: View {
     @EnvironmentObject private var model: AppModel
     let eventId: Int
@@ -19,6 +20,13 @@ struct TeilnahmeSection: View {
     @State private var terms = false
     @State private var gap: RegistrationGap?
     @State private var cancelling: MyRegistration?
+    @State private var replacing: Replacing?
+
+    struct Replacing: Identifiable {
+        let reg: MyRegistration
+        let participant: RegistrationParticipant
+        var id: Int { participant.id }
+    }
 
     struct Guest: Identifiable {
         let id = UUID()
@@ -41,22 +49,19 @@ struct TeilnahmeSection: View {
             Text(tr("Anmeldung"))
         }
         .task(id: eventId) { await load() }
-        .confirmationDialog(
-            cancelling.map { tr("Anmeldung {number} abmelden?", ["number": $0.number]) } ?? "",
-            isPresented: Binding(get: { cancelling != nil }, set: { if !$0 { cancelling = nil } }),
-            titleVisibility: .visible
-        ) {
-            if let reg = cancelling {
-                Button(tr("Anmeldung abmelden"), role: .destructive) { abmelden(reg) }
+        .sheet(item: $cancelling) { reg in
+            if let d = data {
+                AbmeldenSheet(eventId: eventId, reg: reg, offer: d.offer) { ids in
+                    cancelling = nil
+                    abmelden(reg, ids)
+                }
             }
-        } message: {
-            if let reg = cancelling {
-                if let inv = reg.invoice, (Geld.cents(inv.paid) ?? 0) > 0 {
-                    Text(tr("Die Rechnung wird storniert; den gezahlten Betrag erstattet der Verein."))
-                } else if reg.invoice != nil {
-                    Text(tr("Die Rechnung wird storniert."))
-                } else {
-                    Text(tr("Du bist dann nicht mehr angemeldet."))
+        }
+        .sheet(item: $replacing) { r in
+            if let d = data {
+                ErsatzSheet(participant: r.participant, offer: d.offer, family: d.persons.filter { !$0.registered }) { member, name, birth in
+                    replacing = nil
+                    ersetzen(r.reg, r.participant, member, name, birth)
                 }
             }
         }
@@ -82,13 +87,37 @@ struct TeilnahmeSection: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text(tr("Deine Anmeldung {number}", ["number": reg.number])).font(.headline)
                 Text(reg.paidText).font(.footnote).foregroundStyle(.secondary)
-                ForEach(reg.participants) { Text($0.line) }
-                if let inv = reg.invoice {
+                if let n = reg.waitlistPosition {
+                    Text(tr("Du stehst auf Platz {n} der Warteliste. Wird ein Platz frei, rückst du automatisch verbindlich nach und bekommst die Rechnung per E-Mail.", ["n": n]))
+                        .font(.footnote)
+                }
+                if reg.status == "registered", reg.movedUpAt != nil, let until = reg.freeCancelUntil, let date = Zeit.parse(until) {
+                    Text(tr("Nachgerückt: Bis {when} kannst du dich kostenfrei abmelden.", [
+                        "when": date.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale)),
+                    ])).font(.footnote)
+                }
+                ForEach(reg.participants) { p in
+                    Text(p.line)
+                    if p.status == "active" && reg.canSubstitute {
+                        Button(tr("Ersatzperson für {name}", ["name": p.name])) { replacing = Replacing(reg: reg, participant: p) }
+                            .buttonStyle(.borderless)
+                            .disabled(busy)
+                    }
+                }
+                if (Geld.cents(reg.cancelFee) ?? 0) > 0 {
+                    Text(tr("Stornogebühr {fee}", ["fee": Geld.format(reg.cancelFee)])).font(.footnote)
+                }
+                if let inv = reg.feeInvoice {
                     Text(tr("Rechnung {number} über {total}, zahlbar bis {due}", [
                         "number": inv.number, "total": Geld.format(inv.total), "due": Zeit.plainDate(inv.dueDate),
                     ])).font(.footnote)
                 }
-                if d.canCancel && reg.active {
+                if let inv = reg.invoice, reg.status == "registered" {
+                    Text(tr("Rechnung {number} über {total}, zahlbar bis {due}", [
+                        "number": inv.number, "total": Geld.format(inv.total), "due": Zeit.plainDate(inv.dueDate),
+                    ])).font(.footnote)
+                }
+                if reg.active && (reg.canCancel ?? d.canCancel) {
                     Button(tr("Anmeldung abmelden"), role: .destructive) { cancelling = reg }
                         .buttonStyle(.borderless)
                         .disabled(busy)
@@ -96,7 +125,7 @@ struct TeilnahmeSection: View {
             }
         }
         let free = d.persons.filter { !$0.registered }
-        if offer.state == "open" && (!free.isEmpty || offer.guestsAllowed) {
+        if offer.canJoin && (!free.isEmpty || offer.guestsAllowed) {
             formular(d, free)
         }
     }
@@ -158,7 +187,7 @@ struct TeilnahmeSection: View {
         }
         if let gap { MeldungText(gap.text(max: offer.maxPersons), .fehler) }
         if ohneTarif { Text(tr("Bitte für jede Person einen Tarif wählen.")).font(.footnote) }
-        Button(sum > 0 ? tr("Zahlungspflichtig anmelden") : tr("Verbindlich anmelden")) { anmelden(d) }
+        Button(offer.toWaitlist ? tr("Auf die Warteliste") : sum > 0 ? tr("Zahlungspflichtig anmelden") : tr("Verbindlich anmelden")) { anmelden(d) }
             .buttonStyle(.borderedProminent)
             .disabled(busy || persons.isEmpty)
     }
@@ -210,7 +239,10 @@ struct TeilnahmeSection: View {
         let text = note
         let accepted = terms
         let id = eventId
-        senden(tr("Angemeldet. Die Bestätigung kommt per E-Mail.")) { api, access in
+        let done = d.offer.toWaitlist
+            ? tr("Du stehst auf der Warteliste. Die Bestätigung kommt per E-Mail.")
+            : tr("Angemeldet. Die Bestätigung kommt per E-Mail.")
+        senden(done) { api, access in
             try await api.register(accessId: access, eventId: id, payload: Teilnahme.payload(persons, note: text, termsAccepted: accepted))
         } done: {
             chosen = [:]
@@ -221,12 +253,23 @@ struct TeilnahmeSection: View {
         }
     }
 
-    private func abmelden(_ reg: MyRegistration) {
-        cancelling = nil
+    private func abmelden(_ reg: MyRegistration, _ participants: [Int]) {
         let id = eventId
         let regId = reg.id
         senden(tr("Du bist abgemeldet. Die Bestätigung kommt per E-Mail.")) { api, access in
-            try await api.cancelRegistration(accessId: access, eventId: id, registrationId: regId)
+            try await api.cancelRegistration(accessId: access, eventId: id, registrationId: regId, participants: participants)
+        } done: {}
+    }
+
+    private func ersetzen(_ reg: MyRegistration, _ p: RegistrationParticipant, _ member: Int?, _ name: String, _ birth: String?) {
+        let id = eventId
+        let regId = reg.id
+        let pid = p.id
+        senden(tr("Ersatzperson eingetragen.")) { api, access in
+            try await api.substitute(
+                accessId: access, eventId: id, registrationId: regId, participantId: pid,
+                payload: Teilnahme.substitutePayload(membershipId: member, name: name, birthDate: birth)
+            )
         } done: {}
     }
 
@@ -250,6 +293,153 @@ struct TeilnahmeSection: View {
                 failure = error.text
             case nil:
                 break
+            }
+        }
+    }
+}
+
+/// Abmelden ganz oder für einzelne Personen, mit Vorschau der Stornogebühr.
+private struct AbmeldenSheet: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let eventId: Int
+    let reg: MyRegistration
+    let offer: RegistrationOffer
+    let confirm: ([Int]) -> Void
+
+    @State private var chosen: Set<Int> = []
+    @State private var quote: FeeQuote?
+    @State private var started = false
+
+    private var active: [RegistrationParticipant] { reg.activeParticipants }
+    private var whole: Bool { chosen.count == active.count }
+    private var selection: [Int] { whole ? [] : chosen.sorted() }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                if active.count > 1 {
+                    Section(tr("Wer wird abgemeldet?")) {
+                        ForEach(active) { p in
+                            Toggle(p.line, isOn: Binding(
+                                get: { chosen.contains(p.id) },
+                                set: { on in if on { chosen.insert(p.id) } else { chosen.remove(p.id) } }
+                            ))
+                        }
+                    }
+                }
+                Section {
+                    if let quote { Text(quote.text) } else if !chosen.isEmpty { Laedt() }
+                    if quote?.hasFee == true && offer.waitlist && offer.waiting > 0 {
+                        Text(tr("Rückt dafür jemand von der Warteliste nach, entfällt die Gebühr.")).font(.footnote)
+                    }
+                    if let inv = reg.invoice, !reg.waiting {
+                        if whole && quote?.hasFee != true {
+                            Text((Geld.cents(inv.paid) ?? 0) > 0
+                                ? tr("Die Rechnung wird storniert; den gezahlten Betrag erstattet der Verein.")
+                                : tr("Die Rechnung wird storniert.")).font(.footnote)
+                        } else {
+                            Text(tr("Die Rechnung wird storniert, und es kommt eine neue Rechnung über den Rest. Schon Gezahltes wird damit verrechnet."))
+                                .font(.footnote)
+                        }
+                    } else if reg.invoice == nil {
+                        Text(tr("Du bist dann nicht mehr angemeldet.")).font(.footnote)
+                    }
+                }
+                Section {
+                    Button(whole ? tr("Verbindlich abmelden") : tr("Ausgewählte abmelden"), role: .destructive) {
+                        confirm(selection)
+                    }
+                    .disabled(chosen.isEmpty)
+                }
+            }
+            .navigationTitle(tr("Anmeldung {number} abmelden", ["number": reg.number]))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
+            }
+            .onAppear {
+                if !started {
+                    started = true
+                    chosen = Set(active.map(\.id))
+                }
+            }
+            .task(id: chosen) { await vorschau() }
+        }
+    }
+
+    private func vorschau() async {
+        quote = nil
+        guard !chosen.isEmpty else { return }
+        let id = eventId
+        let regId = reg.id
+        let ids = selection
+        if case .success(let fresh) = await model.portalCall({ api, access in
+            try await api.cancelQuote(accessId: access, eventId: id, registrationId: regId, participants: ids)
+        }) {
+            quote = fresh
+        }
+    }
+}
+
+/// Ersatzperson zum selben Tarif und Preis: jemand aus der Familie oder ein Gast.
+private struct ErsatzSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    let participant: RegistrationParticipant
+    let offer: RegistrationOffer
+    let family: [RegistrationPerson]
+    let confirm: (Int?, String, String?) -> Void
+
+    /// -1: ein Gast
+    @State private var member = -1
+    @State private var name = ""
+    @State private var birth = Date()
+    @State private var started = false
+
+    private var person: RegistrationPerson? { family.first { $0.membershipId == member } }
+    private var needsBirth: Bool {
+        offer.prices.first { $0.id == participant.priceId }?.hasAge == true && !(person?.hasBirthDate ?? false)
+    }
+    private var ready: Bool { person != nil || !name.trimmingCharacters(in: .whitespaces).isEmpty }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    Text(tr("Tarif und Preis bleiben, die Rechnung auch: {price}, {amount}", [
+                        "price": participant.priceName, "amount": Geld.format(participant.amount),
+                    ])).font(.footnote)
+                    Picker(tr("Ersatzperson"), selection: $member) {
+                        if offer.guestsAllowed { Text(tr("ein Gast (Name eingeben)")).tag(-1) }
+                        ForEach(family) { f in Text(f.name).tag(f.membershipId) }
+                    }
+                    if person == nil && offer.guestsAllowed {
+                        TextField(tr("Name"), text: $name)
+                            .textContentType(.name)
+                            .submitLabel(.done)
+                    }
+                    if needsBirth {
+                        DatePicker(tr("Geburtsdatum"), selection: $birth, displayedComponents: .date)
+                    }
+                }
+                Section {
+                    Button(tr("Ersatzperson eintragen")) {
+                        confirm(person?.membershipId, name, needsBirth ? Zeit.day(birth) : nil)
+                    }
+                    .disabled(!ready)
+                }
+            }
+            .tastaturFuehrung()
+            .navigationTitle(tr("Ersatzperson für {name}", ["name": participant.name]))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
+            }
+            .onAppear {
+                if !started {
+                    started = true
+                    if !offer.guestsAllowed, let first = family.first { member = first.membershipId }
+                }
             }
         }
     }
