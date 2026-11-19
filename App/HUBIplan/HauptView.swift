@@ -369,6 +369,7 @@ private struct KontoUnterseite: View {
     let seite: KontoSeite
     @EnvironmentObject private var model: AppModel
     @State private var unsent = 0
+    @State private var vorschauErlaubt = Sichtschutz.erlaubt()
     @State private var confirmDisconnect = false
     @State private var sendingFirst = false
     @State private var sendProblem: String?
@@ -514,6 +515,19 @@ private struct KontoUnterseite: View {
                     Text(tr("Etwa einen Tag vor dem Anmeldeschluss, mit den Knöpfen Zusage und Absage."))
                 }
                 .task { await model.refreshHintPermission() }
+                Section {
+                    Toggle(tr("Vorschau in der App-Übersicht zeigen"), isOn: Binding(
+                        get: { vorschauErlaubt },
+                        set: { on in
+                            Sichtschutz.setze(erlaubt: on)
+                            vorschauErlaubt = on
+                        }
+                    ))
+                } header: {
+                    Text(tr("Sichtschutz"))
+                } footer: {
+                    Text(tr("Aus: Beim Wechseln zwischen Apps ist der Inhalt von HUBIplan verdeckt. Der Verwaltungsbereich ist immer verdeckt."))
+                }
                 case .ueber:
                     Section {
                     if let server = model.account?.server {

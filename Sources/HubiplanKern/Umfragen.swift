@@ -229,7 +229,7 @@ public struct SurveyResultQuestion: Decodable, Equatable, Identifiable, Sendable
 
 public struct SurveyResult: Decodable, Equatable, Sendable {
     public var participants: Int
-    /// Anonym und noch keine drei Antworten: nur die Zahl
+    /// Anonym und noch keine fünf Antworten: nur die Zahl
     public var hidden: Bool
     public var questions: [SurveyResultQuestion]
 

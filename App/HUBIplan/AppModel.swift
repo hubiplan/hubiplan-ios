@@ -438,6 +438,12 @@ final class AppModel: ObservableObject {
         if !Demo.active { await Hinweise.clear(account: account.id) }
         calendarSynced[account.id] = nil
         accounts.remove(account.id)
+        // Speicher der eingebetteten Webansicht (Standmodus) nicht über die Abmeldung hinaus
+        // behalten (Gesamtaudit 19.11.2026, S-09)
+        if !Demo.active {
+            let rest = accounts.accounts.map(\.server)
+            await SichtschutzFenster.loescheWebDaten(Sichtschutz.webDaten(server: account.server, uebrige: rest))
+        }
         save()
         activate()
         // Vom Server abgemeldet und ein anderes Konto rückt nach: sagen statt still wechseln
