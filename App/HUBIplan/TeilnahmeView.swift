@@ -127,6 +127,12 @@ struct TeilnahmeSection: View {
                         "number": inv.number, "total": Geld.format(inv.total), "due": Zeit.plainDate(inv.dueDate),
                     ])).font(.footnote)
                 }
+                if reg.hasTickets {
+                    Button(tr("Eintrittskarten (PDF)")) { Task { await model.openTickets(eventId: eventId, registration: reg) } }
+                        .buttonStyle(.bordered)
+                        .disabled(busy)
+                    Text(tr("Bitte beim Einlass zeigen, auf dem Handy oder ausgedruckt.")).font(.footnote).foregroundStyle(.secondary)
+                }
                 if reg.active && (reg.canCancel ?? d.canCancel) {
                     Button(tr("Anmeldung abmelden"), role: .destructive) { cancelling = reg }
                         .buttonStyle(.borderless)
