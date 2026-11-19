@@ -263,7 +263,7 @@ struct UmfrageErgebnis: View {
 
     var body: some View {
         if result.hidden {
-            Text(tr("Das Ergebnis erscheint ab drei Antworten, damit niemand zurückrechnen kann.") + " "
+            Text(tr("Das Ergebnis erscheint ab fünf Antworten, damit niemand zurückrechnen kann.") + " "
                 + trn("Bisher {n} Antwort.", "Bisher {n} Antworten.", result.participants))
                 .font(.footnote).foregroundStyle(.secondary)
         } else {
