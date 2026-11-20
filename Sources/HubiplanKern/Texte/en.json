@@ -1226,5 +1226,9 @@
  "noch nicht eingelöst": "not yet redeemed",
  "offen: {amount}": "open: {amount}",
  "{name} einlassen": "Admit {name}",
- "{n} von {count} eingelassen": "{n} of {count} admitted"
+ "{n} von {count} eingelassen": "{n} of {count} admitted",
+ "Videoraum": "Video room",
+ "Videoraum öffnen": "Open video room",
+ "Passwort: {password}": "Password: {password}",
+ "Passwort kopieren": "Copy password"
 }
