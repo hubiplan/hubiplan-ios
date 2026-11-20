@@ -110,6 +110,9 @@ struct AusweisView: View {
                     if let units = model.adminOverview?.allUnits, !units.isEmpty {
                         IchVerweis(title: tr("Verwaltung"), detail: units.map(\.name).joined(separator: ", ")) { VerwaltungView() }
                     }
+                    if let pinboard = model.pinboard {
+                        IchVerweis(title: tr("Pinnwand"), detail: pinboard.summary) { PinnwandView() }
+                    }
                     if let profile = model.profile {
                         MeineDaten(profile: profile)
                         if let cancellation = profile.cancellation, cancellation.shown {

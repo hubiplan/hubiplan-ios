@@ -59,6 +59,8 @@ final class AppModel: ObservableObject {
     @Published var documents: MyDocuments?
     /// Umfragen des gewählten Zugangs (soweit eingeschaltet)
     @Published var surveys: SurveyList?
+    /// Pinnwand des gewählten Zugangs (soweit eingeschaltet)
+    @Published var pinboard: PinboardList?
     /// Auslagen des gewählten Zugangs (soweit eingeschaltet)
     @Published var expenses: ExpenseOverview?
     @Published var feeProofs: FeeProofOverview?
@@ -246,6 +248,7 @@ final class AppModel: ObservableObject {
         meetings = nil
         documents = nil
         surveys = nil
+        pinboard = nil
         expenses = nil
         feeProofs = nil
         scores = nil
@@ -647,6 +650,9 @@ final class AppModel: ObservableObject {
         if access.hasDocs { documents = try? await api.myDocuments(accessId: id) }
         var surveys: SurveyList?
         if access.hasSurveys { surveys = try? await api.memberSurveys(accessId: id) }
+        var pinboard: PinboardList?
+        // Nur nachsehen: „neu“ bleibt stehen, bis die Pinnwand geöffnet wird
+        if access.hasPinboard { pinboard = try? await api.memberPinboard(accessId: id, seen: false) }
         var expenses: ExpenseOverview?
         if access.hasExpenses { expenses = try? await api.memberExpenses(accessId: id) }
         var feeProofs: FeeProofOverview?
@@ -658,6 +664,7 @@ final class AppModel: ObservableObject {
         self.meetings = access.hasMeetings ? (meetings ?? self.meetings) : nil
         self.documents = access.hasDocs ? (documents ?? self.documents) : nil
         self.surveys = access.hasSurveys ? (surveys ?? self.surveys) : nil
+        self.pinboard = access.hasPinboard ? (pinboard ?? self.pinboard) : nil
         self.expenses = access.hasExpenses ? (expenses ?? self.expenses) : nil
         self.feeProofs = access.hasFeeProofs ? (feeProofs ?? self.feeProofs) : nil
         await loadAdmin()
@@ -998,6 +1005,43 @@ final class AppModel: ObservableObject {
         }
     }
 
+    // MARK: Pinnwand
+
+    /// Pinnwand neu laden; gilt als gelesen (Zähler „neu“ geht auf 0).
+    func reloadPinboard() async {
+        guard let access, access.hasPinboard else { return }
+        await run { api in
+            let fresh = try await api.memberPinboard(accessId: access.id)
+            if self.access?.id == access.id { self.pinboard = fresh }
+        }
+    }
+
+    func pin(_ notice: PinNotice, pinned: Bool) async {
+        guard let access else { return }
+        await run { api in
+            _ = try await api.pinPinNotice(accessId: access.id, notice: notice, pinned: pinned)
+        }
+        await reloadPinboard()
+    }
+
+    /// Beitrag löschen; `true`, wenn es geklappt hat.
+    func removePin(_ notice: PinNotice) async -> Bool {
+        guard let access else { return false }
+        var done = false
+        await run { api in
+            try await api.deletePinNotice(accessId: access.id, id: notice.id)
+            done = true
+        }
+        await reloadPinboard()
+        return done
+    }
+
+    /// Bild aus dem eigenen Mitgliederbereich (mit Geräteschlüssel).
+    func portalImage(_ path: String) async -> Data? {
+        guard let session else { return nil }
+        return await session.api().image(path)
+    }
+
     // MARK: Umfragen
 
     /// Umfragen neu laden (nach einer Aktion oder beim Öffnen).
@@ -1143,6 +1187,7 @@ final class AppModel: ObservableObject {
         meetings = nil
         documents = nil
         surveys = nil
+        pinboard = nil
         expenses = nil
         feeProofs = nil
         scores = nil
