@@ -32,13 +32,15 @@ public struct Occurrence: Decodable, Equatable, Identifiable, Sendable {
     /// "yes", "no", "maybe" oder nil (noch keine Rückmeldung)
     public var myResponse: String?
     public var rsvpDeadline: String?
+    /// Videoraum (Nextcloud Talk) oder nil
+    public var video: VideoRoom?
     /// "members", "board" oder "public"; ältere Server ohne Angabe
     public var visibility: String
 
     public var id: String { key }
 
     enum CodingKeys: String, CodingKey {
-        case key, title, location, address, note, category, owner, visibility
+        case key, title, location, address, note, category, owner, visibility, video
         case eventId = "event_id"
         case startsAt = "starts_at"
         case endsAt = "ends_at"
@@ -66,6 +68,7 @@ public struct Occurrence: Decodable, Equatable, Identifiable, Sendable {
         rsvpEnabled = try c.decodeIfPresent(Bool.self, forKey: .rsvpEnabled) ?? false
         myResponse = try c.decodeIfPresent(String.self, forKey: .myResponse)
         rsvpDeadline = try c.decodeIfPresent(String.self, forKey: .rsvpDeadline)
+        video = try c.decodeIfPresent(VideoRoom.self, forKey: .video)
         visibility = try c.decodeIfPresent(String.self, forKey: .visibility) ?? ""
     }
 
@@ -216,6 +219,28 @@ public struct Rsvp: Decodable, Equatable, Sendable {
     }
 }
 
+/// Videoraum (Nextcloud Talk) am Termin: Link und Passwort (wie `VideoRoom` in der Android-App).
+public struct VideoRoom: Decodable, Equatable, Sendable {
+    public var url: String
+    public var password: String
+
+    enum CodingKeys: String, CodingKey { case url, password }
+
+    public init(url: String = "", password: String = "") {
+        self.url = url
+        self.password = password
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        url = try c.decodeIfPresent(String.self, forKey: .url) ?? ""
+        password = try c.decodeIfPresent(String.self, forKey: .password) ?? ""
+    }
+
+    /// Nur https-Links öffnen (der Server liefert nie etwas anderes).
+    public var openable: Bool { url.hasPrefix("https://") }
+}
+
 /// Routenlinks zum Ort (OpenStreetMap, Google Maps).
 public struct MapLinks: Decodable, Equatable, Sendable {
     public var osm: String?
@@ -275,11 +300,13 @@ public struct EventDetail: Decodable, Equatable, Sendable {
     public var attachments: [EventFile]
     /// Verbindliche Anmeldung (Modul „Anmeldungen“); ohne Modul oder bei älteren Servern nil
     public var registration: RegistrationBrief?
+    /// Videoraum (Nextcloud Talk) oder nil
+    public var video: VideoRoom?
     /// "members", "board" oder "public"
     public var visibility: String
 
     enum CodingKeys: String, CodingKey {
-        case id, title, description, location, address, directions, programme, latitude, longitude, owner, rsvp, attachments, registration, visibility
+        case id, title, description, location, address, directions, programme, latitude, longitude, owner, rsvp, attachments, registration, visibility, video
         case mapLinks = "map_links"
         case isCancelled = "is_cancelled"
         case cancelNote = "cancel_note"
@@ -303,6 +330,7 @@ public struct EventDetail: Decodable, Equatable, Sendable {
         rsvp = try c.decodeIfPresent(Rsvp.self, forKey: .rsvp) ?? Rsvp()
         attachments = try c.decodeIfPresent([EventFile].self, forKey: .attachments) ?? []
         registration = try c.decodeIfPresent(RegistrationBrief.self, forKey: .registration)
+        video = try c.decodeIfPresent(VideoRoom.self, forKey: .video)
         visibility = try c.decodeIfPresent(String.self, forKey: .visibility) ?? ""
     }
 

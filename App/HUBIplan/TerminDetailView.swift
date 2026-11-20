@@ -1,5 +1,6 @@
 import HubiplanKern
 import SwiftUI
+import UIKit
 
 /// Ein Termin mit allen Angaben (UX-Audit 16.11., IOS-04), wie in der Android-App
 /// (`EventsPane.kt`): Zeit, Ort mit Anfahrt, Beschreibung, Anhänge und die eigene Rückmeldung
@@ -31,6 +32,9 @@ struct TerminDetailView: View {
             kopf
             if let detail {
                 ort(detail)
+                if !event.isCancelled, !detail.isCancelled, let video = detail.video ?? event.video, video.openable {
+                    videoraum(video)
+                }
                 if !detail.description.isEmpty {
                     Section(tr("Beschreibung")) { Text(detail.description) }
                 }
@@ -139,6 +143,24 @@ struct TerminDetailView: View {
                 if let google = detail.mapLinks.google.flatMap(URL.init(string:)), google.scheme == "https" {
                     Button(tr("Route in Google Maps")) { openURL(google) }
                 }
+            }
+        }
+    }
+
+    /// Videoraum (Nextcloud Talk): Link öffnet Safari oder die Talk-App, Passwort zum Kopieren.
+    @ViewBuilder
+    private func videoraum(_ video: VideoRoom) -> some View {
+        Section(tr("Videoraum")) {
+            if let url = URL(string: video.url), url.scheme == "https" {
+                Button {
+                    openURL(url)
+                } label: {
+                    Label(tr("Videoraum öffnen"), systemImage: "video")
+                }
+            }
+            if !video.password.isEmpty {
+                Text(tr("Passwort: {password}", ["password": video.password])).textSelection(.enabled)
+                Button(tr("Passwort kopieren")) { UIPasteboard.general.string = video.password }
             }
         }
     }
