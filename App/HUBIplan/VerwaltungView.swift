@@ -9,6 +9,8 @@ struct VerwaltungView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.openURL) private var openURL
     @State private var unitKey: String?
+    /// Termin aus einer Kalenderdatei: statt der Übersicht die erste Einheit mit Terminrecht suchen
+    var terminZiel: ((AdminUnit, Bool) -> Void)?
 
     var body: some View {
         Group {
@@ -24,7 +26,11 @@ struct VerwaltungView: View {
                     Freischalten(withCode: overview.twoFactor, withPasskey: overview.passkey)
                 } else {
                     VerwaltungSchutz {
-                        VerwaltungStart(units: overview.allUnits, until: overview.until, unitKey: $unitKey)
+                        if let terminZiel {
+                            TerminZielSuche(units: overview.allUnits, found: terminZiel)
+                        } else {
+                            VerwaltungStart(units: overview.allUnits, until: overview.until, unitKey: $unitKey)
+                        }
                     }
                 }
             } else if !model.adminLoaded {
@@ -49,6 +55,37 @@ struct VerwaltungView: View {
                 model.checkAdminIdle()
                 try? await Task.sleep(for: .seconds(15))
             }
+        }
+    }
+}
+
+/// Erste Einheit, in der das Konto Termine anlegen darf (zuletzt gewählte zuerst wäre schöner,
+/// die Reihenfolge der Übersicht genügt: Verein vor Untereinheiten).
+private struct TerminZielSuche: View {
+    @EnvironmentObject private var model: AppModel
+    let units: [AdminUnit]
+    let found: (AdminUnit, Bool) -> Void
+    @State private var none = false
+
+    var body: some View {
+        Group {
+            if none {
+                Text(tr("Termine anlegen können nur Konten mit Verwaltungsrechten."))
+                    .padding()
+            } else {
+                Laedt()
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .task {
+            let today = Zeit.day(Date())
+            for unit in units where unit.showsEvents {
+                if let list = await model.verwaltung(unit, { try await $0.events(from: today, to: today) }), list.canManage {
+                    found(unit, list.rsvpAllowed)
+                    return
+                }
+            }
+            none = true
         }
     }
 }

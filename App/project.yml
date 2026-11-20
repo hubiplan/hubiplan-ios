@@ -41,6 +41,14 @@ targets:
         CFBundleURLTypes:
           - CFBundleURLName: de.hubiplan.app.verbinden
             CFBundleURLSchemes: [hubiplan]
+        # Termin aus Mail oder Kalender (.ics) „Öffnen in HUBIplan“: füllt in der Verwaltung
+        # „Neuer Termin“ vor (hubiplan konzepte/termine-aus-dem-mailprogramm.md, W4)
+        CFBundleDocumentTypes:
+          - CFBundleTypeName: Kalendertermin
+            CFBundleTypeRole: Viewer
+            LSHandlerRank: Alternate
+            LSItemContentTypes: [com.apple.ical.ics, public.calendar-event]
+        LSSupportsOpeningDocumentsInPlace: false
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: de.hubiplan.app

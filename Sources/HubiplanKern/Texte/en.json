@@ -1226,5 +1226,11 @@
  "noch nicht eingelöst": "not yet redeemed",
  "offen: {amount}": "open: {amount}",
  "{name} einlassen": "Admit {name}",
- "{n} von {count} eingelassen": "{n} of {count} admitted"
+ "{n} von {count} eingelassen": "{n} of {count} admitted",
+ "In der Datei ist kein Termin, den HUBIplan übernehmen kann.": "The file contains no event that HUBIplan can use.",
+ "Termine anlegen können nur Konten mit Verwaltungsrechten.": "Only accounts with management rights can create events.",
+ "Aus der Kalenderdatei übernommen. Bitte prüfen und dann anlegen.": "Taken from the calendar file. Please check, then create.",
+ "Die Einladung wiederholt sich. Die App legt nur den ersten Termin an; Serien im Browser.": "The invitation repeats. The app only creates the first event; series in the browser.",
+ "Videolink (optional)": "Video link (optional)",
+ "Bitte zuerst die App mit deinem Verein verbinden.": "Please connect the app to your club first."
 }

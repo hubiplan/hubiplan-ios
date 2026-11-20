@@ -69,6 +69,12 @@ struct HauptView: View {
                 .padding()
         }
         .onChange(of: model.showEvents) { _, _ in tab = "termine" }
+        // Geteilte Kalenderdatei (W4): Einheit mit Terminrecht suchen, dann „Neuer Termin“ vorausgefüllt
+        .sheet(isPresented: Binding(get: { model.sharedEvent != nil }, set: { if !$0 { model.sharedEvent = nil } })) {
+            if let termin = model.sharedEvent {
+                TerminAusDateiBlatt(termin: termin)
+            }
+        }
         // Vom Server abgemeldet, ein anderes Konto rückt nach: nicht still wechseln (wie Android AND-16)
         .alert(
             tr("Konto abgemeldet"),

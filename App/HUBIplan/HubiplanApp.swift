@@ -22,7 +22,13 @@ struct HubiplanApp: App {
             }
             .environmentObject(model)
             .task { Hinweise.shared.attach(model) }
-            .onOpenURL { url in model.offer(link: url.absoluteString) }
+            .onOpenURL { url in
+                if url.isFileURL {
+                    model.open(calendarFile: url)
+                } else {
+                    model.offer(link: url.absoluteString)
+                }
+            }
             // Nicht vorn: Inhalt verdecken, auch vor der Anmeldung und über allen Blättern
             .onChange(of: phase) { _, now in SichtschutzFenster.shared.aktualisieren(aktiv: now == .active) }
         }
