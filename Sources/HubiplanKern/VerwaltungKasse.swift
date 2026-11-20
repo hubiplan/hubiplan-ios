@@ -13,8 +13,9 @@ public struct Multipart: Equatable, Sendable {
         self.init(fields: fields, files: [(name: fileName, data: file, type: fileType)], boundary: boundary)
     }
 
-    /// Mehrere Dateien, alle unter dem Feldnamen „file“ (z. B. Belege einer Auslage).
-    public init(fields: [(name: String, value: String)], files: [(name: String, data: Data, type: String)], boundary: String = "hubiplan-" + UUID().uuidString) {
+    /// Mehrere Dateien, alle unter dem Feldnamen `fileField` (Vorgabe „file“, z. B. Belege einer
+    /// Auslage; Fotos der Pinnwand unter „photos“).
+    public init(fields: [(name: String, value: String)], files: [(name: String, data: Data, type: String)], fileField: String = "file", boundary: String = "hubiplan-" + UUID().uuidString) {
         var out = Data()
         func add(_ text: String) { out.append(Data(text.utf8)) }
         // Namen und Dateiname kommen aus dem Code; Anführungszeichen und Zeilenwechsel trotzdem entfernen
@@ -23,7 +24,7 @@ public struct Multipart: Equatable, Sendable {
             add("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(clean(field.name))\"\r\n\r\n\(field.value)\r\n")
         }
         for file in files {
-            add("--\(boundary)\r\nContent-Disposition: form-data; name=\"file\"; filename=\"\(clean(file.name))\"\r\nContent-Type: \(clean(file.type))\r\n\r\n")
+            add("--\(boundary)\r\nContent-Disposition: form-data; name=\"\(clean(fileField))\"; filename=\"\(clean(file.name))\"\r\nContent-Type: \(clean(file.type))\r\n\r\n")
             out.append(file.data)
             add("\r\n")
         }
