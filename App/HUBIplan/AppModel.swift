@@ -94,6 +94,8 @@ final class AppModel: ObservableObject {
     /// Link `hubiplan://anmelden` einer Adresse: vor dem Öffnen der Anmeldeseite nachfragen.
     @Published var browserStart: String?
     @Published var linkError: String?
+    /// Geteilte Kalenderdatei (.ics): „Neuer Termin“ in der Verwaltung vorausfüllen (W4)
+    @Published var sharedEvent: IcsTermin?
     /// Vom Server abgemeldet: so viele nicht gesendete Vorgänge liegen beiseite (IOS-08)
     @Published var retiredDrafts = 0
     /// Gerätekalender: eingeschaltet, Erinnerung in Minuten, Zugriff verweigert
@@ -300,6 +302,25 @@ final class AppModel: ObservableObject {
         } else {
             linkError = tr("Das ist kein Link zum Verbinden. Er beginnt mit https:// und endet auf /app/verbinden#code=…")
         }
+    }
+
+    /// Kalenderdatei aus Mail oder Kalender („Öffnen in“ bzw. Teilen an HUBIplan).
+    func open(calendarFile url: URL) {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        let data = try? Data(contentsOf: url, options: .mappedIfSafe)
+        guard accounts.accounts.isEmpty == false else {
+            linkError = tr("Bitte zuerst die App mit deinem Verein verbinden.")
+            return
+        }
+        guard let data, data.count <= IcsLeser.maxBytes,
+              let text = String(data: data, encoding: .utf8) ?? String(data: data, encoding: .isoLatin1),
+              let termin = IcsLeser.lesen(text)
+        else {
+            linkError = tr("In der Datei ist kein Termin, den HUBIplan übernehmen kann.")
+            return
+        }
+        sharedEvent = termin
     }
 
     /// Schon mit dieser Adresse verbunden? Dann öffnet `hubiplan://anmelden` ohne Rückfrage.

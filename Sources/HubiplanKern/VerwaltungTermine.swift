@@ -433,6 +433,8 @@ public struct EventDraft: Equatable, Sendable {
     /// Anmeldeschluss als Tag; leer: keiner
     public var deadline = ""
     public var notify = false
+    /// Videolink aus einer Einladung (Teams, Zoom, Talk …); HUBIplan zeigt ihn am Termin
+    public var videoUrl = ""
 
     public init() {}
 
@@ -454,6 +456,8 @@ public struct EventDraft: Equatable, Sendable {
             "description": description.trimmingCharacters(in: .whitespacesAndNewlines),
             "visibility": visibility, "rsvp_enabled": withRsvp,
         ]
+        let video = videoUrl.trimmingCharacters(in: .whitespaces)
+        if !video.isEmpty { out["video_url"] = String(video.prefix(500)) }
         if withRsvp {
             out["rsvp_guests"] = guests
             if !deadline.trimmingCharacters(in: .whitespaces).isEmpty {

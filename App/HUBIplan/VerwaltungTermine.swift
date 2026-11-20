@@ -475,12 +475,15 @@ private struct RueckmeldungBlatt: View {
 }
 
 /// Einfachen Termin anlegen: einmalig, Titel, Tag, Zeit, Ort, Sichtbarkeit, Zu-/Absagen.
-private struct NeuerTerminBlatt: View {
+/// `initial`: Vorlage aus einer geteilten Kalenderdatei (.ics).
+struct NeuerTerminBlatt: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.dismiss) private var dismiss
     let unit: AdminUnit
     let rsvpAllowed: Bool
+    var initial: IcsTermin?
     let done: () -> Void
+    @State private var applied = false
     @State private var draft = EventDraft()
     @State private var day = Calendar.current.date(byAdding: .day, value: 7, to: Date()) ?? Date()
     @State private var start = NeuerTerminBlatt.uhrzeit(19, 0)
@@ -493,6 +496,13 @@ private struct NeuerTerminBlatt: View {
 
     private static func uhrzeit(_ hour: Int, _ minute: Int) -> Date {
         Calendar.current.date(bySettingHour: hour, minute: minute, second: 0, of: Date()) ?? Date()
+    }
+
+    /// „19:30“ → heute 19:30; leer oder ungültig → nil.
+    private static func zeit(_ text: String) -> Date? {
+        let parts = text.split(separator: ":").compactMap { Int($0) }
+        guard parts.count == 2 else { return nil }
+        return uhrzeit(parts[0], parts[1])
     }
 
     private static func text(_ time: Date) -> String {
@@ -517,8 +527,20 @@ private struct NeuerTerminBlatt: View {
                     }
                     BeschriftetesFeld(label: tr("Ort (optional)"), text: $draft.location)
                     BeschriftetesFeld(label: tr("Beschreibung (optional)"), text: $draft.description, axis: .vertical)
+                    if initial?.videoUrl.isEmpty == false {
+                        BeschriftetesFeld(label: tr("Videolink (optional)"), text: $draft.videoUrl)
+                    }
                 } footer: {
-                    Text(tr("Einmaliger Termin. Serien, Anhänge und Weitergabe an andere Einheiten im Browser."))
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(tr("Einmaliger Termin. Serien, Anhänge und Weitergabe an andere Einheiten im Browser."))
+                        if let initial {
+                            Text(tr("Aus der Kalenderdatei übernommen. Bitte prüfen und dann anlegen."))
+                            if initial.repeats {
+                                Text(tr("Die Einladung wiederholt sich. Die App legt nur den ersten Termin an; Serien im Browser."))
+                                    .foregroundStyle(Color.warnText)
+                            }
+                        }
+                    }
                 }
                 Section {
                     Picker(tr("Wer sieht den Termin?"), selection: $draft.visibility) {
@@ -552,6 +574,17 @@ private struct NeuerTerminBlatt: View {
                 }
             }
             .onAppear {
+                if let initial, !applied {
+                    applied = true
+                    draft = initial.draft
+                    if let date = initial.dayDate() { day = date }
+                    if let time = Self.zeit(initial.start) { start = time }
+                    if let time = Self.zeit(initial.end) {
+                        end = time
+                        withEnd = true
+                    }
+                    return
+                }
                 // Vorführmodus: ausgefülltes Blatt für das Bildschirmfoto
                 guard Demo.active, draft.title.isEmpty else { return }
                 draft.title = Texte.language == "en" ? "Platoon meeting" : "Zugversammlung"
@@ -583,5 +616,30 @@ private struct NeuerTerminBlatt: View {
         model.adminChanged(unit, text: tr("„{titel}“ angelegt", ["titel": result.event.title]), change: result.change)
         done()
         dismiss()
+    }
+}
+
+/// Termin aus einer geteilten Kalenderdatei: Verwaltung freischalten, Einheit mit Terminrecht
+/// suchen, dann „Neuer Termin“ vorausgefüllt (wie Android, hubiplan konzepte/termine-aus-dem-mailprogramm.md W4).
+struct TerminAusDateiBlatt: View {
+    @EnvironmentObject private var model: AppModel
+    @Environment(\.dismiss) private var dismiss
+    let termin: IcsTermin
+    @State private var ziel: (unit: AdminUnit, rsvp: Bool)?
+
+    var body: some View {
+        if let ziel {
+            NeuerTerminBlatt(unit: ziel.unit, rsvpAllowed: ziel.rsvp, initial: termin) {}
+                .verwaltungsBlatt()
+        } else {
+            NavigationStack {
+                VerwaltungView(terminZiel: { unit, rsvp in ziel = (unit, rsvp) })
+                    .toolbar {
+                        ToolbarItem(placement: .cancellationAction) {
+                            Button(tr("Abbrechen")) { dismiss() }
+                        }
+                    }
+            }
+        }
     }
 }
