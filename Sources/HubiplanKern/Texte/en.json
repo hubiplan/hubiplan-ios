@@ -1232,5 +1232,9 @@
  "Aus der Kalenderdatei übernommen. Bitte prüfen und dann anlegen.": "Taken from the calendar file. Please check, then create.",
  "Die Einladung wiederholt sich. Die App legt nur den ersten Termin an; Serien im Browser.": "The invitation repeats. The app only creates the first event; series in the browser.",
  "Videolink (optional)": "Video link (optional)",
- "Bitte zuerst die App mit deinem Verein verbinden.": "Please connect the app to your club first."
+ "Bitte zuerst die App mit deinem Verein verbinden.": "Please connect the app to your club first.",
+ "Videoraum": "Video room",
+ "Videoraum öffnen": "Open video room",
+ "Passwort: {password}": "Password: {password}",
+ "Passwort kopieren": "Copy password"
 }
