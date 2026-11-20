@@ -537,7 +537,7 @@ struct NeuerTerminBlatt: View {
                             Text(tr("Aus der Kalenderdatei übernommen. Bitte prüfen und dann anlegen."))
                             if initial.repeats {
                                 Text(tr("Die Einladung wiederholt sich. Die App legt nur den ersten Termin an; Serien im Browser."))
-                                    .foregroundStyle(Color.red)
+                                    .foregroundStyle(Color.warnText)
                             }
                         }
                     }
