@@ -65,7 +65,7 @@ struct TrainingView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("\(Zeit.plainDate(e.date)): \(e.discipline)").font(.headline)
                                 if !e.details.isEmpty { Text(e.details).font(.footnote) }
-                                Text(e.statusLabel).font(.caption).foregroundStyle(e.status == "rejected" ? Color.red : Color.accentColor)
+                                Text(e.statusLabel).font(.caption).foregroundStyle(e.status == "rejected" ? Color.fehlerText : Color.accentColor)
                                 if e.canWithdraw {
                                     Button(tr("Zurückziehen")) {
                                         act(done: tr("Meldung zurückgezogen.")) { api, id in
@@ -189,17 +189,21 @@ private struct SchiessterminMelden: View {
                     .font(.footnote)
                 DatePicker(tr("Datum"), selection: $day, in: ...Date(), displayedComponents: .date)
                 TextField(tr("Disziplin"), text: $discipline)
+                    .weiterFeld()
                 Picker(tr("Waffe"), selection: $long) {
                     Text(tr("Kurzwaffe")).tag(false)
                     Text(tr("Langwaffe")).tag(true)
                 }
                 TextField(tr("Kaliber (optional)"), text: $caliber)
+                    .weiterFeld()
                 TextField(tr("Schießstand (optional)"), text: $place)
+                    .weiterFeld()
                 Toggle(tr("erlaubnispflichtige Waffe"), isOn: $permit)
                 Toggle(tr("Wettkampf"), isOn: $competition)
                 Toggle(tr("in einem anderen Verein"), isOn: $external)
             }
         }
+        .tastaturFuehrung()
         .navigationTitle(tr("Schießtermin melden"))
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
