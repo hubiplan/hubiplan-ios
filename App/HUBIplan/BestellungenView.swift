@@ -63,7 +63,7 @@ struct BestellungenView: View {
                         if await model.placeOrder(detail, lines: lines, note: note) { open = nil }
                     }
                 } else {
-                    Text(tr("Die Bestellung lässt sich nicht mehr ändern. Bitte wende dich an den Vorstand."))
+                    Text(tr("Die Bestellung lässt sich nicht mehr ändern. Bitte wende dich an deinen Verein."))
                         .foregroundStyle(.secondary)
                     Button(tr("Zurück")) { open = nil }.buttonStyle(.bordered)
                 }
