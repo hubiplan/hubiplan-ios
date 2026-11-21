@@ -239,7 +239,8 @@ public struct BookingRequest: Decodable, Equatable, Identifiable, Sendable {
     public var version: Int
 
     enum CodingKeys: String, CodingKey {
-        case id, title, note, repeat, version, contact
+        case id, title, note, version, contact
+        case repeatRule = "repeat"
         case itemTitle = "item_title"
         case startsAt = "starts_at"
         case endsAt = "ends_at"
@@ -261,7 +262,7 @@ public struct BookingRequest: Decodable, Equatable, Identifiable, Sendable {
         startsAt = c.value(.startsAt, "")
         endsAt = c.value(.endsAt, "")
         allDay = c.value(.allDay, false)
-        repeats = !c.value(.repeat, "").isEmpty
+        repeats = !c.value(.repeatRule, "").isEmpty
         memberName = c.value(.memberName, "")
         bookedBy = c.value(.bookedBy, "")
         contactName = ((try? c.decodeIfPresent(Contact.self, forKey: .contact)) ?? nil)?.name ?? ""
