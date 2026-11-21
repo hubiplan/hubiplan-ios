@@ -143,6 +143,9 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
     public var surveysOpen: Int
     public var pinboardEnabled: Bool
     public var pinboardNew: Int
+    /// Sammelbestellungen eingeschaltet und offene ohne eigene Bestellung
+    public var ordersEnabled: Bool
+    public var ordersOpen: Int
     /// Auslagen erstatten eingeschaltet und Zahl offener Rückfragen der Kasse
     public var expensesEnabled: Bool
     public var expensesQuestions: Int
@@ -183,6 +186,8 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         case surveysOpen = "surveys_open"
         case pinboardEnabled = "pinboard_enabled"
         case pinboardNew = "pinboard_new"
+        case ordersEnabled = "orders_enabled"
+        case ordersOpen = "orders_open"
         case expensesEnabled = "expenses_enabled"
         case expensesQuestions = "expenses_questions"
         case feeProofsEnabled = "fee_proofs_enabled"
@@ -208,6 +213,8 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         surveysOpen = try c.decodeIfPresent(Int.self, forKey: .surveysOpen) ?? 0
         pinboardEnabled = try c.decodeIfPresent(Bool.self, forKey: .pinboardEnabled) ?? false
         pinboardNew = try c.decodeIfPresent(Int.self, forKey: .pinboardNew) ?? 0
+        ordersEnabled = try c.decodeIfPresent(Bool.self, forKey: .ordersEnabled) ?? false
+        ordersOpen = try c.decodeIfPresent(Int.self, forKey: .ordersOpen) ?? 0
         expensesEnabled = try c.decodeIfPresent(Bool.self, forKey: .expensesEnabled) ?? false
         expensesQuestions = try c.decodeIfPresent(Int.self, forKey: .expensesQuestions) ?? 0
         feeProofsEnabled = try c.decodeIfPresent(Bool.self, forKey: .feeProofsEnabled) ?? false
