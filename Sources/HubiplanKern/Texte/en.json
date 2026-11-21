@@ -1429,5 +1429,12 @@
  "{present} von {voters} Stimmberechtigten anwesend, {represented} vertreten, {guests} Gäste": "{present} of {voters} voting members present, {represented} represented, {guests} guests",
  "Anfragen für Räume und Plätze bestätigen oder ablehnen": "Confirm or decline requests for rooms and grounds",
  "Anwesenheit, Einlass per Ausweis, QR-Code, Abstimmungen": "Attendance, check-in by card, QR code, votes",
- "Eintritt": "Joining date"
+ "Eintritt": "Joining date",
+ "immer": "always",
+ "nie": "never",
+ "bei Anlass": "when relevant",
+ "Kacheln einblenden": "Show tiles",
+ "Kacheln anpassen": "Customise tiles",
+ "Öffnen": "Open",
+ "„Bei Anlass“ zeigt eine Kachel nur, wenn gerade etwas ansteht. Die Auswahl gilt auch für die Startseite im Browser.": "“When relevant” shows a tile only when something is coming up. The choice also applies to the start page in the browser."
 }
