@@ -339,6 +339,17 @@ private struct VerwaltungStart: View {
                     .listRowInsets(EdgeInsets())
                 }
             }
+            if !unit.isDepartment {
+                Section {
+                    KachelnUebersicht(
+                        reloadKey: unit.key,
+                        load: { await model.verwaltung(unit) { try await $0.tiles() } ?? nil },
+                        save: { key, state in await model.verwaltung(unit) { try await $0.setTile(key: key, state: state) } ?? nil }
+                    )
+                    .listRowBackground(Color.clear)
+                    .listRowInsets(EdgeInsets())
+                }
+            }
             Section {
                 if unit.sections.isEmpty {
                     Text(tr("Für deine Rolle gibt es in dieser Fassung der App noch keinen Bereich. Bitte nutze den Browser."))

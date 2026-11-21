@@ -106,6 +106,14 @@ struct AusweisView: View {
                             WalletKnopf()
                         }
                     }
+                    if let access = model.access {
+                        KachelnUebersicht(
+                            reloadKey: "p\(access.id)",
+                            load: { await model.memberTiles() },
+                            save: { await model.setMemberTile($0, $1) }
+                        )
+                        .padding(.top, 8)
+                    }
                     // Verwaltung gleich unter dem Ausweis, nicht unter allen Rechnungen (UX-Audit 16.11., IOS-17)
                     if let units = model.adminOverview?.allUnits, !units.isEmpty {
                         IchVerweis(title: tr("Verwaltung"), detail: units.map(\.name).joined(separator: ", ")) { VerwaltungView() }

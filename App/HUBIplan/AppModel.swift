@@ -691,6 +691,18 @@ final class AppModel: ObservableObject {
         await loadAdmin()
     }
 
+    /// Kacheln der Übersicht im Mitgliederbereich; nil ohne Antwort (dann bleibt die Übersicht weg).
+    func memberTiles() async -> HomeTiles? {
+        guard let session, let access else { return nil }
+        return try? await session.api().memberTiles(accessId: access.id)
+    }
+
+    /// Auswahl einer Kachel speichern; gilt auch für die Startseite im Browser.
+    func setMemberTile(_ key: String, _ state: TileState) async -> HomeTiles? {
+        guard let session, let access else { return nil }
+        return try? await session.api().setMemberTile(accessId: access.id, key: key, state: state)
+    }
+
     // MARK: Verwaltung
 
     private var tresor: VerwaltungTresor? {
