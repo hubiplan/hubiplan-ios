@@ -71,9 +71,12 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
         if showsObligations { list.append(.obligations) }
         // Verein
         if showsMembers { list.append(.members) }
+        if showsApplications { list.append(.applications) }
         if !isDepartment, showsMembers { list.append(.occasions) }
         if showsQualifications { list.append(.qualifications) }
         // Vereinsleben
+        if showsMeetings { list.append(.meetings) }
+        if showsBookings { list.append(.bookings) }
         if showsCompetitions { list.append(.competitions) }
         // Verwaltung: Geschäftspartner gleich nach Kassenbuch und Rechnungen
         if showsFinance { list.append(.finance) }
@@ -94,6 +97,7 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
 
 public enum AdminSection: String, Sendable, CaseIterable {
     case tasks, todos, members, events, finance, billing, occasions, competitions, partners, qualifications, obligations
+    case applications, bookings, meetings
 }
 
 /// Untereinheit mit Rollen nur dort (z. B. Zugführung).
@@ -102,9 +106,11 @@ public struct AdminDepartment: Decodable, Equatable, Sendable {
     public var name: String
     public var permissions: [String]
     public var stufen: Bool
+    /// Module des Vereins (Server ab 21.11.2026; ältere: leer)
+    public var modules: [String]
 
     enum CodingKeys: String, CodingKey {
-        case id, name, permissions, stufen
+        case id, name, permissions, stufen, modules
     }
 
     public init(from decoder: Decoder) throws {
@@ -113,10 +119,11 @@ public struct AdminDepartment: Decodable, Equatable, Sendable {
         name = try c.decode(String.self, forKey: .name)
         permissions = try c.decodeIfPresent([String].self, forKey: .permissions) ?? []
         stufen = try c.decodeIfPresent(Bool.self, forKey: .stufen) ?? false
+        modules = try c.decodeIfPresent([String].self, forKey: .modules) ?? []
     }
 
     public var asUnit: AdminUnit {
-        AdminUnit(id: id, name: name, type: "department", permissions: permissions, scope: "d", stufen: stufen)
+        AdminUnit(id: id, name: name, type: "department", permissions: permissions, scope: "d", stufen: stufen, modules: modules)
     }
 }
 
@@ -221,6 +228,8 @@ public struct AdminTask: Decodable, Equatable, Sendable {
         if kind == "change_request" { return .changeRequests }
         if kind == "photo", let membership { return .member(membership) }
         if kind == "event", let ref { return .event(ref) }
+        if kind == "application", let ref { return .application(ref) }
+        if kind == "booking" { return .bookings }
         return nil
     }
 }
@@ -229,6 +238,8 @@ public enum AdminTarget: Equatable, Sendable {
     case changeRequests
     case member(Int)
     case event(Int)
+    case application(Int)
+    case bookings
 }
 
 struct AdminTasks: Decodable {
