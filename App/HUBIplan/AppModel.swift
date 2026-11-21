@@ -61,6 +61,8 @@ final class AppModel: ObservableObject {
     @Published var surveys: SurveyList?
     /// Pinnwand des gewählten Zugangs (soweit eingeschaltet)
     @Published var pinboard: PinboardList?
+    /// Sammelbestellungen des gewählten Zugangs (soweit eingeschaltet)
+    @Published var orders: OrderCampaignList?
     /// Auslagen des gewählten Zugangs (soweit eingeschaltet)
     @Published var expenses: ExpenseOverview?
     @Published var feeProofs: FeeProofOverview?
@@ -251,6 +253,7 @@ final class AppModel: ObservableObject {
         documents = nil
         surveys = nil
         pinboard = nil
+        orders = nil
         expenses = nil
         feeProofs = nil
         scores = nil
@@ -674,6 +677,8 @@ final class AppModel: ObservableObject {
         var pinboard: PinboardList?
         // Nur nachsehen: „neu“ bleibt stehen, bis die Pinnwand geöffnet wird
         if access.hasPinboard { pinboard = try? await api.memberPinboard(accessId: id, seen: false) }
+        var orders: OrderCampaignList?
+        if access.hasOrders { orders = try? await api.memberOrders(accessId: id) }
         var expenses: ExpenseOverview?
         if access.hasExpenses { expenses = try? await api.memberExpenses(accessId: id) }
         var feeProofs: FeeProofOverview?
@@ -686,6 +691,7 @@ final class AppModel: ObservableObject {
         self.documents = access.hasDocs ? (documents ?? self.documents) : nil
         self.surveys = access.hasSurveys ? (surveys ?? self.surveys) : nil
         self.pinboard = access.hasPinboard ? (pinboard ?? self.pinboard) : nil
+        self.orders = access.hasOrders ? (orders ?? self.orders) : nil
         self.expenses = access.hasExpenses ? (expenses ?? self.expenses) : nil
         self.feeProofs = access.hasFeeProofs ? (feeProofs ?? self.feeProofs) : nil
         await loadAdmin()
@@ -1063,6 +1069,51 @@ final class AppModel: ObservableObject {
         return await session.api().image(path)
     }
 
+    // MARK: Bestellungen
+
+    /// Sammelbestellungen neu laden (nach einer Aktion oder beim Öffnen).
+    func reloadOrders() async {
+        guard let access, access.hasOrders else { return }
+        await run { api in
+            let fresh = try await api.memberOrders(accessId: access.id)
+            if self.access?.id == access.id { self.orders = fresh }
+        }
+    }
+
+    /// Einzelansicht mit Artikeln zum Bestellen; `nil` bei Fehler (steht dann in `error`).
+    func orderCampaign(_ id: Int) async -> OrderCampaign? {
+        guard let access else { return nil }
+        var found: OrderCampaign?
+        await run { api in found = try await api.memberOrderCampaign(accessId: access.id, id: id) }
+        return found
+    }
+
+    /// Eine Aktion zu einer Sammelbestellung; danach Liste neu. `true`, wenn sie geklappt hat.
+    private func orderAction(_ notice: String, _ work: @escaping (Api, Int) async throws -> OrderCampaign) async -> Bool {
+        guard let access else { return false }
+        var done = false
+        taskNotice = nil
+        await run { api in
+            _ = try await work(api, access.id)
+            self.taskNotice = notice
+            done = true
+        }
+        if done { await reloadOrders() }
+        return done
+    }
+
+    func placeOrder(_ campaign: OrderCampaign, lines: [OrderInput], note: String) async -> Bool {
+        await orderAction(tr("Danke, deine Bestellung ist gespeichert.")) { api, access in
+            try await api.placeOrder(accessId: access, id: campaign.id, lines: lines, note: note)
+        }
+    }
+
+    func withdrawOrder(_ campaign: OrderCampaign) async -> Bool {
+        await orderAction(tr("Bestellung zurückgezogen.")) { api, access in
+            try await api.withdrawOrder(accessId: access, id: campaign.id)
+        }
+    }
+
     // MARK: Umfragen
 
     /// Umfragen neu laden (nach einer Aktion oder beim Öffnen).
@@ -1209,6 +1260,7 @@ final class AppModel: ObservableObject {
         documents = nil
         surveys = nil
         pinboard = nil
+        orders = nil
         expenses = nil
         feeProofs = nil
         scores = nil
