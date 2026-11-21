@@ -128,6 +128,9 @@ struct AusweisView: View {
                     if let meetings = model.meetings {
                         IchVerweis(title: tr("Versammlungen"), detail: versammlungenKurz(meetings)) { VersammlungenView() }
                     }
+                    if let access = model.access, access.hasTraining {
+                        IchVerweis(title: tr("Training"), detail: access.trainingHint) { TrainingView() }
+                    }
                     if let surveys = model.surveys {
                         IchVerweis(title: tr("Umfragen"), detail: surveys.summary) { UmfragenView() }
                     }

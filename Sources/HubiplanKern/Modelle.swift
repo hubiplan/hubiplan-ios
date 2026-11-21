@@ -161,6 +161,10 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
     public var bookingsEnabled: Bool
     /// Schlüssel für Impressum und Datenschutzhinweise der Einheit (`/impressum/<Schlüssel>`)
     public var imprintKey: String?
+    /// Modul Training an, Schießbuch sichtbar und Zahl offener Einchecken (ältere Stände: fehlt)
+    public var trainingEnabled: Bool
+    public var shootingLogEnabled: Bool
+    public var trainingCheckin: Int
 
     enum CodingKeys: String, CodingKey {
         case id, modules, musician, company
@@ -187,6 +191,9 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         case expensesQuestions = "expenses_questions"
         case feeProofsEnabled = "fee_proofs_enabled"
         case feeProofsDue = "fee_proofs_due"
+        case trainingEnabled = "training_enabled"
+        case shootingLogEnabled = "shooting_log_enabled"
+        case trainingCheckin = "training_checkin"
     }
 
     public init(from decoder: Decoder) throws {
@@ -218,6 +225,9 @@ public struct PortalAccess: Decodable, Equatable, Identifiable, Sendable {
         entriesEnabled = try c.decodeIfPresent(Bool.self, forKey: .entriesEnabled) ?? false
         bookingsEnabled = try c.decodeIfPresent(Bool.self, forKey: .bookingsEnabled) ?? false
         imprintKey = try c.decodeIfPresent(String.self, forKey: .imprintKey)
+        trainingEnabled = try c.decodeIfPresent(Bool.self, forKey: .trainingEnabled) ?? false
+        shootingLogEnabled = try c.decodeIfPresent(Bool.self, forKey: .shootingLogEnabled) ?? false
+        trainingCheckin = try c.decodeIfPresent(Int.self, forKey: .trainingCheckin) ?? 0
     }
 
     /// Name der Einheit (Anzeigename, sonst Vereinsname)
