@@ -383,6 +383,27 @@ private struct VerwaltungStart: View {
                         Bereich(symbol: "person.2", title: tr("Mitglieder"), hint: tr("Suchen, anrufen, Mitgliedsakte öffnen"))
                     }
                 }
+                if unit.sections.contains(.applications) {
+                    NavigationLink {
+                        AntraegeView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "person.badge.plus", title: tr("Beitrittsanträge"), hint: tr("Anträge prüfen, zustimmen, aufnehmen oder ablehnen"))
+                    }
+                }
+                if unit.sections.contains(.meetings) {
+                    NavigationLink {
+                        VersammlungenLeitenView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "person.3", title: tr("Versammlung leiten"), hint: tr("Anwesenheit, Einlass per Ausweis, QR-Code, Abstimmungen"))
+                    }
+                }
+                if unit.sections.contains(.bookings) {
+                    NavigationLink {
+                        BelegungFreigebenView(unit: unit)
+                    } label: {
+                        Bereich(symbol: "mappin.and.ellipse", title: tr("Belegung freigeben"), hint: tr("Anfragen für Räume und Plätze bestätigen oder ablehnen"))
+                    }
+                }
                 if unit.sections.contains(.occasions) {
                     NavigationLink {
                         AnlaesseView(unit: unit)
@@ -526,6 +547,10 @@ struct OffenePunkteView: View {
                                     NavigationLink { MitgliedView(unit: unit, id: id) } label: { zeile(task) }
                                 case let .event(id):
                                     NavigationLink { TerminVerwaltungView(unit: unit, id: id, occurrence: nil) } label: { zeile(task) }
+                                case let .application(id):
+                                    NavigationLink { AntragView(unit: unit, id: id) } label: { zeile(task) }
+                                case .bookings:
+                                    NavigationLink { BelegungFreigebenView(unit: unit) } label: { zeile(task) }
                                 case nil:
                                     zeile(task)
                                 }
