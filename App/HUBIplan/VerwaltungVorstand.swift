@@ -156,6 +156,7 @@ struct AntragView: View {
                 BeschriftetesFeld(label: tr("Vermerk (z. B. Beschluss)"), text: $acceptNote, axis: .vertical)
                 Toggle(tr("Begrüßung per E-Mail schicken"), isOn: $welcome)
             }
+            .tastaturFuehrung()
             .navigationTitle(tr("{name} aufnehmen", ["name": data?.name ?? ""]))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -181,6 +182,7 @@ struct AntragView: View {
                 BeschriftetesFeld(label: tr("Vermerk (nur intern)"), text: $rejectNote, axis: .vertical)
                 Toggle(tr("Absage per E-Mail schicken"), isOn: $rejectMail)
             }
+            .tastaturFuehrung()
             .navigationTitle(tr("Antrag ablehnen"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -202,6 +204,7 @@ struct AntragView: View {
             Form {
                 BeschriftetesFeld(label: tr("Frage an die antragstellende Person"), text: $question, axis: .vertical)
             }
+            .tastaturFuehrung()
             .navigationTitle(tr("Rückfrage stellen"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -704,6 +707,7 @@ private struct AbstimmungAnlegen: View {
                 }
                 Toggle(tr("Geheime Abstimmung"), isOn: $secret)
             }
+            .tastaturFuehrung()
             .navigationTitle(tr("Neue Abstimmung"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
