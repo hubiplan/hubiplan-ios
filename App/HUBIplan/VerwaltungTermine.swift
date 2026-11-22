@@ -39,6 +39,9 @@ struct BeschriftetesFeld: View {
 struct TermineVerwaltungView: View {
     @EnvironmentObject private var model: AppModel
     let unit: AdminUnit
+    /// Von „Neu“ auf der Startliste: gleich das Formular öffnen, wenn Anlegen erlaubt ist
+    var neu = false
+    @State private var neuGezeigt = false
     @State private var list: AdminEventList?
     @State private var creating = false
     /// Vorführmodus: für das Bildschirmfoto gleich in einen Termin
@@ -109,6 +112,10 @@ struct TermineVerwaltungView: View {
         if let result = await model.verwaltung(unit, { try await $0.events(from: range.from, to: range.to) }) {
             list = result
             if Demo.active, Demo.section == "neuertermin" { creating = true }
+            if neu, !neuGezeigt {
+                neuGezeigt = true
+                if result.canManage { creating = true }
+            }
         }
     }
 }

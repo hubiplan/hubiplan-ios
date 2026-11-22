@@ -302,8 +302,32 @@ private struct VerwaltungStart: View {
     @State private var showBilling = Demo.active && ["vrechnungen", "vrechnung"].contains(Demo.section)
     @State private var scanning = false
     @State private var check: Geprueft?
+    /// Suche über die Bereiche
+    @State private var suche = ""
+    /// Unter „Neu“ gewählt: öffnet den Bereich gleich mit dem Formular
+    @State private var neu: NeuAktion?
 
     private var unit: AdminUnit { units.first { $0.key == unitKey } ?? units[0] }
+
+    @ViewBuilder
+    private func ziel(_ bereich: AdminSection) -> some View {
+        switch bereich {
+        case .tasks: OffenePunkteView(unit: unit)
+        case .events: TermineVerwaltungView(unit: unit)
+        case .todos: AufgabenVerwaltungView(unit: unit)
+        case .obligations: FristenView(unit: unit)
+        case .members: MitgliederView(unit: unit)
+        case .applications: AntraegeView(unit: unit)
+        case .meetings: VersammlungenLeitenView(unit: unit)
+        case .bookings: BelegungFreigebenView(unit: unit)
+        case .occasions: AnlaesseView(unit: unit)
+        case .qualifications: QualifikationenView(unit: unit)
+        case .competitions: WettbewerbeView(unit: unit)
+        case .finance: KassenbuchView(unit: unit)
+        case .billing: RechnungenView(unit: unit)
+        case .partners: GeschaeftspartnerView(unit: unit)
+        }
+    }
 
     var body: some View {
         List {
@@ -325,21 +349,59 @@ private struct VerwaltungStart: View {
                 }
             }
             VerwaltungMeldung()
-            if unit.canCheckCards {
+            // Arbeitsplatz (Gestaltung „Frisch mobil“): „Ausweis prüfen“ und „Neu“ ganz oben
+            if unit.canCheckCards || !unit.neuAktionen.isEmpty {
                 Section {
-                    Button {
-                        scanning = true
-                    } label: {
-                        Label(tr("Ausweis prüfen"), systemImage: "qrcode.viewfinder")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
+                    HStack(spacing: Design.Abstand.klein) {
+                        if unit.canCheckCards {
+                            Button {
+                                scanning = true
+                            } label: {
+                                Label {
+                                    Text(tr("Ausweis prüfen"))
+                                } icon: {
+                                    SymbolBild(.scannen, groesse: 20)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        if !unit.neuAktionen.isEmpty {
+                            Menu {
+                                ForEach(unit.neuAktionen) { aktion in
+                                    Button(aktion.titel) { neu = aktion }
+                                }
+                            } label: {
+                                Label {
+                                    Text(tr("Neu"))
+                                } icon: {
+                                    SymbolBild(.plus, groesse: 20)
+                                }
+                                .frame(maxWidth: unit.canCheckCards ? nil : .infinity)
+                                .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
                 }
             }
-            if !unit.isDepartment {
+            if unit.sections.contains(.tasks), suche.isEmpty {
+                Section {
+                    NavigationLink {
+                        OffenePunkteView(unit: unit)
+                    } label: {
+                        HStack(spacing: Design.Abstand.klein) {
+                            Bereich(bereich: .tasks)
+                            Spacer(minLength: Design.Abstand.klein)
+                            Zaehler(open ?? 0)
+                        }
+                    }
+                }
+            }
+            if !unit.isDepartment, suche.isEmpty {
                 Section {
                     KachelnUebersicht(
                         reloadKey: unit.key,
@@ -350,117 +412,49 @@ private struct VerwaltungStart: View {
                     .listRowInsets(EdgeInsets())
                 }
             }
-            Section {
-                if unit.sections.isEmpty {
+            if unit.sections.isEmpty {
+                Section {
                     Text(tr("Für deine Rolle gibt es in dieser Fassung der App noch keinen Bereich. Bitte nutze den Browser."))
                         .foregroundStyle(.secondary)
                 }
-                if unit.sections.contains(.tasks) {
-                    NavigationLink {
-                        OffenePunkteView(unit: unit)
-                    } label: {
-                        Bereich(
-                            symbol: "tray.full",
-                            title: open.map { tr("Zu erledigen ({count})", ["count": $0]) } ?? tr("Zu erledigen"),
-                            hint: tr("Datenänderungen, Fotos und Termine, die auf dich warten")
-                        )
+            }
+            let bereiche = unit.sections.filter { $0 != .tasks }
+            if suche.isEmpty {
+                // Bereiche in den Gruppen des Hauptmenüs im Browser
+                ForEach(VerwaltungGruppe.gruppen(bereiche), id: \.gruppe) { eintrag in
+                    Section {
+                        ForEach(eintrag.bereiche, id: \.self) { bereich in
+                            NavigationLink {
+                                ziel(bereich)
+                            } label: {
+                                Bereich(bereich: bereich)
+                            }
+                        }
+                    } header: {
+                        Text(eintrag.gruppe.titel)
                     }
                 }
-                if unit.sections.contains(.events) {
-                    NavigationLink {
-                        TermineVerwaltungView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "calendar", title: tr("Termine"), hint: tr("Absagen, Rückmeldungen eintragen, neuer Termin"))
+            } else {
+                let treffer = VerwaltungGruppe.suche(unit.sections, suche)
+                Section {
+                    if treffer.isEmpty {
+                        Text(tr("Kein Bereich passt zu „{text}“.", ["text": suche.trimmingCharacters(in: .whitespaces)]))
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(treffer, id: \.self) { bereich in
+                        NavigationLink {
+                            ziel(bereich)
+                        } label: {
+                            Bereich(bereich: bereich)
+                        }
                     }
                 }
-                if unit.sections.contains(.todos) {
-                    NavigationLink {
-                        AufgabenVerwaltungView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "checklist", title: tr("Aufgaben verteilen"), hint: tr("Aufgaben anlegen, erledigen und wieder öffnen"))
-                    }
+            }
+            if !unit.sections.isEmpty, suche.isEmpty {
+                Section {
+                } footer: {
+                    Text(tr("Alles Weitere verwaltest du zurzeit im Browser."))
                 }
-                if unit.sections.contains(.obligations) {
-                    NavigationLink {
-                        FristenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "calendar.badge.exclamationmark", title: tr("Fristen"), hint: tr("Vereinspflichten mit Frist und Zuständigkeit"))
-                    }
-                }
-                if unit.sections.contains(.members) {
-                    NavigationLink {
-                        MitgliederView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "person.2", title: tr("Mitglieder"), hint: tr("Suchen, anrufen, Mitgliedsakte öffnen"))
-                    }
-                }
-                if unit.sections.contains(.applications) {
-                    NavigationLink {
-                        AntraegeView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "person.badge.plus", title: tr("Beitrittsanträge"), hint: tr("Anträge prüfen, zustimmen, aufnehmen oder ablehnen"))
-                    }
-                }
-                if unit.sections.contains(.meetings) {
-                    NavigationLink {
-                        VersammlungenLeitenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "person.3", title: tr("Versammlung leiten"), hint: tr("Anwesenheit, Einlass per Ausweis, QR-Code, Abstimmungen"))
-                    }
-                }
-                if unit.sections.contains(.bookings) {
-                    NavigationLink {
-                        BelegungFreigebenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "mappin.and.ellipse", title: tr("Belegung freigeben"), hint: tr("Anfragen für Räume und Plätze bestätigen oder ablehnen"))
-                    }
-                }
-                if unit.sections.contains(.occasions) {
-                    NavigationLink {
-                        AnlaesseView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "gift", title: tr("Jubiläen und Geburtstage"), hint: tr("Geburtstage und Jubiläen der nächsten Wochen"))
-                    }
-                }
-                if unit.sections.contains(.qualifications) {
-                    NavigationLink {
-                        QualifikationenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "rosette", title: tr("Qualifikationen"), hint: tr("Nachweise, die bald ablaufen"))
-                    }
-                }
-                if unit.sections.contains(.competitions) {
-                    NavigationLink {
-                        WettbewerbeView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "trophy", title: tr("Wettbewerbe"), hint: tr("Ergebnisse am Stand erfassen, auch ohne Empfang"))
-                    }
-                }
-                if unit.sections.contains(.finance) {
-                    NavigationLink {
-                        KassenbuchView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "eurosign.circle", title: tr("Kassenbuch"), hint: tr("Kontostände, Buchungen, Beleg fotografieren"))
-                    }
-                }
-                if unit.sections.contains(.billing) {
-                    NavigationLink {
-                        RechnungenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "doc.text", title: tr("Rechnungen"), hint: tr("Offene und bezahlte Rechnungen, bar kassieren"))
-                    }
-                }
-                if unit.sections.contains(.partners) {
-                    NavigationLink {
-                        GeschaeftspartnerView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "building.2", title: tr("Geschäftspartner"), hint: tr("Lieferanten, Sponsoren und Ansprechpartner nachschlagen"))
-                    }
-                }
-            } header: {
-                Text(tr("Was möchtest du tun?"))
-            } footer: {
-                Text(tr("Alles Weitere verwaltest du zurzeit im Browser."))
             }
             Section {
                 Button(tr("Verwaltung auf diesem Gerät sperren"), role: .destructive) { confirmLock = true }
@@ -470,6 +464,16 @@ private struct VerwaltungStart: View {
                         "datum": date.formatted(.dateTime.day().month().year().locale(Texte.locale)),
                     ]))
                 }
+            }
+        }
+        // Ab einer Handvoll Bereichen lohnt die Suche
+        .searchable(text: $suche, prompt: tr("Bereich suchen"))
+        .navigationDestination(item: $neu) { aktion in
+            switch aktion {
+            case .quittung: KassenbuchView(unit: unit, neu: .quittung)
+            case .buchung: KassenbuchView(unit: unit, neu: .buchung)
+            case .termin: TermineVerwaltungView(unit: unit, neu: true)
+            case .aufgabe: AufgabenVerwaltungView(unit: unit, neu: true)
             }
         }
         .navigationDestination(isPresented: $showMembers) { MitgliederView(unit: unit) }
@@ -516,20 +520,19 @@ private struct VerwaltungStart: View {
     }
 }
 
+/// Zeile eines Bereichs: Strichsymbol, Name und ein Satz dazu.
 private struct Bereich: View {
-    let symbol: String
-    let title: String
-    let hint: String
+    let bereich: AdminSection
 
     var body: some View {
-        Label {
+        HStack(spacing: Design.Abstand.mittel) {
+            SymbolKopf(bereich.symbol)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                Text(hint).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
+                Text(bereich.titel)
+                Text(bereich.hinweis).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             }
-        } icon: {
-            Image(systemName: symbol)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 

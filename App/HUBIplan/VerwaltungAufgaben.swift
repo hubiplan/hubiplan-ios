@@ -6,6 +6,9 @@ import SwiftUI
 struct AufgabenVerwaltungView: View {
     @EnvironmentObject private var model: AppModel
     let unit: AdminUnit
+    /// Von „Neu“ auf der Startliste: gleich das Formular öffnen
+    var neu = false
+    @State private var neuGezeigt = false
     @State private var rows: [AdminTodo]?
     @State private var done = false
     @State private var creating = false
@@ -82,6 +85,10 @@ struct AufgabenVerwaltungView: View {
         rows = result
         if Demo.active, Demo.section == "neueaufgabe", !demoShown {
             demoShown = true
+            creating = true
+        }
+        if neu, !neuGezeigt {
+            neuGezeigt = true
             creating = true
         }
     }

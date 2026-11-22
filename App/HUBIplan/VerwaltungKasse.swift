@@ -106,6 +106,9 @@ struct BelegWahl: View {
 struct KassenbuchView: View {
     @EnvironmentObject private var model: AppModel
     let unit: AdminUnit
+    /// Von „Neu“ auf der Startliste: gleich das Formular öffnen (nur Quittung und Buchung)
+    var neu: NeuAktion?
+    @State private var neuGezeigt = false
     @State private var accounts: [FinanceAccount]?
     /// Buchungen dieser Einheit, die noch nicht gesendet sind
     @State private var drafts: [StoredBooking] = []
@@ -368,6 +371,10 @@ struct KassenbuchView: View {
         more = result.1.hasMore
         page = 1
         if Demo.active, Demo.section == "neuebuchung" { creating = true }
+        if let neu, !neuGezeigt, unit.canEditFinance {
+            neuGezeigt = true
+            if neu == .quittung { receipt = true } else { creating = true }
+        }
         if Demo.active, Demo.section == "quittung", finishedDemo == false {
             finishedDemo = true
             receipt = true
