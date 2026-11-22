@@ -110,6 +110,24 @@ jobs:
             foto kalender "$SPRACHE" -demo 1 -reiter konto -abschnitt kalender
           done
           xcrun simctl shutdown booted
+          # iPad: Liste und Detail nebeneinander (wenige Bilder, nur Deutsch)
+          TABLET=$(xcrun simctl list devices available | grep -m1 -oE 'iPad [^(]*\(' | sed 's/ ($//')
+          if [ -n "$TABLET" ]; then
+            echo "Simulator: $TABLET"
+            xcrun simctl boot "$TABLET"
+            xcrun simctl bootstatus "$TABLET" -b
+            xcrun simctl install booted build/Build/Products/Debug-iphonesimulator/HUBIplan.app
+            foto ipad-start de -demo 1 -reiter start
+            foto ipad-termine de -demo 1 -reiter termine
+            foto ipad-termin de -demo 1 -reiter termine -abschnitt termin
+            foto ipad-neues de -demo 1 -reiter mitteilungen
+            foto ipad-aufgaben de -demo 1 -reiter aufgaben
+            foto ipad-mappe de -demo 1 -reiter noten -abschnitt mappe
+            foto ipad-verwaltung de -demo 1 -reiter ausweis -abschnitt verwaltung
+            xcrun simctl shutdown booted
+          else
+            echo "Kein iPad-Simulator vorhanden, iPad-Bilder entfallen."
+          fi
       - uses: actions/upload-artifact@v4
         with:
           name: bildschirmfotos

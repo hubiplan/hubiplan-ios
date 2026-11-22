@@ -344,3 +344,39 @@ enum SymbolZeichner {
         return bild.withRenderingMode(.alwaysTemplate)
     }
 }
+
+/// Liste und Detail: auf dem iPhone nacheinander, auf dem iPad nebeneinander (wie `ListDetail`
+/// der Android-App). `liste` bekommt auf dem iPad die Bindung für `List(selection:)`; die Zeilen
+/// bleiben `NavigationLink(value:)` und wählen dort aus, statt zu stapeln.
+struct ListeDetail<Wert: Hashable, Liste: View, Detail: View>: View {
+    @Environment(\.horizontalSizeClass) private var breite
+    @Binding var path: [Wert]
+    /// Hinweis rechts, solange nichts gewählt ist
+    let leer: String
+    @ViewBuilder var liste: (Binding<Wert?>?) -> Liste
+    @ViewBuilder var detail: (Wert) -> Detail
+
+    var body: some View {
+        if Zweispaltig.gilt(breit: breite == .regular) {
+            NavigationSplitView {
+                liste(Binding(get: { Zweispaltig.auswahl(path) }, set: { path = Zweispaltig.pfad($0) }))
+            } detail: {
+                NavigationStack {
+                    Group {
+                        if let wert = Zweispaltig.auswahl(path) {
+                            detail(wert).id(wert)
+                        } else {
+                            Leerzustand(symbol: .info, text: leer)
+                        }
+                    }
+                    .navigationDestination(for: Wert.self) { detail($0) }
+                }
+            }
+            .navigationSplitViewStyle(.balanced)
+        } else {
+            NavigationStack(path: $path) {
+                liste(nil).navigationDestination(for: Wert.self) { detail($0) }
+            }
+        }
+    }
+}

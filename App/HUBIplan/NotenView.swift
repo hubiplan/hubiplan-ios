@@ -26,8 +26,8 @@ struct NotenView: View {
     @State private var play: PultStart?
 
     var body: some View {
-        NavigationStack(path: $path) {
-            List {
+        ListeDetail(path: $path, leer: tr("Mappe auswählen")) { auswahl in
+            List(selection: auswahl) {
                 if let message = model.error {
                     Section {
                         MeldungText(message, .fehler)
@@ -55,17 +55,16 @@ struct NotenView: View {
             .navigationTitle(tr("Noten"))
             .zugangsWahl()
             .searchable(text: $query, prompt: tr("Titel, Komponist oder Nummer"))
-            .navigationDestination(for: String.self) { key in
-                if let mappe = model.scores?.mappen.first(where: { $0.key == key }) {
-                    MappeView(mappe: mappe)
-                } else {
-                    Text(tr("Diese Mappe gibt es nicht mehr.")).foregroundStyle(.secondary)
-                }
-            }
             .refreshable { await model.refreshScores() }
             .task(id: model.accessId) { await model.refreshScores() }
             .overlay { if model.loading && model.scores == nil { Laedt() } }
             .fullScreenCover(item: $play) { start in NotenPult(mappe: start.mappe, first: start.piece) }
+        } detail: { key in
+            if let mappe = model.scores?.mappen.first(where: { $0.key == key }) {
+                MappeView(mappe: mappe)
+            } else {
+                Text(tr("Diese Mappe gibt es nicht mehr.")).foregroundStyle(.secondary)
+            }
         }
     }
 

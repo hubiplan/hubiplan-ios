@@ -45,6 +45,9 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 - **Reiter wie in der Android-App:** Start, Termine, Neues, Ich und ein fünfter je Rolle
   (Verwaltung, sonst Noten, sonst Aufgaben; `Zustand.fuenfterReiter`, wählbar unter „Mein Konto ›
   Einstellungen“). Was nicht in der Leiste steht, ist auf „Start“ unter „Schnell erreichbar“.
+- **iPad:** Termine, Neues (Mitteilungen), Aufgaben und Noten zeigen Liste und Detail
+  nebeneinander (`ListeDetail` in `Bausteine.swift`, Regel in `Zweispaltig`), wie `ListDetail`
+  der Android-App; auf dem iPhone bleibt es beim Nacheinander.
 - **Einführung:** „Start“ zeigt nach dem Umbau einmal die Karte „So findest du dich zurecht“
   (`Einfuehrung.zeigt`; der Stand steht in den Einstellungen des Geräts, eine höhere Zahl zeigt
   sie allen noch einmal).
