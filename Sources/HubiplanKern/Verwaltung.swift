@@ -4,6 +4,28 @@ import Foundation
 // Freischalten mit Passwort und Zwei-Faktor-Code, Vorstandsschlüssel `hpa_…` mit eigenem
 // Schlüsselpaar, offene Punkte und Mitglieder (nur lesen).
 
+/// Hauptmenüpunkt der Einheit mit den Kennungen seiner Menüpunkte (Web-Oberfläche).
+public struct MenuGroup: Decodable, Equatable, Sendable {
+    public var id: String
+    public var label: String
+    public var items: [String]
+
+    enum CodingKeys: String, CodingKey { case id, label, items }
+
+    public init(id: String, label: String = "", items: [String] = []) {
+        self.id = id
+        self.label = label
+        self.items = items
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        label = try c.decodeIfPresent(String.self, forKey: .label) ?? ""
+        items = try c.decodeIfPresent([String].self, forKey: .items) ?? []
+    }
+}
+
 /// Einheit mit Verwaltungsrechten.
 public struct AdminUnit: Decodable, Equatable, Sendable {
     public var id: Int
@@ -16,12 +38,15 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
     public var stufen: Bool
     /// Eingeschaltete Module (ältere Server: leer)
     public var modules: [String]
+    /// Hauptmenüpunkte der Einheit wie im Browser (Menü frei anordnen; ältere Server: leer)
+    public var menuGroups: [MenuGroup]
 
     enum CodingKeys: String, CodingKey {
         case id, name, type, permissions, scope, stufen, modules
+        case menuGroups = "menu_groups"
     }
 
-    public init(id: Int, name: String, type: String = "", permissions: [String] = [], scope: String = "u", stufen: Bool = false, modules: [String] = []) {
+    public init(id: Int, name: String, type: String = "", permissions: [String] = [], scope: String = "u", stufen: Bool = false, modules: [String] = [], menuGroups: [MenuGroup] = []) {
         self.id = id
         self.name = name
         self.type = type
@@ -29,6 +54,7 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
         self.scope = scope
         self.stufen = stufen
         self.modules = modules
+        self.menuGroups = menuGroups
     }
 
     public init(from decoder: Decoder) throws {
@@ -40,6 +66,7 @@ public struct AdminUnit: Decodable, Equatable, Sendable {
         scope = try c.decodeIfPresent(String.self, forKey: .scope) ?? "u"
         stufen = try c.decodeIfPresent(Bool.self, forKey: .stufen) ?? false
         modules = try c.decodeIfPresent([String].self, forKey: .modules) ?? []
+        menuGroups = try c.decodeIfPresent([MenuGroup].self, forKey: .menuGroups) ?? []
     }
 
     public var key: String { "\(scope):\(id)" }

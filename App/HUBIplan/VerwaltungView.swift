@@ -419,8 +419,8 @@ private struct VerwaltungStart: View {
             }
             let bereiche = unit.sections.filter { $0 != .tasks }
             if suche.isEmpty {
-                // Bereiche in den Gruppen des Hauptmenüs im Browser
-                ForEach(VerwaltungGruppe.gruppen(bereiche), id: \.gruppe) { eintrag in
+                // Bereiche in den Hauptmenüpunkten der Einheit wie im Browser
+                ForEach(VerwaltungGruppe.gruppen(bereiche, unit.menuGroups), id: \.key) { eintrag in
                     Section {
                         ForEach(eintrag.bereiche, id: \.self) { bereich in
                             NavigationLink {
@@ -430,7 +430,7 @@ private struct VerwaltungStart: View {
                             }
                         }
                     } header: {
-                        Text(eintrag.gruppe.titel)
+                        Text(eintrag.titel)
                     }
                 }
             } else {
