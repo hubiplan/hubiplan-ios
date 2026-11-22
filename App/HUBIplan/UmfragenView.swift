@@ -52,6 +52,7 @@ struct UmfragenView: View {
             }
         }
         .navigationTitle(tr("Umfragen"))
+        .zurueckSchutz()
         .task { await model.reloadSurveys() }
         .refreshable { await model.reloadSurveys() }
         .confirmationDialog(
@@ -157,6 +158,7 @@ private struct UmfrageFormular: View {
                 .disabled(model.loading || !survey.ready(draft))
             }
         }
+        .entwurf(draft != survey.initialDraft())
     }
 }
 

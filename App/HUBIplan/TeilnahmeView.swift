@@ -57,6 +57,7 @@ struct TeilnahmeSection: View {
             Text(tr("Anmeldung"))
         }
         .task(id: eventId) { await load() }
+        .entwurf(!chosen.isEmpty || !guests.isEmpty || !note.isEmpty)
         .sheet(item: $cancelling) { reg in
             if let d = data {
                 AbmeldenSheet(eventId: eventId, reg: reg, offer: d.offer) { ids in

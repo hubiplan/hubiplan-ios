@@ -52,6 +52,9 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 - **Verwaltung als Arbeitsplatz** (`VerwaltungStart.swift`): oben „Ausweis prüfen“ und „Neu“
   (Quittung, Buchung, Termin, Aufgabe je nach Rechten), darunter „Zu erledigen“ mit Zähler, die
   Kacheln und die Bereiche in den Gruppen des Hauptmenüs im Browser; die Suche schränkt ein.
+- **Formulare schützen angefangene Eingaben:** Eingabeblätter mit `eingabeschutz` („Abbrechen“ fragt
+  nach, Herunterwischen ruht), Formulare auf einer Seite melden mit `entwurf`, und die Seite fragt
+  bei „Zurück“ nach (`zurueckSchutz`); `FormulareTests` prüft, dass keines fehlt.
 - **„Für dich zu tun“ auf „Start“** kommt aus `portal/<Zugang>/start/` (`Start.swift`); ältere
   HUBIplan-Stände ohne diesen Abruf zeigen, was die App aus der Terminliste weiß. Die Terminliste
   ist nach Monaten gegliedert und lässt sich auf Termine ohne Rückmeldung einschränken.

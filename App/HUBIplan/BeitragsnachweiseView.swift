@@ -44,6 +44,7 @@ struct BeitragsnachweiseView: View {
             }
         }
         .navigationTitle(tr("Beitragsnachweise"))
+        .zurueckSchutz()
         .task { await model.reloadFeeProofs() }
         .refreshable { await model.reloadFeeProofs() }
     }
@@ -122,6 +123,7 @@ private struct NachweisJahr: View {
                 failure = tr("Die Datei ließ sich nicht öffnen.")
             }
         }
+        .entwurf(photo != nil || pdf != nil || !note.isEmpty)
     }
 
     private func load(_ url: URL) {

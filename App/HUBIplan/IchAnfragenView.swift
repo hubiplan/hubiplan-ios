@@ -70,6 +70,7 @@ struct BelegungView: View {
             }
         }
         .navigationTitle(tr("Belegung"))
+        .zurueckSchutz()
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task(id: "\(model.accessId ?? 0)-\(monday.timeIntervalSince1970)") { await load() }
@@ -191,6 +192,7 @@ private struct BelegungAnfrage: View {
             .buttonStyle(.borderedProminent)
             .disabled(busy || title.trimmingCharacters(in: .whitespaces).isEmpty || times == nil || item == nil)
             .onChange(of: start) { if end <= start { end = start.addingTimeInterval(allDay ? 0 : 2 * 3600) } }
+            .entwurf(!title.isEmpty || !note.isEmpty)
     }
 
     private func send() async {

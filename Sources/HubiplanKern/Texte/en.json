@@ -1184,6 +1184,7 @@
   "Hilfe, Datenschutz, Impressum, Lizenzen, Version": "Help, privacy, legal notice, licences, version",
   "Eingaben verwerfen?": "Discard your entries?",
   "Was du in diesem Blatt eingegeben hast, geht verloren.": "What you entered on this sheet will be lost.",
+ "Was du in diesem Formular eingegeben hast, geht verloren.": "What you entered in this form will be lost.",
   " · danach {amount}": " · then {amount}",
   "Abmelden ist bis {when} möglich.": "You can cancel until {when}.",
   "Angemeldet. Die Bestätigung kommt per E-Mail.": "Registered. The confirmation will arrive by email.",

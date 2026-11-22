@@ -206,8 +206,9 @@ private struct SchiessterminMelden: View {
         .tastaturFuehrung()
         .navigationTitle(tr("Schießtermin melden"))
         .navigationBarTitleDisplayMode(.inline)
+        // Angefangene Meldung: „Abbrechen“ fragt nach, Herunterwischen ruht
+        .eingabeschutz(!discipline.isEmpty || !caliber.isEmpty || !place.isEmpty)
         .toolbar {
-            ToolbarItem(placement: .cancellationAction) { Button(tr("Abbrechen")) { dismiss() } }
             ToolbarItem(placement: .confirmationAction) {
                 Button(tr("Melden")) {
                     var draft = ShootingDraft(date: isoTag(day), discipline: String(discipline.prefix(100)))

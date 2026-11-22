@@ -34,6 +34,7 @@ struct BestellungenView: View {
             }
         }
         .navigationTitle(tr("Bestellungen"))
+        .zurueckSchutz()
         .task { await model.reloadOrders() }
         .refreshable { await model.reloadOrders() }
         .confirmationDialog(
@@ -164,5 +165,6 @@ private struct BestellFormular: View {
                 Button(tr("Abbrechen")) { cancel() }.buttonStyle(.bordered)
             }
         }
+        .entwurf(values != (campaign.order?.values ?? [:]) || note != (campaign.order?.note ?? ""))
     }
 }

@@ -63,6 +63,7 @@ struct TerminDetailView: View {
             }
         }
         .navigationTitle(event.title)
+        .zurueckSchutz()
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task(id: event.eventId) { await load() }
