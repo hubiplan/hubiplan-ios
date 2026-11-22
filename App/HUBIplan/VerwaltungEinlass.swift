@@ -8,7 +8,7 @@ import SwiftUI
 
 private func uhrzeit(_ iso: String) -> String {
     guard let date = Zeit.parse(iso) else { return iso }
-    return date.formatted(date: .abbreviated, time: .shortened)
+    return Zeit.datumUhrzeit(date)
 }
 
 struct EinlassView: View {

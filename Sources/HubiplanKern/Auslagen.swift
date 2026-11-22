@@ -159,7 +159,7 @@ public struct ExpenseClaim: Decodable, Equatable, Identifiable, Sendable {
         var parts = [Geld.format(amountDue)]
         if !statusLabel.isEmpty { parts.append(statusLabel) }
         if let day = submittedAt.flatMap(Zeit.parse) {
-            parts.append(tr("eingereicht am {day}", ["day": day.formatted(.dateTime.day().month().year().locale(Texte.locale))]))
+            parts.append(tr("eingereicht am {day}", ["day": Zeit.datum(day)]))
         }
         return parts.joined(separator: " · ")
     }

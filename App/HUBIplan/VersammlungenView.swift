@@ -11,7 +11,7 @@ func tagUndZeit(_ date: Date?) -> String {
 /// Kurzstand neben „Versammlungen“: die nächste mit Datum, sonst die Zahl der Protokolle.
 func versammlungenKurz(_ list: MyMeetings) -> String {
     if let next = list.upcoming.first {
-        let day = next.start?.formatted(.dateTime.day().month().year().locale(Texte.locale)) ?? ""
+        let day = next.start.map { Zeit.datum($0) } ?? ""
         return [next.title, day].filter { !$0.isEmpty }.joined(separator: " · ")
     }
     if !list.minutes.isEmpty { return trn("1 Protokoll", "{n} Protokolle", list.minutes.count) }

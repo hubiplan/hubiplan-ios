@@ -357,10 +357,10 @@ private struct VerwaltungStart: View {
                             Button {
                                 scanning = true
                             } label: {
-                                Label {
-                                    Text(tr("Ausweis prüfen"))
-                                } icon: {
+                                // Eine Zeile, auch auf Englisch: lieber etwas kleiner als umbrochen
+                                HStack(spacing: 6) {
                                     SymbolBild(.scannen, groesse: 20)
+                                    Text(tr("Ausweis prüfen")).lineLimit(1).minimumScaleFactor(0.75)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 6)
@@ -373,10 +373,9 @@ private struct VerwaltungStart: View {
                                     Button(aktion.titel) { neu = aktion }
                                 }
                             } label: {
-                                Label {
-                                    Text(tr("Neu"))
-                                } icon: {
+                                HStack(spacing: 6) {
                                     SymbolBild(.plus, groesse: 20)
+                                    Text(tr("Neu")).lineLimit(1)
                                 }
                                 .frame(maxWidth: unit.canCheckCards ? nil : .infinity)
                                 .padding(.vertical, 6)
@@ -461,7 +460,7 @@ private struct VerwaltungStart: View {
             } footer: {
                 if let until, let date = Zeit.parse(until) {
                     Text(tr("Freigeschaltet bis {datum}", [
-                        "datum": date.formatted(.dateTime.day().month().year().locale(Texte.locale)),
+                        "datum": Zeit.datum(date),
                     ]))
                 }
             }
@@ -946,7 +945,7 @@ struct AenderungenView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(request.memberName).font(.hubi(.headline))
                                 if let date = request.createdAt.flatMap(Zeit.parse) {
-                                    Text(date.formatted(.dateTime.day().month().year().locale(Texte.locale)))
+                                    Text(Zeit.datum(date))
                                         .font(.hubi(.caption)).foregroundStyle(Color.secondary)
                                 }
                                 ForEach(request.lines, id: \.key) { Text($0.text) }

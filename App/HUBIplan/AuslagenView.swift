@@ -262,7 +262,7 @@ private struct AuslageView: View {
                         Text(tr("Grund der Ablehnung: {reason}", ["reason": c.rejectReason]))
                     }
                     if let day = c.purchaseDate.flatMap(kalendertag) {
-                        Text(tr("Datum: {day}", ["day": day.formatted(.dateTime.day().month().year().locale(Texte.locale))]))
+                        Text(tr("Datum: {day}", ["day": Zeit.datum(day)]))
                     }
                     Text(trn("1 Beleg", "{n} Belege", c.files.count)).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
@@ -321,7 +321,7 @@ private struct AuslageView: View {
                 if !c.events.isEmpty {
                     Section {
                         ForEach(Array(c.events.enumerated()), id: \.offset) { _, e in
-                            let day = Zeit.parse(e.at).map { $0.formatted(.dateTime.day().month().year().locale(Texte.locale)) } ?? ""
+                            let day = Zeit.parse(e.at).map { Zeit.datum($0) } ?? ""
                             Text([day, e.label, e.who, e.text].filter { !$0.isEmpty }.joined(separator: " · "))
                                 .font(.hubi(.footnote))
                         }

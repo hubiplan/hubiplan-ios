@@ -18,6 +18,8 @@ struct AufgabenView: View {
     @EnvironmentObject private var model: AppModel
     @State private var helpers = Demo.section == "helfer"
     @State private var done = false
+    /// Geöffnete Aufgabe; auf dem iPad steht sie rechts neben der Liste
+    @State private var path: [Int] = []
 
     private var both: Bool { model.access?.hasTodos == true && model.access?.hasHelpers == true }
     private var showHelpers: Bool {
@@ -26,8 +28,8 @@ struct AufgabenView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            List {
+        ListeDetail(path: $path, leer: tr("Aufgabe auswählen")) { auswahl in
+            List(selection: auswahl) {
                 if let message = model.error {
                     Section {
                         MeldungText(message, .fehler)
@@ -56,11 +58,12 @@ struct AufgabenView: View {
             }
             .navigationTitle(showHelpers ? tr("Helferdienste") : tr("Aufgaben"))
             .zugangsWahl()
-            .navigationDestination(for: Int.self) { id in AufgabeView(id: id) }
             .refreshable { await model.refreshTasks() }
             .lesebreite()
             .task { await model.refreshTasks() }
             .onDisappear { model.taskNotice = nil }
+        } detail: { id in
+            AufgabeView(id: id)
         }
     }
 

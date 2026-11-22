@@ -112,7 +112,7 @@ private struct PinBeitrag: View {
 
     private var zeitpunkt: String {
         guard let iso = notice.createdAt, let date = Zeit.parse(iso) else { return "" }
-        return date.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale))
+        return Zeit.datumUhrzeit(date)
     }
 }
 

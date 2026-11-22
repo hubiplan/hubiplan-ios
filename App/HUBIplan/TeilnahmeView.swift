@@ -81,7 +81,7 @@ struct TeilnahmeSection: View {
         let offer = d.offer
         if !offer.stateText.isEmpty { Text(offer.stateText) }
         if let closes = offer.closesAt, let date = Zeit.parse(closes) {
-            Text(tr("Anmeldeschluss: {date}", ["date": date.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale))]))
+            Text(tr("Anmeldeschluss: {date}", ["date": Zeit.datumUhrzeit(date)]))
                 .font(.hubi(.footnote))
         }
         if let free = offer.free { Text(tr("Noch {n} Plätze frei.", ["n": free])).font(.hubi(.footnote)) }
@@ -102,7 +102,7 @@ struct TeilnahmeSection: View {
                 }
                 if reg.status == "registered", reg.movedUpAt != nil, let until = reg.freeCancelUntil, let date = Zeit.parse(until) {
                     Text(tr("Nachgerückt: Bis {when} kannst du dich kostenfrei abmelden.", [
-                        "when": date.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale)),
+                        "when": Zeit.datumUhrzeit(date),
                     ])).font(.hubi(.footnote))
                 }
                 ForEach(reg.participants) { p in
@@ -213,7 +213,7 @@ struct TeilnahmeSection: View {
         }
         if !persons.isEmpty { Text(tr("Summe: {sum}", ["sum": Geld.format(cents: sum)])).font(.hubi(.headline)) }
         if let closes = offer.closesAt, let date = Zeit.parse(closes) {
-            Text(tr("Abmelden ist bis {when} möglich.", ["when": date.formatted(.dateTime.day().month().year().locale(Texte.locale))]))
+            Text(tr("Abmelden ist bis {when} möglich.", ["when": Zeit.datum(date)]))
                 .font(.hubi(.footnote)).foregroundStyle(.secondary)
         }
         if let gap { MeldungText(gap.text(max: offer.maxPersons), .fehler) }

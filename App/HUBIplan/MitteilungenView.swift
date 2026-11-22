@@ -8,6 +8,8 @@ struct MitteilungenView: View {
     @EnvironmentObject private var model: AppModel
     /// Vorführmodus: `-abschnitt pinnwand` oder `umfragen` zeigt gleich diesen Teil
     @State private var wahl = Demo.active ? Demo.section : Neues.mitteilungen
+    /// Geöffnete Mitteilung; auf dem iPad steht sie rechts neben der Liste
+    @State private var path: [Int] = []
 
     private func anzahl(_ teil: String) -> Int {
         switch teil {
@@ -20,12 +22,12 @@ struct MitteilungenView: View {
     var body: some View {
         let teile = Neues.teile(pinnwand: model.access?.hasPinboard ?? false, umfragen: model.access?.hasSurveys ?? false)
         let teil = Neues.wahl(teile, wahl)
-        NavigationStack {
+        ListeDetail(path: $path, leer: tr("Mitteilung auswählen")) { auswahl in
             Group {
                 switch teil {
                 case Neues.pinnwand: PinnwandView()
                 case Neues.umfragen: UmfragenView()
-                default: MitteilungenListe()
+                default: MitteilungenListe(auswahl: auswahl)
                 }
             }
             // Die Auswahl steht über der Liste, nicht über einer geöffneten Mitteilung
@@ -40,6 +42,12 @@ struct MitteilungenView: View {
                     .background(.bar)
                 }
             }
+        } detail: { id in
+            if let item = model.circulars.first(where: { $0.id == id }) {
+                MitteilungView(item: item)
+            } else {
+                Text(tr("Diese Mitteilung gibt es nicht mehr.")).foregroundStyle(.secondary)
+            }
         }
     }
 }
@@ -49,9 +57,11 @@ private struct MitteilungenListe: View {
     @EnvironmentObject private var model: AppModel
     @State private var sending = Demo.active && Demo.section == "senden"
     @State private var notice: String?
+    /// Auf dem iPad wählt die Liste aus, statt zu stapeln
+    let auswahl: Binding<Int?>?
 
     var body: some View {
-        List {
+        List(selection: auswahl) {
             if let notice {
                 Section { MeldungText(notice, .gut) }
             }
@@ -67,9 +77,7 @@ private struct MitteilungenListe: View {
                 Text(tr("Noch keine Mitteilungen.")).foregroundStyle(.secondary)
             }
             ForEach(model.circulars) { item in
-                NavigationLink {
-                    MitteilungView(item: item)
-                } label: {
+                NavigationLink(value: item.id) {
                     let unread = model.unreadCirculars.contains(item.id)
                     VStack(alignment: .leading, spacing: 4) {
                         // Neu: Punkt und Wort, nicht nur Farbe (IOS-22)
@@ -84,7 +92,8 @@ private struct MitteilungenListe: View {
                 }
             }
         }
-        .navigationTitle(tr("Mitteilungen"))
+        // Der Reiter heißt „Neues“; „Mitteilungen“ steht nur in der Auswahl darüber
+        .navigationTitle(tr("Neues"))
         .zugangsWahl()
         .toolbar {
             if let senders = model.senders, !senders.senders.isEmpty {
@@ -116,7 +125,7 @@ private struct MitteilungenListe: View {
 func kopfzeile(_ item: CircularItem) -> String {
     var parts = [item.sender, item.kindLabel].filter { !$0.isEmpty }
     if let sent = item.sent {
-        parts.append(sent.formatted(.dateTime.day().month().year().locale(Texte.locale))
+        parts.append(Zeit.datum(sent)
             .replacingOccurrences(of: " ", with: "\u{00A0}"))
     }
     return parts.joined(separator: " · ")

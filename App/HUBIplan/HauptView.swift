@@ -138,8 +138,8 @@ struct TermineView: View {
         let offen = model.events.filter(\.responseMissing)
         // Ist alles beantwortet, zeigt die Liste wieder alle Termine
         let gefiltert = nurOffene && !offen.isEmpty
-        NavigationStack(path: $path) {
-            List {
+        ListeDetail(path: $path, leer: tr("Termin auswählen")) { auswahl in
+            List(selection: auswahl) {
                 if model.offlineSince != nil {
                     OfflineStand()
                 } else if let message = model.error {
@@ -173,17 +173,16 @@ struct TermineView: View {
                 }
             }
             .navigationTitle(tr("Termine"))
-            .navigationDestination(for: String.self) { key in
-                if let event = model.events.first(where: { $0.key == key }) {
-                    TerminDetailView(event: event, series: model.events.filter { $0.eventId == event.eventId }.count > 1)
-                } else {
-                    Text(tr("Diesen Termin gibt es nicht mehr.")).foregroundStyle(.secondary)
-                }
-            }
             .zugangsWahl()
             .refreshable { await model.refresh() }
             .lesebreite()
             .overlay { if model.loading && model.events.isEmpty { Laedt() } }
+        } detail: { key in
+            if let event = model.events.first(where: { $0.key == key }) {
+                TerminDetailView(event: event, series: model.events.filter { $0.eventId == event.eventId }.count > 1)
+            } else {
+                Text(tr("Diesen Termin gibt es nicht mehr.")).foregroundStyle(.secondary)
+            }
         }
     }
 }

@@ -157,7 +157,7 @@ struct AusweisView: View {
                         if note {
                             Text(tr(
                                 "Ohne Netz angezeigt, Stand {stand}. Wer den QR-Code prüft, sieht immer den aktuellen Stand.",
-                                ["stand": stored.savedAt.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale))]
+                                ["stand": Zeit.datumUhrzeit(stored.savedAt)]
                             ))
                             .font(.hubi(.footnote))
                             .foregroundStyle(.secondary)
@@ -362,8 +362,9 @@ struct IchAbschnitt<Content: View>: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(Color(.secondarySystemBackground))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        // Wie der Baustein `Karte`: helle Fläche mit feinem Rand
+        .background(RoundedRectangle(cornerRadius: Design.radiusGross).fill(Color.hubiKarte))
+        .overlay(RoundedRectangle(cornerRadius: Design.radiusGross).stroke(Color.hubiLinie, lineWidth: 1))
         .padding(.top, 8)
     }
 }
