@@ -131,8 +131,13 @@ struct TermineView: View {
     @EnvironmentObject private var model: AppModel
     /// Vorführmodus: `-abschnitt termin` öffnet gleich das Detail eines Termins
     @State private var path: [String] = Demo.active && Demo.section == "termin" ? ["1"] : []
+    /// Nur Termine zeigen, die noch auf eine Rückmeldung warten
+    @State private var nurOffene = false
 
     var body: some View {
+        let offen = model.events.filter(\.responseMissing)
+        // Ist alles beantwortet, zeigt die Liste wieder alle Termine
+        let gefiltert = nurOffene && !offen.isEmpty
         NavigationStack(path: $path) {
             List {
                 if model.offlineSince != nil {
@@ -152,8 +157,19 @@ struct TermineView: View {
                 if model.offerHints {
                     HinweisAngebot()
                 }
-                ForEach(model.events) { event in
-                    TerminZeile(event: event)
+                if !offen.isEmpty {
+                    Toggle(tr("{n} ohne Rückmeldung", ["n": offen.count]), isOn: $nurOffene)
+                        .font(.hubi(.subheadline))
+                }
+                // Nach Monaten gegliedert (Gestaltung „Frisch mobil“)
+                ForEach(Startseite.monate(gefiltert ? offen : model.events)) { monat in
+                    Section {
+                        ForEach(monat.termine) { event in
+                            TerminZeile(event: event)
+                        }
+                    } header: {
+                        Text(monat.titel)
+                    }
                 }
             }
             .navigationTitle(tr("Termine"))

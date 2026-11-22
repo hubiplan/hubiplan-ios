@@ -28,6 +28,8 @@ final class AppModel: ObservableObject {
     @Published var accesses: [PortalAccess] = []
     @Published var accessId: Int?
     @Published var events: [Occurrence] = []
+    /// „Für dich zu tun“ auf „Start“, vom Server (leer bei älteren HUBIplan-Ständen)
+    @Published var startTodo: [StartTodo] = []
     /// Rückmeldungen: Fehler und Bestätigung je Termin, Termine mit laufender Anfrage
     @Published var rsvpErrors = RueckmeldungsFehler()
     @Published var rsvpNotices: [Int: String] = [:]
@@ -256,6 +258,7 @@ final class AppModel: ObservableObject {
         orders = nil
         expenses = nil
         feeProofs = nil
+        startTodo = []
         scores = nil
         sheetCache = [:]
         adminOverview = nil
@@ -683,7 +686,10 @@ final class AppModel: ObservableObject {
         if access.hasExpenses { expenses = try? await api.memberExpenses(accessId: id) }
         var feeProofs: FeeProofOverview?
         if access.hasFeeProofs { feeProofs = try? await api.memberFeeProofs(accessId: id) }
+        // Was sonst wartet (Umfragen, Bestellungen …); ältere Stände kennen den Abruf nicht
+        let start = try? await api.start(accessId: id)
         guard epoch == self.epoch, self.access?.id == id else { return }
+        self.startTodo = start?.todo ?? []
         if let profile { self.profile = profile }
         self.invoices = invoices ?? self.invoices
         self.mandate = mandate ?? self.mandate
@@ -1275,6 +1281,7 @@ final class AppModel: ObservableObject {
         orders = nil
         expenses = nil
         feeProofs = nil
+        startTodo = []
         scores = nil
         sheetCache = [:]
         todos = []

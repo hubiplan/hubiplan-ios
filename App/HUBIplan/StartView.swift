@@ -116,15 +116,22 @@ struct StartView: View {
                 } header: {
                     Text(tr("Nächster Termin"))
                 }
-                let offen = Startseite.offeneRueckmeldungen(model.events, ohne: naechster)
+                let zeilen = Startseite.zeilen(server: model.startTodo, termine: model.events, ohne: naechster)
                 let ungelesen = model.unreadCirculars.count
-                if offen > 0 || ungelesen > 0 {
+                if !zeilen.isEmpty || ungelesen > 0 {
                     Section {
-                        if offen > 0 {
-                            StartZeile(
-                                titel: trn("{n} Termin wartet auf deine Rückmeldung", "{n} Termine warten auf deine Rückmeldung", offen),
-                                symbol: .zuErledigen, anzahl: offen
-                            ) { tab = "termine" }
+                        ForEach(zeilen) { zeile in
+                            if zeile.target == "events" {
+                                StartZeile(titel: zeile.title, symbol: Startseite.symbol(zeile.target), anzahl: zeile.count) {
+                                    tab = "termine"
+                                }
+                            } else {
+                                NavigationLink {
+                                    StartBereich(target: zeile.target)
+                                } label: {
+                                    StartMarke(titel: zeile.title, symbol: Startseite.symbol(zeile.target), anzahl: zeile.count)
+                                }
+                            }
                         }
                         if ungelesen > 0 {
                             StartZeile(
@@ -178,6 +185,22 @@ struct StartView: View {
         // Noten und Aufgaben bringen ihre eigene Navigation mit: als Blatt über „Start“
         .sheet(item: $blatt) { blatt in
             if blatt.id == "noten" { NotenView() } else { AufgabenView() }
+        }
+    }
+}
+
+/// Bereich, in den eine Zeile „Für dich zu tun“ führt (Ziele wie in `Startseite.bereiche`).
+private struct StartBereich: View {
+    let target: String
+
+    var body: some View {
+        switch target {
+        case "surveys": UmfragenView()
+        case "orders": BestellungenView()
+        case "fee_proofs": BeitragsnachweiseView()
+        case "expenses": AuslagenView()
+        case "training": TrainingView()
+        default: PinnwandView()
         }
     }
 }
