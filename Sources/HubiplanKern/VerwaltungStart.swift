@@ -27,6 +27,29 @@ public enum VerwaltungGruppe: String, CaseIterable, Sendable {
         return gruppen
     }
 
+    /// Gruppen der Startliste nach den Hauptmenüpunkten der Einheit (`menuGroups` vom Server,
+    /// Menü frei anordnen); ohne sie (älterer Server) die festen Gruppen. Bereiche ohne Platz in
+    /// den Hauptmenüpunkten stehen in „Weitere“. Wie `sectionGroupsFor` der Android-App.
+    public static func gruppen(_ bereiche: [AdminSection], _ menuGroups: [MenuGroup]) -> [BereichsGruppe] {
+        if menuGroups.isEmpty {
+            return gruppen(bereiche).map {
+                BereichsGruppe(key: $0.gruppe.rawValue, titel: $0.gruppe.titel, bereiche: $0.bereiche)
+            }
+        }
+        var rest = bereiche.filter { $0 != .tasks }
+        var ergebnis: [BereichsGruppe] = []
+        for gruppe in menuGroups {
+            let liste = rest.filter { bereich in bereich.modul.map { gruppe.items.contains($0) } ?? false }
+            rest.removeAll { liste.contains($0) }
+            if !liste.isEmpty {
+                let titel = gruppe.label.isEmpty ? gruppe.id : gruppe.label
+                ergebnis.append(BereichsGruppe(key: "m:\(gruppe.id)", titel: titel, bereiche: liste))
+            }
+        }
+        if !rest.isEmpty { ergebnis.append(BereichsGruppe(key: "weitere", titel: tr("Weitere"), bereiche: rest)) }
+        return ergebnis
+    }
+
     /// Suche auf der Startliste: Bereiche, deren Name oder Beschreibung alle Wörter enthält.
     public static func suche(_ bereiche: [AdminSection], _ text: String) -> [AdminSection] {
         let woerter = text.lowercased().split(whereSeparator: \.isWhitespace).map(String.init)
@@ -38,7 +61,31 @@ public enum VerwaltungGruppe: String, CaseIterable, Sendable {
     }
 }
 
+/// Gruppe der Startliste: Name und Bereiche.
+public struct BereichsGruppe: Equatable, Sendable {
+    public var key: String
+    public var titel: String
+    public var bereiche: [AdminSection]
+}
+
 extension AdminSection {
+    /// Menüpunkt der Web-Oberfläche, zu dem der Bereich gehört (Menü frei anordnen).
+    public var modul: String? {
+        switch self {
+        case .tasks: return nil
+        case .todos: return "aufgaben"
+        case .members, .applications, .occasions, .qualifications: return "mitglieder"
+        case .bookings: return "belegung"
+        case .meetings: return "versammlungen"
+        case .events: return "termine"
+        case .finance, .billing: return "finanzen"
+        case .competitions: return "wettbewerbe"
+        case .partners: return "geschaeftspartner"
+        case .obligations: return "fristenkalender"
+        }
+    }
+
+
     /// Gruppe eines Bereichs; nil: „Zu erledigen“ steht für sich über den Gruppen.
     public var gruppe: VerwaltungGruppe? {
         switch self {

@@ -27,6 +27,36 @@ final class VerwaltungStartTests: XCTestCase {
         XCTAssertEqual(Set(AdminSection.allCases.map(\.symbol)).count, AdminSection.allCases.count)
     }
 
+    func testGruppenNachHauptmenuepunktenDerEinheit() throws {
+        // Ohne Angabe vom Server: die festen Gruppen
+        XCTAssertEqual(
+            VerwaltungGruppe.gruppen(AdminSection.allCases, []).map(\.titel),
+            ["Planen", "Verein", "Vereinsleben", "Verwaltung"]
+        )
+        // Mit Angabe: Hauptmenüpunkte in Leistenreihenfolge, leere entfallen
+        let json = """
+        {"id": 1, "name": "Verein", "menu_groups": [
+          {"id": "start", "label": "Start", "items": ["start"]},
+          {"id": "mitglieder", "label": "Mitglieder", "items": ["mitglieder"]},
+          {"id": "b1", "label": "Schießsport", "items": ["wettbewerbe", "termine"]},
+          {"id": "finanzen", "label": "Finanzen", "items": ["finanzen"]},
+          {"id": "verein", "label": "Verein", "items": ["geschaeftspartner"]}]}
+        """
+        let unit = try JSONDecoder().decode(AdminUnit.self, from: Data(json.utf8))
+        XCTAssertEqual(unit.menuGroups.count, 5)
+        let bereiche: [AdminSection] = [.tasks, .events, .members, .competitions, .finance, .partners, .obligations]
+        let ergebnis = VerwaltungGruppe.gruppen(bereiche, unit.menuGroups)
+        XCTAssertEqual(ergebnis.map(\.titel), ["Mitglieder", "Schießsport", "Finanzen", "Verein", "Weitere"])
+        XCTAssertEqual(ergebnis[1].bereiche, [.events, .competitions])
+        // Fristen hat keinen Platz in den Gruppen: unter „Weitere“, „Zu erledigen“ nie in einer Gruppe
+        XCTAssertEqual(ergebnis.last?.bereiche, [.obligations])
+        // Jeder Bereich außer „Zu erledigen“ gehört zu einem Menüpunkt der Web-Oberfläche
+        XCTAssertEqual(AdminSection.allCases.filter { $0.modul == nil }, [.tasks])
+        // Ältere Server ohne Feld
+        let alt = try JSONDecoder().decode(AdminUnit.self, from: Data(#"{"id": 2, "name": "B"}"#.utf8))
+        XCTAssertEqual(alt.menuGroups, [])
+    }
+
     func testSucheNachNameUndBeschreibung() {
         let alle = AdminSection.allCases
         XCTAssertEqual(VerwaltungGruppe.suche(alle, "  "), alle)
