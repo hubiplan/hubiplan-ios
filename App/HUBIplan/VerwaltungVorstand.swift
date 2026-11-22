@@ -27,7 +27,7 @@ struct AntraegeView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(row.name.isEmpty ? row.number : row.name)
-                                    Text(row.line).font(.footnote).foregroundStyle(Color.secondary)
+                                    Text(row.line).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                             }
                         }
@@ -76,13 +76,13 @@ struct AntragView: View {
                 if let d = data {
                     Section {
                         Text([d.number, d.statusLabel].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.subheadline.weight(.semibold))
+                            .font(.hubi(.subheadline).weight(.semibold))
                         ForEach(Array(d.summary.enumerated()), id: \.offset) { _, line in Text(line) }
                     }
                     if !d.matches.isEmpty {
                         Section(tr("Mögliche Treffer")) {
                             ForEach(Array(d.matches.enumerated()), id: \.offset) { _, m in
-                                Text(treffer(m)).font(.footnote).foregroundStyle(Color.fehlerText)
+                                Text(treffer(m)).font(.hubi(.footnote)).foregroundStyle(Color.fehlerText)
                             }
                         }
                     }
@@ -90,17 +90,17 @@ struct AntragView: View {
                         ForEach(Array(d.approvals.enumerated()), id: \.offset) { _, a in
                             Text([a.userName, a.roles, a.decision == "approve" ? tr("stimmt zu") : tr("lehnt ab"), a.note]
                                 .filter { !$0.isEmpty }.joined(separator: " · "))
-                                .font(.footnote)
+                                .font(.hubi(.footnote))
                         }
                         if d.isOpen, !d.missing.isEmpty {
                             Text(tr("Es fehlen noch Zustimmungen: {missing}", ["missing": d.missing.joined(separator: ", ")]))
-                                .font(.footnote).foregroundStyle(Color.secondary)
+                                .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                         }
                         if d.disputed {
                             MeldungText(tr("Es gibt eine Ablehnung. Bitte klärt das, bevor ihr aufnehmt."), .warnung)
                         }
                         if !d.isOpen, !d.decisionNote.isEmpty {
-                            Text(tr("Vermerk: {note}", ["note": d.decisionNote])).font(.footnote)
+                            Text(tr("Vermerk: {note}", ["note": d.decisionNote])).font(.hubi(.footnote))
                         }
                     } header: {
                         Text(tr("Zustimmungen"))
@@ -270,14 +270,14 @@ struct BelegungFreigebenView: View {
                     ForEach(rows) { b in
                         Section {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(b.itemTitle).font(.headline)
+                                Text(b.itemTitle).font(.hubi(.headline))
                                 Text(b.allDay
                                     ? terminZeit(b.startsAt, b.endsAt, allDay: true)
                                     : zeitraum(b.startsAt, b.endsAt))
                                 Text([b.title, b.requester].filter { !$0.isEmpty }.joined(separator: " · "))
-                                    .font(.footnote).foregroundStyle(Color.secondary)
-                                if b.repeats { Text(tr("wiederholt sich")).font(.footnote).foregroundStyle(Color.secondary) }
-                                if !b.note.isEmpty { Text(b.note).font(.footnote) }
+                                    .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
+                                if b.repeats { Text(tr("wiederholt sich")).font(.hubi(.footnote)).foregroundStyle(Color.secondary) }
+                                if !b.note.isEmpty { Text(b.note).font(.hubi(.footnote)) }
                             }
                             Button(tr("Freigeben")) { decide(b, confirm: true) }.disabled(busy != nil)
                             Button(tr("Ablehnen"), role: .destructive) { decide(b, confirm: false) }.disabled(busy != nil)
@@ -340,7 +340,7 @@ struct VersammlungenLeitenView: View {
                                     Text(m.title)
                                     Text([zeitraum(m.startsAt, m.startsAt), m.location, LeadMeeting.statusLabel(m.status)]
                                         .filter { !$0.isEmpty }.joined(separator: " · "))
-                                        .font(.footnote).foregroundStyle(Color.secondary)
+                                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                             }
                         }
@@ -387,7 +387,7 @@ struct VersammlungLeitenView: View {
                     Section {
                         Text([zeitraum(m.startsAt, m.startsAt), m.location, LeadMeeting.statusLabel(m.status)]
                             .filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.footnote)
+                            .font(.hubi(.footnote))
                     }
                     anmeldung(l)
                     if l.onlineVoting { abstimmungen(m, l) }
@@ -472,7 +472,7 @@ struct VersammlungLeitenView: View {
                     Spacer()
                 }
                 Text(tr("Mitglieder scannen den Code mit der HUBIplan-App. Er wechselt alle 30 Sekunden."))
-                    .font(.footnote).foregroundStyle(Color.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                 Button(tr("Groß zeigen")) { bigQr = true }
             }
         } header: {
@@ -491,12 +491,12 @@ struct VersammlungLeitenView: View {
             }
             ForEach(l.polls) { p in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text([p.agendaNumber, p.agendaTitle].filter { !$0.isEmpty }.joined(separator: " ")).font(.subheadline.weight(.semibold))
+                    Text([p.agendaNumber, p.agendaTitle].filter { !$0.isEmpty }.joined(separator: " ")).font(.hubi(.subheadline).weight(.semibold))
                     let headline = [p.question, p.office.isEmpty ? "" : tr("Wahl: {office}", ["office": p.office]), p.candidate].filter { !$0.isEmpty }
                     if !headline.isEmpty { Text(headline.joined(separator: " · ")) }
-                    Text(pollLine(p)).font(.footnote).foregroundStyle(Color.secondary)
+                    Text(pollLine(p)).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                     if let result = p.result {
-                        ForEach(result) { r in Text("\(r.label): \(r.votes)").font(.footnote) }
+                        ForEach(result) { r in Text("\(r.label): \(r.votes)").font(.hubi(.footnote)) }
                     }
                     HStack {
                         switch p.status {
@@ -511,7 +511,7 @@ struct VersammlungLeitenView: View {
                             if p.resolution == nil {
                                 Button(tr("Als Beschluss übernehmen")) { pollAction(p, "apply") }.buttonStyle(.bordered)
                             } else {
-                                Text(tr("als Beschluss übernommen")).font(.footnote).foregroundStyle(Color.secondary)
+                                Text(tr("als Beschluss übernommen")).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                             }
                         default:
                             EmptyView()
@@ -553,7 +553,7 @@ struct VersammlungLeitenView: View {
                     .disabled(busy || guest.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             } else {
-                Text(tr("Die Anwesenheit lässt sich jetzt nicht mehr ändern.")).font(.footnote).foregroundStyle(Color.secondary)
+                Text(tr("Die Anwesenheit lässt sich jetzt nicht mehr ändern.")).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             }
             BeschriftetesFeld(label: tr("Name suchen"), text: $query)
         } header: {
@@ -567,7 +567,7 @@ struct VersammlungLeitenView: View {
                 Toggle(isOn: Binding(get: { r.present }, set: { present in toggle(r, present: present, list: a) })) {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(r.name)
-                        if !r.label.isEmpty { Text(r.label).font(.footnote).foregroundStyle(Color.secondary) }
+                        if !r.label.isEmpty { Text(r.label).font(.hubi(.footnote)).foregroundStyle(Color.secondary) }
                     }
                 }
                 .disabled(busy || !a.editable || r.status == "represented")
@@ -656,11 +656,11 @@ private struct EinlassScan: View {
                     QrScanner { text in found(text) }
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     Text(tr("Halte die Kamera auf den QR-Code des Mitgliedsausweises."))
-                        .font(.footnote).foregroundStyle(Color.secondary)
+                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                 } else {
                     KameraHinweis()
                     Text(tr("Ohne Kamera suchst du die Person in der Liste und trägst sie dort ein."))
-                        .font(.footnote).foregroundStyle(Color.secondary)
+                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                     Spacer()
                 }
             }

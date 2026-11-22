@@ -56,7 +56,7 @@ private struct SichtschutzBild: View {
     var body: some View {
         ZStack {
             Color(.systemBackground)
-            Image(systemName: "lock.fill").font(.largeTitle).foregroundStyle(Color.secondary)
+            Image(systemName: "lock.fill").font(.hubi(.largeTitle)).foregroundStyle(Color.secondary)
         }
         .ignoresSafeArea()
         .accessibilityHidden(true)

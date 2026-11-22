@@ -2,73 +2,113 @@ import HubiplanKern
 import QuickLook
 import SwiftUI
 
-/// Reiter „Neues“: Mitteilungen des Vereins.
+/// Reiter „Neues“ (Gestaltung „Frisch mobil“): Mitteilungen, Pinnwand und Umfragen an einem Ort.
+/// Gibt es nur Mitteilungen, steht keine Auswahl darüber.
 struct MitteilungenView: View {
+    @EnvironmentObject private var model: AppModel
+    /// Vorführmodus: `-abschnitt pinnwand` oder `umfragen` zeigt gleich diesen Teil
+    @State private var wahl = Demo.active ? Demo.section : Neues.mitteilungen
+
+    private func anzahl(_ teil: String) -> Int {
+        switch teil {
+        case Neues.pinnwand: return model.pinboard?.newCount ?? 0
+        case Neues.umfragen: return model.surveys?.waitingCount ?? 0
+        default: return model.unreadCirculars.count
+        }
+    }
+
+    var body: some View {
+        let teile = Neues.teile(pinnwand: model.access?.hasPinboard ?? false, umfragen: model.access?.hasSurveys ?? false)
+        let teil = Neues.wahl(teile, wahl)
+        NavigationStack {
+            Group {
+                switch teil {
+                case Neues.pinnwand: PinnwandView()
+                case Neues.umfragen: UmfragenView()
+                default: MitteilungenListe()
+                }
+            }
+            // Die Auswahl steht über der Liste, nicht über einer geöffneten Mitteilung
+            .safeAreaInset(edge: .top, spacing: 0) {
+                if teile.count > 1 {
+                    Picker(tr("Bereich"), selection: Binding(get: { teil }, set: { wahl = $0 })) {
+                        ForEach(teile, id: \.self) { Text(Neues.beschriftung($0, anzahl($0))).tag($0) }
+                    }
+                    .pickerStyle(.segmented)
+                    .padding(.horizontal, Design.Abstand.rand)
+                    .padding(.vertical, Design.Abstand.klein)
+                    .background(.bar)
+                }
+            }
+        }
+    }
+}
+
+/// Mitteilungen des Vereins (Liste im Reiter „Neues“).
+private struct MitteilungenListe: View {
     @EnvironmentObject private var model: AppModel
     @State private var sending = Demo.active && Demo.section == "senden"
     @State private var notice: String?
 
     var body: some View {
-        NavigationStack {
-            List {
-                if let notice {
-                    Section { MeldungText(notice, .gut) }
+        List {
+            if let notice {
+                Section { MeldungText(notice, .gut) }
+            }
+            if model.offlineSince != nil {
+                OfflineStand()
+            } else if let message = model.error {
+                Section {
+                    MeldungText(message, .fehler)
+                    Button(tr("Erneut versuchen")) { Task { await model.refresh() } }
                 }
-                if model.offlineSince != nil {
-                    OfflineStand()
-                } else if let message = model.error {
-                    Section {
-                        MeldungText(message, .fehler)
-                        Button(tr("Erneut versuchen")) { Task { await model.refresh() } }
-                    }
-                }
-                if model.circulars.isEmpty && !model.loading && model.error == nil {
-                    Text(tr("Noch keine Mitteilungen.")).foregroundStyle(.secondary)
-                }
-                ForEach(model.circulars) { item in
-                    NavigationLink {
-                        MitteilungView(item: item)
-                    } label: {
-                        let unread = model.unreadCirculars.contains(item.id)
-                        VStack(alignment: .leading, spacing: 4) {
-                            // Neu: Punkt und Wort, nicht nur Farbe (IOS-22)
-                            if unread {
-                                Text(tr("● neu")).font(.footnote.bold()).foregroundStyle(Color.accentColor)
-                            }
-                            Text(item.subject).font(unread ? .headline.weight(.heavy) : .headline)
-                            Text(kopfzeile(item)).font(.footnote).foregroundStyle(.secondary)
+            }
+            if model.circulars.isEmpty && !model.loading && model.error == nil {
+                Text(tr("Noch keine Mitteilungen.")).foregroundStyle(.secondary)
+            }
+            ForEach(model.circulars) { item in
+                NavigationLink {
+                    MitteilungView(item: item)
+                } label: {
+                    let unread = model.unreadCirculars.contains(item.id)
+                    VStack(alignment: .leading, spacing: 4) {
+                        // Neu: Punkt und Wort, nicht nur Farbe (IOS-22)
+                        if unread {
+                            Text(tr("● neu")).font(.hubi(.footnote).bold()).foregroundStyle(Color.accentColor)
                         }
-                        .padding(.vertical, 4)
-                        .accessibilityElement(children: .combine)
+                        Text(item.subject).font(unread ? .hubi(.headline).weight(.heavy) : .hubi(.headline))
+                        Text(kopfzeile(item)).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
+                    .padding(.vertical, 4)
+                    .accessibilityElement(children: .combine)
                 }
             }
-            .navigationTitle(tr("Mitteilungen"))
-            .zugangsWahl()
-            .toolbar {
-                if let senders = model.senders, !senders.senders.isEmpty {
-                    ToolbarItem(placement: .primaryAction) {
-                        Button {
-                            notice = nil
-                            sending = true
-                        } label: {
-                            Label(tr("Kurzmitteilung senden"), systemImage: "square.and.pencil")
-                        }
-                    }
-                }
-            }
-            .sheet(isPresented: Binding(get: { sending && !(model.senders?.senders.isEmpty ?? true) }, set: { sending = $0 })) {
-                if let senders = model.senders {
-                    SendenView(senders: senders) { text in
-                        notice = text
-                        Task { await model.refresh() }
-                    }
-                }
-            }
-            .refreshable { await model.refresh() }
-            .lesebreite()
-            .overlay { if model.loading && model.circulars.isEmpty { Laedt() } }
         }
+        .navigationTitle(tr("Mitteilungen"))
+        .zugangsWahl()
+        .toolbar {
+            if let senders = model.senders, !senders.senders.isEmpty {
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        notice = nil
+                        sending = true
+                    } label: {
+                        Label(tr("Kurzmitteilung senden"), systemImage: "square.and.pencil")
+                    }
+                }
+            }
+        }
+        .sheet(isPresented: Binding(get: { sending && !(model.senders?.senders.isEmpty ?? true) }, set: { sending = $0 })) {
+            if let senders = model.senders {
+                SendenView(senders: senders) { text in
+                    notice = text
+                    Task { await model.refresh() }
+                }
+            }
+        }
+        .refreshable { await model.refresh() }
+        .lesebreite()
+        .overlay { if model.loading && model.circulars.isEmpty { Laedt() } }
     }
 }
 
@@ -109,8 +149,8 @@ struct MitteilungView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text(item.subject).font(.title2.bold())
-                Text(kopfzeile(item)).font(.footnote).foregroundStyle(.secondary)
+                Text(item.subject).font(.hubi(.title2).bold())
+                Text(kopfzeile(item)).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 ForEach(Array(CircularText.blocks(item.body ?? "").enumerated()), id: \.offset) { _, block in
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(Array(block.lines.enumerated()), id: \.offset) { index, line in
@@ -138,7 +178,7 @@ struct MitteilungView: View {
                     }
                     if model.previewBusy { Laedt(text: tr("Datei wird geladen …")) }
                     if let message = model.error, model.offlineSince == nil {
-                        MeldungText(message, .fehler).font(.footnote)
+                        MeldungText(message, .fehler).font(.hubi(.footnote))
                     }
                 }
             }

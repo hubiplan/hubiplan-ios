@@ -32,9 +32,9 @@ struct BeitragsnachweiseView: View {
                             Text([proof.discountName, proof.yearLabel, proof.receivedOn.map(Zeit.plainDate) ?? "", proof.fileName]
                                 .filter { !$0.isEmpty }
                                 .joined(separator: " · "))
-                            Text(proof.statusLabel).font(.footnote).foregroundStyle(.secondary)
+                            Text(proof.statusLabel).font(.hubi(.footnote)).foregroundStyle(.secondary)
                             if !proof.note.isEmpty {
-                                Text(proof.note).font(.footnote).foregroundStyle(.secondary)
+                                Text(proof.note).font(.hubi(.footnote)).foregroundStyle(.secondary)
                             }
                         }
                     }
@@ -44,6 +44,7 @@ struct BeitragsnachweiseView: View {
             }
         }
         .navigationTitle(tr("Beitragsnachweise"))
+        .zurueckSchutz()
         .task { await model.reloadFeeProofs() }
         .refreshable { await model.reloadFeeProofs() }
     }
@@ -122,6 +123,7 @@ private struct NachweisJahr: View {
                 failure = tr("Die Datei ließ sich nicht öffnen.")
             }
         }
+        .entwurf(photo != nil || pdf != nil || !note.isEmpty)
     }
 
     private func load(_ url: URL) {

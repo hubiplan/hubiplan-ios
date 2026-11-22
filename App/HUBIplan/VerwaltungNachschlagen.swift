@@ -47,7 +47,7 @@ struct GeschaeftspartnerView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(partner.name)
                                     if !partner.listDetail.isEmpty {
-                                        Text(partner.listDetail).font(.footnote).foregroundStyle(Color.secondary)
+                                        Text(partner.listDetail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     }
                                 }
                             }
@@ -94,7 +94,7 @@ private struct GeschaeftspartnerAkte: View {
     var body: some View {
         List {
             Section {
-                Text(partner.name).font(.title3.weight(.semibold))
+                Text(partner.name).font(.hubi(.title3).weight(.semibold))
                 if !partner.headline.isEmpty { Text(partner.headline).foregroundStyle(Color.secondary) }
             }
             let details = partner.details
@@ -111,7 +111,7 @@ private struct GeschaeftspartnerAkte: View {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(contact.fullName.isEmpty ? contact.lastName : contact.fullName)
                             if !contact.info.isEmpty {
-                                Text(contact.info).font(.footnote).foregroundStyle(Color.secondary)
+                                Text(contact.info).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                             }
                         }
                         if !contact.phone.isEmpty { KontaktVerweis(symbol: "phone", text: contact.phone, link: telefonLink(contact.phone)) }
@@ -156,7 +156,7 @@ struct QualifikationenView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(row.name)
-                                    Text(row.detail).font(.footnote).foregroundStyle(row.urgent ? Color.fehlerText : Color.secondary)
+                                    Text(row.detail).font(.hubi(.footnote)).foregroundStyle(row.urgent ? Color.fehlerText : Color.secondary)
                                 }
                             }
                         }
@@ -206,7 +206,7 @@ struct FristenView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.title)
-                                    Text(item.line).font(.footnote).foregroundStyle(item.urgent ? Color.fehlerText : Color.secondary)
+                                    Text(item.line).font(.hubi(.footnote)).foregroundStyle(item.urgent ? Color.fehlerText : Color.secondary)
                                 }
                             }
                         }
@@ -245,16 +245,16 @@ private struct FristSeite: View {
     var body: some View {
         List {
             Section {
-                Text(item.title).font(.title3.weight(.semibold))
+                Text(item.title).font(.hubi(.title3).weight(.semibold))
                 Text(item.line).foregroundStyle(item.urgent ? Color.fehlerText : Color.primary)
                 if let text = item.repeatText {
-                    Text(text).font(.footnote).foregroundStyle(Color.secondary)
+                    Text(text).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                 }
                 if !item.note.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { Text(item.note) }
             }
             if !item.history.isEmpty {
                 Section(tr("Verlauf")) {
-                    ForEach(item.history) { Text($0.line).font(.footnote) }
+                    ForEach(item.history) { Text($0.line).font(.hubi(.footnote)) }
                 }
             }
         }

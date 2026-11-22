@@ -82,6 +82,19 @@ public struct Occurrence: Decodable, Equatable, Identifiable, Sendable {
     public var responseMissing: Bool { rsvpEnabled && !isCancelled && myResponse == nil }
 }
 
+/// Reiter „Start“: was er aus der Terminliste zeigt (wie `StartPane` der Android-App).
+public enum Startseite {
+    /// Der nächste Termin: der früheste, der nicht abgesagt ist.
+    public static func naechsterTermin(_ termine: [Occurrence]) -> Occurrence? {
+        termine.first { !$0.isCancelled }
+    }
+
+    /// Termine, die noch auf die eigene Rückmeldung warten (ohne den schon groß gezeigten).
+    public static func offeneRueckmeldungen(_ termine: [Occurrence], ohne: Occurrence? = nil) -> Int {
+        termine.filter { $0.responseMissing && $0.key != ohne?.key }.count
+    }
+}
+
 struct EventList: Decodable {
     var items: [Occurrence]
 }

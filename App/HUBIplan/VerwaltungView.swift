@@ -134,7 +134,7 @@ struct VerwaltungSchutz<Inhalt: View>: View {
                     } else if phase != .active && !Demo.active {
                         ZStack {
                             Color(.systemBackground)
-                            Image(systemName: "lock.fill").font(.largeTitle).foregroundStyle(Color.secondary)
+                            Image(systemName: "lock.fill").font(.hubi(.largeTitle)).foregroundStyle(Color.secondary)
                         }
                         .ignoresSafeArea()
                         .accessibilityHidden(true)
@@ -302,15 +302,39 @@ private struct VerwaltungStart: View {
     @State private var showBilling = Demo.active && ["vrechnungen", "vrechnung"].contains(Demo.section)
     @State private var scanning = false
     @State private var check: Geprueft?
+    /// Suche über die Bereiche
+    @State private var suche = ""
+    /// Unter „Neu“ gewählt: öffnet den Bereich gleich mit dem Formular
+    @State private var neu: NeuAktion?
 
     private var unit: AdminUnit { units.first { $0.key == unitKey } ?? units[0] }
+
+    @ViewBuilder
+    private func ziel(_ bereich: AdminSection) -> some View {
+        switch bereich {
+        case .tasks: OffenePunkteView(unit: unit)
+        case .events: TermineVerwaltungView(unit: unit)
+        case .todos: AufgabenVerwaltungView(unit: unit)
+        case .obligations: FristenView(unit: unit)
+        case .members: MitgliederView(unit: unit)
+        case .applications: AntraegeView(unit: unit)
+        case .meetings: VersammlungenLeitenView(unit: unit)
+        case .bookings: BelegungFreigebenView(unit: unit)
+        case .occasions: AnlaesseView(unit: unit)
+        case .qualifications: QualifikationenView(unit: unit)
+        case .competitions: WettbewerbeView(unit: unit)
+        case .finance: KassenbuchView(unit: unit)
+        case .billing: RechnungenView(unit: unit)
+        case .partners: GeschaeftspartnerView(unit: unit)
+        }
+    }
 
     var body: some View {
         List {
             Section {
                 if units.count > 1 {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(tr("Einheit")).font(.caption).foregroundStyle(Color.secondary)
+                        Text(tr("Einheit")).font(.hubi(.caption)).foregroundStyle(Color.secondary)
                         Picker(tr("Einheit"), selection: Binding(get: { unit.key }, set: { unitKey = $0 })) {
                             ForEach(units, id: \.key) { Text($0.name).tag($0.key) }
                         }
@@ -319,27 +343,65 @@ private struct VerwaltungStart: View {
                     }
                 } else {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(tr("Einheit")).font(.caption).foregroundStyle(Color.secondary)
+                        Text(tr("Einheit")).font(.hubi(.caption)).foregroundStyle(Color.secondary)
                         Text(unit.name)
                     }
                 }
             }
             VerwaltungMeldung()
-            if unit.canCheckCards {
+            // Arbeitsplatz (Gestaltung „Frisch mobil“): „Ausweis prüfen“ und „Neu“ ganz oben
+            if unit.canCheckCards || !unit.neuAktionen.isEmpty {
                 Section {
-                    Button {
-                        scanning = true
-                    } label: {
-                        Label(tr("Ausweis prüfen"), systemImage: "qrcode.viewfinder")
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
+                    HStack(spacing: Design.Abstand.klein) {
+                        if unit.canCheckCards {
+                            Button {
+                                scanning = true
+                            } label: {
+                                Label {
+                                    Text(tr("Ausweis prüfen"))
+                                } icon: {
+                                    SymbolBild(.scannen, groesse: 20)
+                                }
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.borderedProminent)
+                        }
+                        if !unit.neuAktionen.isEmpty {
+                            Menu {
+                                ForEach(unit.neuAktionen) { aktion in
+                                    Button(aktion.titel) { neu = aktion }
+                                }
+                            } label: {
+                                Label {
+                                    Text(tr("Neu"))
+                                } icon: {
+                                    SymbolBild(.plus, groesse: 20)
+                                }
+                                .frame(maxWidth: unit.canCheckCards ? nil : .infinity)
+                                .padding(.vertical, 6)
+                            }
+                            .buttonStyle(.bordered)
+                        }
                     }
-                    .buttonStyle(.borderedProminent)
                     .listRowBackground(Color.clear)
                     .listRowInsets(EdgeInsets())
                 }
             }
-            if !unit.isDepartment {
+            if unit.sections.contains(.tasks), suche.isEmpty {
+                Section {
+                    NavigationLink {
+                        OffenePunkteView(unit: unit)
+                    } label: {
+                        HStack(spacing: Design.Abstand.klein) {
+                            Bereich(bereich: .tasks)
+                            Spacer(minLength: Design.Abstand.klein)
+                            Zaehler(open ?? 0)
+                        }
+                    }
+                }
+            }
+            if !unit.isDepartment, suche.isEmpty {
                 Section {
                     KachelnUebersicht(
                         reloadKey: unit.key,
@@ -350,117 +412,49 @@ private struct VerwaltungStart: View {
                     .listRowInsets(EdgeInsets())
                 }
             }
-            Section {
-                if unit.sections.isEmpty {
+            if unit.sections.isEmpty {
+                Section {
                     Text(tr("Für deine Rolle gibt es in dieser Fassung der App noch keinen Bereich. Bitte nutze den Browser."))
                         .foregroundStyle(.secondary)
                 }
-                if unit.sections.contains(.tasks) {
-                    NavigationLink {
-                        OffenePunkteView(unit: unit)
-                    } label: {
-                        Bereich(
-                            symbol: "tray.full",
-                            title: open.map { tr("Zu erledigen ({count})", ["count": $0]) } ?? tr("Zu erledigen"),
-                            hint: tr("Datenänderungen, Fotos und Termine, die auf dich warten")
-                        )
+            }
+            let bereiche = unit.sections.filter { $0 != .tasks }
+            if suche.isEmpty {
+                // Bereiche in den Gruppen des Hauptmenüs im Browser
+                ForEach(VerwaltungGruppe.gruppen(bereiche), id: \.gruppe) { eintrag in
+                    Section {
+                        ForEach(eintrag.bereiche, id: \.self) { bereich in
+                            NavigationLink {
+                                ziel(bereich)
+                            } label: {
+                                Bereich(bereich: bereich)
+                            }
+                        }
+                    } header: {
+                        Text(eintrag.gruppe.titel)
                     }
                 }
-                if unit.sections.contains(.events) {
-                    NavigationLink {
-                        TermineVerwaltungView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "calendar", title: tr("Termine"), hint: tr("Absagen, Rückmeldungen eintragen, neuer Termin"))
+            } else {
+                let treffer = VerwaltungGruppe.suche(unit.sections, suche)
+                Section {
+                    if treffer.isEmpty {
+                        Text(tr("Kein Bereich passt zu „{text}“.", ["text": suche.trimmingCharacters(in: .whitespaces)]))
+                            .foregroundStyle(.secondary)
+                    }
+                    ForEach(treffer, id: \.self) { bereich in
+                        NavigationLink {
+                            ziel(bereich)
+                        } label: {
+                            Bereich(bereich: bereich)
+                        }
                     }
                 }
-                if unit.sections.contains(.todos) {
-                    NavigationLink {
-                        AufgabenVerwaltungView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "checklist", title: tr("Aufgaben verteilen"), hint: tr("Aufgaben anlegen, erledigen und wieder öffnen"))
-                    }
+            }
+            if !unit.sections.isEmpty, suche.isEmpty {
+                Section {
+                } footer: {
+                    Text(tr("Alles Weitere verwaltest du zurzeit im Browser."))
                 }
-                if unit.sections.contains(.obligations) {
-                    NavigationLink {
-                        FristenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "calendar.badge.exclamationmark", title: tr("Fristen"), hint: tr("Vereinspflichten mit Frist und Zuständigkeit"))
-                    }
-                }
-                if unit.sections.contains(.members) {
-                    NavigationLink {
-                        MitgliederView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "person.2", title: tr("Mitglieder"), hint: tr("Suchen, anrufen, Mitgliedsakte öffnen"))
-                    }
-                }
-                if unit.sections.contains(.applications) {
-                    NavigationLink {
-                        AntraegeView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "person.badge.plus", title: tr("Beitrittsanträge"), hint: tr("Anträge prüfen, zustimmen, aufnehmen oder ablehnen"))
-                    }
-                }
-                if unit.sections.contains(.meetings) {
-                    NavigationLink {
-                        VersammlungenLeitenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "person.3", title: tr("Versammlung leiten"), hint: tr("Anwesenheit, Einlass per Ausweis, QR-Code, Abstimmungen"))
-                    }
-                }
-                if unit.sections.contains(.bookings) {
-                    NavigationLink {
-                        BelegungFreigebenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "mappin.and.ellipse", title: tr("Belegung freigeben"), hint: tr("Anfragen für Räume und Plätze bestätigen oder ablehnen"))
-                    }
-                }
-                if unit.sections.contains(.occasions) {
-                    NavigationLink {
-                        AnlaesseView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "gift", title: tr("Jubiläen und Geburtstage"), hint: tr("Geburtstage und Jubiläen der nächsten Wochen"))
-                    }
-                }
-                if unit.sections.contains(.qualifications) {
-                    NavigationLink {
-                        QualifikationenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "rosette", title: tr("Qualifikationen"), hint: tr("Nachweise, die bald ablaufen"))
-                    }
-                }
-                if unit.sections.contains(.competitions) {
-                    NavigationLink {
-                        WettbewerbeView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "trophy", title: tr("Wettbewerbe"), hint: tr("Ergebnisse am Stand erfassen, auch ohne Empfang"))
-                    }
-                }
-                if unit.sections.contains(.finance) {
-                    NavigationLink {
-                        KassenbuchView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "eurosign.circle", title: tr("Kassenbuch"), hint: tr("Kontostände, Buchungen, Beleg fotografieren"))
-                    }
-                }
-                if unit.sections.contains(.billing) {
-                    NavigationLink {
-                        RechnungenView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "doc.text", title: tr("Rechnungen"), hint: tr("Offene und bezahlte Rechnungen, bar kassieren"))
-                    }
-                }
-                if unit.sections.contains(.partners) {
-                    NavigationLink {
-                        GeschaeftspartnerView(unit: unit)
-                    } label: {
-                        Bereich(symbol: "building.2", title: tr("Geschäftspartner"), hint: tr("Lieferanten, Sponsoren und Ansprechpartner nachschlagen"))
-                    }
-                }
-            } header: {
-                Text(tr("Was möchtest du tun?"))
-            } footer: {
-                Text(tr("Alles Weitere verwaltest du zurzeit im Browser."))
             }
             Section {
                 Button(tr("Verwaltung auf diesem Gerät sperren"), role: .destructive) { confirmLock = true }
@@ -470,6 +464,16 @@ private struct VerwaltungStart: View {
                         "datum": date.formatted(.dateTime.day().month().year().locale(Texte.locale)),
                     ]))
                 }
+            }
+        }
+        // Ab einer Handvoll Bereichen lohnt die Suche
+        .searchable(text: $suche, prompt: tr("Bereich suchen"))
+        .navigationDestination(item: $neu) { aktion in
+            switch aktion {
+            case .quittung: KassenbuchView(unit: unit, neu: .quittung)
+            case .buchung: KassenbuchView(unit: unit, neu: .buchung)
+            case .termin: TermineVerwaltungView(unit: unit, neu: true)
+            case .aufgabe: AufgabenVerwaltungView(unit: unit, neu: true)
             }
         }
         .navigationDestination(isPresented: $showMembers) { MitgliederView(unit: unit) }
@@ -516,20 +520,19 @@ private struct VerwaltungStart: View {
     }
 }
 
+/// Zeile eines Bereichs: Strichsymbol, Name und ein Satz dazu.
 private struct Bereich: View {
-    let symbol: String
-    let title: String
-    let hint: String
+    let bereich: AdminSection
 
     var body: some View {
-        Label {
+        HStack(spacing: Design.Abstand.mittel) {
+            SymbolKopf(bereich.symbol)
             VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                Text(hint).font(.footnote).foregroundStyle(Color.secondary)
+                Text(bereich.titel)
+                Text(bereich.hinweis).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             }
-        } icon: {
-            Image(systemName: symbol)
         }
+        .accessibilityElement(children: .combine)
     }
 }
 
@@ -587,11 +590,11 @@ struct OffenePunkteView: View {
     private func zeile(_ task: AdminTask) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             if !task.kindLabel.isEmpty {
-                Text(task.kindLabel).font(.caption).foregroundStyle(Color.secondary)
+                Text(task.kindLabel).font(.hubi(.caption)).foregroundStyle(Color.secondary)
             }
             Text(task.title)
             if !task.detail.isEmpty {
-                Text(task.detail).font(.footnote).foregroundStyle(Color.secondary)
+                Text(task.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             }
         }
     }
@@ -639,7 +642,7 @@ struct MitgliederView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(row.listName)
                                     if !row.listDetail.isEmpty {
-                                        Text(row.listDetail).font(.footnote).foregroundStyle(Color.secondary)
+                                        Text(row.listDetail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     }
                                 }
                             }
@@ -731,7 +734,7 @@ struct MitgliedView: View {
                                     .accessibilityLabel(tr("Neues Foto"))
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text(tr("Dieses Foto wartet auf deine Freigabe für den Ausweis."))
-                                        .font(.footnote).foregroundStyle(Color.secondary)
+                                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     Button(tr("Freigeben")) { Task { await decide(approve: true) } }
                                         .buttonStyle(.borderedProminent)
                                     Button(tr("Ablehnen")) { Task { await decide(approve: false) } }
@@ -749,7 +752,7 @@ struct MitgliedView: View {
                                 .frame(width: 105, height: 135).clipShape(RoundedRectangle(cornerRadius: 8))
                                 .accessibilityLabel(tr("Foto"))
                         }
-                        Text(member.name).font(.title3.weight(.semibold))
+                        Text(member.name).font(.hubi(.title3).weight(.semibold))
                         if member.isFormer { Text(tr("Ehemaliges Mitglied")).foregroundStyle(.secondary) }
                         zeile(tr("Mitgliedsart"), member.typeName)
                         zeile(tr("Mitgliedsnummer"), member.clubNumber)
@@ -842,7 +845,7 @@ struct MitgliedView: View {
     private func zeile(_ label: String, _ value: String) -> some View {
         if !value.trimmingCharacters(in: .whitespaces).isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                Text(label).font(.caption).foregroundStyle(Color.secondary)
+                Text(label).font(.hubi(.caption)).foregroundStyle(Color.secondary)
                 Text(value)
             }
         }
@@ -941,14 +944,14 @@ struct AenderungenView: View {
                     ForEach(items) { request in
                         Section {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(request.memberName).font(.headline)
+                                Text(request.memberName).font(.hubi(.headline))
                                 if let date = request.createdAt.flatMap(Zeit.parse) {
                                     Text(date.formatted(.dateTime.day().month().year().locale(Texte.locale)))
-                                        .font(.caption).foregroundStyle(Color.secondary)
+                                        .font(.hubi(.caption)).foregroundStyle(Color.secondary)
                                 }
                                 ForEach(request.lines, id: \.key) { Text($0.text) }
                                 if !request.message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    Text(tr("„{text}“", ["text": request.message])).font(.footnote).foregroundStyle(Color.secondary)
+                                    Text(tr("„{text}“", ["text": request.message])).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                             }
                             KnopfReihe(spacing: 12) {
@@ -1031,7 +1034,7 @@ private struct AusweisScan: View {
                     QrScanner { text in Task { await check(text) } }
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     Text(tr("Halte die Kamera auf den QR-Code des Mitgliedsausweises."))
-                        .font(.footnote).foregroundStyle(Color.secondary)
+                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                 } else {
                     KameraHinweis()
                     Spacer()
@@ -1074,7 +1077,7 @@ private struct AusweisErgebnis: View {
             ScrollView {
                 VStack(spacing: 12) {
                     Label(check.statusLabel, systemImage: check.valid ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .font(.title2.weight(.semibold))
+                        .font(.hubi(.title2).weight(.semibold))
                         .foregroundStyle(check.valid ? Color.gutText : Color.fehlerText)
                     if let photo {
                         Image(uiImage: photo).resizable()
@@ -1083,11 +1086,11 @@ private struct AusweisErgebnis: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .accessibilityLabel(check.isOrganization ? tr("Logo") : tr("Foto"))
                     }
-                    if check.isOrganization { Text(tr("Organisationsmitglied")).font(.subheadline.weight(.semibold)) }
-                    if !check.name.isEmpty { Text(check.name).font(.title) }
+                    if check.isOrganization { Text(tr("Organisationsmitglied")).font(.hubi(.subheadline).weight(.semibold)) }
+                    if !check.name.isEmpty { Text(check.name).font(.hubi(.title)) }
                     if !check.detail.isEmpty { Text(check.detail) }
                     if !check.departments.isEmpty {
-                        Text(check.departments.joined(separator: ", ")).font(.footnote).foregroundStyle(Color.secondary)
+                        Text(check.departments.joined(separator: ", ")).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                     }
                     if check.membership != nil, unit.showsMembers {
                         Button(tr("Akte öffnen")) { showMember = true }.buttonStyle(.bordered)
@@ -1224,7 +1227,7 @@ struct AnlaesseView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(row.name)
                                     Text(tr("{datum} · wird {alter}", ["datum": Zeit.plainDate(row.date), "alter": row.age]))
-                                        .font(.footnote).foregroundStyle(Color.secondary)
+                                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                             }
                         }
@@ -1239,7 +1242,7 @@ struct AnlaesseView: View {
                                     Text(row.name)
                                     Text(tr("{datum} · {jahre} Jahre {einheit}", ["datum": Zeit.plainDate(row.date), "jahre": row.years, "einheit": row.organization])
                                         .trimmingCharacters(in: .whitespaces))
-                                        .font(.footnote).foregroundStyle(Color.secondary)
+                                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                             }
                         }

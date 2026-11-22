@@ -62,8 +62,8 @@ struct AkteMehr: View {
                     HStack {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(award.label)
-                            Text(award.period).font(.footnote).foregroundStyle(Color.secondary)
-                            if !award.note.isEmpty { Text(award.note).font(.footnote).foregroundStyle(Color.secondary) }
+                            Text(award.period).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
+                            if !award.note.isEmpty { Text(award.note).font(.hubi(.footnote)).foregroundStyle(Color.secondary) }
                         }
                         Spacer()
                         if canEdit, award.running {
@@ -78,7 +78,7 @@ struct AkteMehr: View {
             Section(tr("Zusatzfelder")) {
                 ForEach(daten.fields) { entry in
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(entry.definition.label).font(.caption).foregroundStyle(Color.secondary)
+                        Text(entry.definition.label).font(.hubi(.caption)).foregroundStyle(Color.secondary)
                         Text(entry.shown)
                     }
                 }
@@ -94,7 +94,7 @@ struct AkteMehr: View {
                 ForEach(active) { mandate in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(mandate.line)
-                        Text(mandate.detail).font(.footnote).foregroundStyle(Color.secondary)
+                        Text(mandate.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                     }
                 }
                 if !active.isEmpty, !daten.full {
@@ -258,7 +258,7 @@ struct AkteBlattView: View {
                 BeschriftetesFeld(label: def.fieldType == "date" ? tr("{label} (TT.MM.JJJJ)", ["label": def.label]) : def.label, text: binding(def.id))
                     .keyboardType(def.fieldType == "number" || def.fieldType == "date" ? .numbersAndPunctuation : .default)
                     .autocorrectionDisabled()
-                if !def.helpText.isEmpty { Text(def.helpText).font(.caption).foregroundStyle(Color.secondary) }
+                if !def.helpText.isEmpty { Text(def.helpText).font(.hubi(.caption)).foregroundStyle(Color.secondary) }
             }
         }
     }

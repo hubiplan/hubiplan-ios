@@ -34,6 +34,33 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
   baut auch unter Linux; dort ersetzt [swift-crypto](https://github.com/apple/swift-crypto)
   (Apache-2.0) das CryptoKit von Apple.
 - Formate und Verhalten folgen der Android-App; gleiche Fälle haben gleiche Tests.
+- **Gestaltung „Frisch mobil“:** Werte (`Sources/HubiplanKern/Gestaltung/werte.json`) und
+  Symbolsatz (`symbole.json`, Raster 24, Strich 1,75) sind dieselben Dateien wie in der
+  Android-App; `GestaltungTests` hält ihre Prüfsummen fest und vergleicht die Werte im Code
+  (`Design`, `Symbolsatz`). Wer einen Wert oder ein Symbol ändert, ändert die Datei in beiden
+  Apps. Die Schrift Inter (SIL Open Font License 1.1, `App/HUBIplan/Schrift/`) liegt bei;
+  `Font.hubi(.body)` liefert sie in den Stufen des Systems. Seiten setzen sich aus den
+  Bausteinen in `App/HUBIplan/Bausteine.swift` zusammen (`Karte`, `Abschnittstitel`, `Zeile`,
+  `Zaehler`, `Leerzustand`, `Platzhalter`, `SymbolBild`).
+- **Reiter wie in der Android-App:** Start, Termine, Neues, Ich und ein fünfter je Rolle
+  (Verwaltung, sonst Noten, sonst Aufgaben; `Zustand.fuenfterReiter`, wählbar unter „Mein Konto ›
+  Einstellungen“). Was nicht in der Leiste steht, ist auf „Start“ unter „Schnell erreichbar“.
+- **Einführung:** „Start“ zeigt nach dem Umbau einmal die Karte „So findest du dich zurecht“
+  (`Einfuehrung.zeigt`; der Stand steht in den Einstellungen des Geräts, eine höhere Zahl zeigt
+  sie allen noch einmal).
+- **„Neues“** fasst Mitteilungen, Pinnwand und Umfragen zusammen (`Neues.teile`); **„Ich“** zeigt
+  den Ausweis und „Mein Bereich“ in vier Gruppen: Geld, Mitmachen, Verein, Meine Daten
+  (`IchGruppe.gruppen`). Unter „Mein Konto › Einstellungen“ lässt sich die Darstellung wählen: wie
+  das Gerät, hell oder dunkel.
+- **Verwaltung als Arbeitsplatz** (`VerwaltungStart.swift`): oben „Ausweis prüfen“ und „Neu“
+  (Quittung, Buchung, Termin, Aufgabe je nach Rechten), darunter „Zu erledigen“ mit Zähler, die
+  Kacheln und die Bereiche in den Gruppen des Hauptmenüs im Browser; die Suche schränkt ein.
+- **Formulare schützen angefangene Eingaben:** Eingabeblätter mit `eingabeschutz` („Abbrechen“ fragt
+  nach, Herunterwischen ruht), Formulare auf einer Seite melden mit `entwurf`, und die Seite fragt
+  bei „Zurück“ nach (`zurueckSchutz`); `FormulareTests` prüft, dass keines fehlt.
+- **„Für dich zu tun“ auf „Start“** kommt aus `portal/<Zugang>/start/` (`Start.swift`); ältere
+  HUBIplan-Stände ohne diesen Abruf zeigen, was die App aus der Terminliste weiß. Die Terminliste
+  ist nach Monaten gegliedert und lässt sich auf Termine ohne Rückmeldung einschränken.
 
 ## Bauen und testen
 

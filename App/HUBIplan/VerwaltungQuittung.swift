@@ -58,7 +58,7 @@ private struct UnterschriftFeld: View {
                         }
                         Rectangle().fill(Color.secondary).frame(height: 1)
                             .padding(.horizontal, 24).padding(.bottom, 44)
-                        Text(title).font(.footnote).foregroundStyle(Color.secondary)
+                        Text(title).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                             .padding(.horizontal, 24).padding(.bottom, 20)
                     }
                     .contentShape(Rectangle())
@@ -80,7 +80,7 @@ private struct UnterschriftFeld: View {
                     }
                     .accessibilityLabel(tr("Unterschriftsfeld: {name}", ["name": title]))
                 }
-                Text(tr("Tipp: Gerät quer halten, dann ist mehr Platz.")).font(.footnote).foregroundStyle(Color.secondary)
+                Text(tr("Tipp: Gerät quer halten, dann ist mehr Platz.")).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             }
             .padding()
             .navigationTitle(title)
@@ -326,7 +326,7 @@ struct QuittungBlatt: View {
                     .frame(maxWidth: .infinity)
                     .frame(height: 90)
             }
-            Text(hint).font(.footnote).foregroundStyle(Color.secondary)
+            Text(hint).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
@@ -354,7 +354,7 @@ struct QuittungBlatt: View {
     @ViewBuilder
     private func fertig(_ item: CashReceiptItem) -> some View {
         Section {
-            Text(tr("Quittung {nummer} abgeschlossen", ["nummer": item.number])).font(.headline)
+            Text(tr("Quittung {nummer} abgeschlossen", ["nummer": item.number])).font(.hubi(.headline))
             Text(tr("Gebucht in der {konto}. Das PDF hängt als Beleg an der Buchung.", ["konto": item.accountName]))
         }
     }

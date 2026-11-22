@@ -63,6 +63,7 @@ struct TerminDetailView: View {
             }
         }
         .navigationTitle(event.title)
+        .zurueckSchutz()
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task(id: event.eventId) { await load() }
@@ -94,16 +95,16 @@ struct TerminDetailView: View {
         Section {
             VStack(alignment: .leading, spacing: 6) {
                 Text(event.title)
-                    .font(.title3.bold())
+                    .font(.hubi(.title3).bold())
                     .strikethrough(event.isCancelled)
                     .accessibilityAddTraits(.isHeader)
                 Text(terminWann(event))
                 if series {
-                    Text(tr("Termin einer Serie")).font(.footnote).foregroundStyle(.secondary)
+                    Text(tr("Termin einer Serie")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 let owner = detail?.owner ?? event.owner
                 if !owner.isEmpty {
-                    Text(owner).font(.footnote).foregroundStyle(.secondary)
+                    Text(owner).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 if event.nurVorstand || detail?.nurVorstand == true {
                     Abzeichen(tr("nur Vorstand"), .hinweis)
@@ -128,7 +129,7 @@ struct TerminDetailView: View {
             Section(tr("Ort und Anfahrt")) {
                 if !lines.isEmpty { Text(lines.joined(separator: "\n")) }
                 if !detail.directions.isEmpty {
-                    Text(tr("Anfahrt: {text}", ["text": detail.directions])).font(.footnote)
+                    Text(tr("Anfahrt: {text}", ["text": detail.directions])).font(.hubi(.footnote))
                 }
                 if let maps = Karten.url(name: location, address: address, latitude: detail.latitude, longitude: detail.longitude) {
                     Button {
@@ -170,7 +171,7 @@ struct TerminDetailView: View {
         let rsvp = detail.rsvp
         Section {
             if series {
-                Text(tr("Bei Serien gilt die Rückmeldung für alle Termine der Serie.")).font(.footnote)
+                Text(tr("Bei Serien gilt die Rückmeldung für alle Termine der Serie.")).font(.hubi(.footnote))
             }
             if let deadline = rsvp.deadline, let date = Zeit.parse(deadline) {
                 Text(tr("Anmeldeschluss: {date}", [
@@ -187,14 +188,14 @@ struct TerminDetailView: View {
             .accessibilityHidden(true)
             Text(Rueckmeldung.stand(rsvp.mine))
             if let mine = rsvp.mine, !mine.note.isEmpty {
-                Text(mine.note).font(.footnote).foregroundStyle(.secondary)
+                Text(mine.note).font(.hubi(.footnote)).foregroundStyle(.secondary)
             }
             if !rsvp.canRespond {
-                if !rsvp.reason.isEmpty { Text(rsvp.reason).font(.footnote) }
+                if !rsvp.reason.isEmpty { Text(rsvp.reason).font(.hubi(.footnote)) }
             } else {
                 if rsvp.mine != nil {
                     Text(tr("Du kannst deine Rückmeldung bis zum Anmeldeschluss jederzeit ändern."))
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 if rsvp.guestsAllowed {
                     Stepper(value: $guests, in: 0...max(0, rsvp.maxGuests)) {
@@ -205,7 +206,7 @@ struct TerminDetailView: View {
                 if rsvp.noteAllowed {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(rsvp.noteQuestion.isEmpty ? tr("Bemerkung (optional)") : rsvp.noteQuestion)
-                            .font(.footnote)
+                            .font(.hubi(.footnote))
                         TextField("", text: $note, axis: .vertical)
                             .textFieldStyle(.roundedBorder)
                             .submitLabel(.done)

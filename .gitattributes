@@ -1,0 +1,2 @@
+# Gemeinsame Gestaltungsdateien: Prüfsummen gelten für LF, auch unter Windows
+Sources/HubiplanKern/Gestaltung/*.json text eol=lf

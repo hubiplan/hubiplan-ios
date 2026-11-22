@@ -14,18 +14,18 @@ struct MeinMandat: View {
             IchAbschnitt(title: tr("Lastschrift")) {
                 if let mandate = state.mandate {
                     VStack(alignment: .leading, spacing: 2) {
-                        ForEach(mandate.lines, id: \.self) { Text($0).font(.footnote) }
+                        ForEach(mandate.lines, id: \.self) { Text($0).font(.hubi(.footnote)) }
                     }
                     .accessibilityElement(children: .combine)
                     if !state.creditorId.isEmpty {
                         Text(tr("Gläubiger-ID von {club}: {x1}", ["club": state.clubName, "x1": state.creditorId]))
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                     Text(tr("Ändern oder widerrufen geht im Browser unter „Mein Bereich › Rechnungen“."))
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.hubi(.footnote)).foregroundStyle(.secondary)
                 } else {
                     Text(tr("Du hast kein Lastschriftmandat erteilt. Das geht im Browser unter „Mein Bereich › Rechnungen“."))
-                        .font(.footnote)
+                        .font(.hubi(.footnote))
                 }
             }
         }
@@ -61,14 +61,14 @@ struct ErgebnisseView: View {
                     }
                     if !results.grants.isEmpty {
                         VStack(alignment: .leading, spacing: 4) {
-                            Text(tr("Titel und Auszeichnungen")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                            Text(tr("Titel und Auszeichnungen")).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
                             ForEach(results.grants) { Text($0.line) }
                         }
                     }
                     ForEach(all ? results.starts : Array(results.starts.prefix(5))) { start in
                         VStack(alignment: .leading, spacing: 2) {
-                            Text(start.title).font(.subheadline.weight(.semibold))
-                            if !start.meta.isEmpty { Text(start.meta).font(.footnote).foregroundStyle(.secondary) }
+                            Text(start.title).font(.hubi(.subheadline).weight(.semibold))
+                            if !start.meta.isEmpty { Text(start.meta).font(.hubi(.footnote)).foregroundStyle(.secondary) }
                             ForEach(start.results.indices, id: \.self) { Text(start.results[$0].line) }
                         }
                         .accessibilityElement(children: .combine)
@@ -93,7 +93,7 @@ struct ErgebnisseView: View {
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(competition.title)
                                 if !competition.line.isEmpty {
-                                    Text(competition.line).font(.footnote).foregroundStyle(.secondary)
+                                    Text(competition.line).font(.hubi(.footnote)).foregroundStyle(.secondary)
                                 }
                             }
                         }
@@ -144,30 +144,30 @@ private struct RanglisteView: View {
             if let detail {
                 if !detail.final {
                     Text(detail.live ? tr("Läuft noch – der Stand aktualisiert sich selbst.") : tr("Vorläufiges Ergebnis"))
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 ForEach(detail.titles.indices, id: \.self) { index in
                     Text("\(detail.titles[index].title): \(detail.titles[index].name)").bold()
                 }
                 if !detail.prizes.isEmpty {
-                    Text(tr("Preise")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                    Text(tr("Preise")).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
                     ForEach(detail.prizes.indices, id: \.self) { Text(detail.prizes[$0].line) }
                 }
                 ForEach(detail.scorings.indices, id: \.self) { index in
                     let scoring = detail.scorings[index]
-                    Text(scoring.name).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                    Text(scoring.name).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
                     if scoring.rows.isEmpty {
-                        Text(tr("Noch keine Ergebnisse.")).font(.footnote).foregroundStyle(.secondary)
+                        Text(tr("Noch keine Ergebnisse.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                     ForEach(scoring.rows.indices, id: \.self) { row in
                         Text(scoring.rows[row].line).fontWeight(scoring.rows[row].prize ? .semibold : .regular)
                     }
                     if !scoring.complete {
-                        Text(tr("Gezeigt werden die Preisplätze.")).font(.footnote).foregroundStyle(.secondary)
+                        Text(tr("Gezeigt werden die Preisplätze.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                 }
             } else if error == nil {
-                Laedt().font(.footnote)
+                Laedt().font(.hubi(.footnote))
             }
         }
         .padding(.vertical, 4)
@@ -222,7 +222,7 @@ struct MitarbeiterView: View {
                         ForEach(company.members) { member in
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(member.name)
-                                if !member.line.isEmpty { Text(member.line).font(.footnote).foregroundStyle(.secondary) }
+                                if !member.line.isEmpty { Text(member.line).font(.hubi(.footnote)).foregroundStyle(.secondary) }
                             }
                             .accessibilityElement(children: .combine)
                         }
@@ -232,7 +232,7 @@ struct MitarbeiterView: View {
                     }
                 }
                 Section {
-                    Text(tr("Die Zahlung für jemanden beenden geht im Browser.")).font(.footnote).foregroundStyle(.secondary)
+                    Text(tr("Die Zahlung für jemanden beenden geht im Browser.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
             } else if error == nil {
                 Laedt()
@@ -273,8 +273,8 @@ private struct MitarbeiterMelden: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(tr("Neuen Mitarbeiter melden")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
-            Text(tr("Die Person bekommt eine Mail mit dem Link zum Online-Antrag.")).font(.footnote).foregroundStyle(.secondary)
+            Text(tr("Neuen Mitarbeiter melden")).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
+            Text(tr("Die Person bekommt eine Mail mit dem Link zum Online-Antrag.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
             TextField(tr("Vorname"), text: $first).textContentType(.givenName)
                 .textInputAutocapitalization(.words).weiterFeld()
             TextField(tr("Nachname"), text: $last).textContentType(.familyName)
@@ -337,8 +337,8 @@ struct WalletKnopf: View {
                 .buttonStyle(.bordered)
                 .disabled(busy)
                 Text(tr("Der Wallet-Pass zeigt deinen Ausweis an. Ob er gilt, zeigt nur die Prüfung des QR-Codes."))
-                    .font(.footnote).foregroundStyle(.secondary)
-                if let error { MeldungText(error, .fehler).font(.footnote) }
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
+                if let error { MeldungText(error, .fehler).font(.hubi(.footnote)) }
             }
             .sheet(isPresented: Binding(get: { pass != nil }, set: { if !$0 { pass = nil } })) {
                 if let pass { PassBlatt(pass: pass).ignoresSafeArea() }

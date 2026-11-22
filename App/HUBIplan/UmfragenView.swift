@@ -52,6 +52,7 @@ struct UmfragenView: View {
             }
         }
         .navigationTitle(tr("Umfragen"))
+        .zurueckSchutz()
         .task { await model.reloadSurveys() }
         .refreshable { await model.reloadSurveys() }
         .confirmationDialog(
@@ -72,8 +73,8 @@ struct UmfragenView: View {
     @ViewBuilder
     private func karte(_ s: MemberSurvey) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(s.title).font(.headline).accessibilityAddTraits(.isHeader)
-            Text(umfrageZeile(s)).font(.footnote).foregroundStyle(.secondary)
+            Text(s.title).font(.hubi(.headline)).accessibilityAddTraits(.isHeader)
+            Text(umfrageZeile(s)).font(.hubi(.footnote)).foregroundStyle(.secondary)
             if !s.description.isEmpty { Text(s.description) }
             if let event = s.followEvent {
                 Text(tr("Termin steht fest: {title} am {day}.", [
@@ -81,7 +82,7 @@ struct UmfragenView: View {
                     "day": event.start?.formatted(.dateTime.day().month().year().locale(Texte.locale)) ?? "",
                 ]))
                 if event.response == "yes" {
-                    Text(tr("Du hast zugesagt.")).font(.footnote).foregroundStyle(.secondary)
+                    Text(tr("Du hast zugesagt.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 if s.canFollow {
                     Button(tr("Zusage übernehmen")) { Task { await model.follow(s) } }
@@ -90,9 +91,9 @@ struct UmfragenView: View {
                 }
             }
             if s.answered && editing != s.id {
-                Text(tr("Du hast geantwortet.")).font(.subheadline)
+                Text(tr("Du hast geantwortet.")).font(.hubi(.subheadline))
                 if s.anonymous {
-                    Text(tr("Anonym, nicht mehr änderbar.")).font(.footnote).foregroundStyle(.secondary)
+                    Text(tr("Anonym, nicht mehr änderbar.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
             }
             if s.canAnswer && (!s.answered || editing == s.id) {
@@ -109,10 +110,10 @@ struct UmfragenView: View {
                 .disabled(model.loading)
             }
             if let result = s.results {
-                Text(tr("Ergebnis")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                Text(tr("Ergebnis")).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
                 UmfrageErgebnis(result: result)
             } else if s.answered && s.isOpen && s.resultsMode == "after_close" {
-                Text(tr("Das Ergebnis erscheint nach dem Ende der Umfrage.")).font(.footnote).foregroundStyle(.secondary)
+                Text(tr("Das Ergebnis erscheint nach dem Ende der Umfrage.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
             }
         }
         .padding(.vertical, 4)
@@ -144,7 +145,7 @@ private struct UmfrageFormular: View {
                 UmfrageFrage(question: q, row: row(q))
             }
             if survey.anonymous {
-                Text(tr("Anonym. Deine Antwort lässt sich danach nicht mehr ändern.")).font(.footnote).foregroundStyle(.secondary)
+                Text(tr("Anonym. Deine Antwort lässt sich danach nicht mehr ändern.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
             }
             KnopfReihe {
                 if let cancel {
@@ -157,6 +158,7 @@ private struct UmfrageFormular: View {
                 .disabled(model.loading || !survey.ready(draft))
             }
         }
+        .entwurf(draft != survey.initialDraft())
     }
 }
 
@@ -184,13 +186,13 @@ private struct UmfrageFrage: View {
     var body: some View {
         let q = question
         VStack(alignment: .leading, spacing: 6) {
-            Text(q.required ? q.text : tr("{text} (freiwillig)", ["text": q.text])).font(.subheadline.weight(.semibold))
+            Text(q.required ? q.text : tr("{text} (freiwillig)", ["text": q.text])).font(.hubi(.subheadline).weight(.semibold))
             switch q.kind {
             case "single", "multiple":
                 let chosen = row.options ?? []
                 let multi = q.kind == "multiple"
                 if multi, let max = q.maxChoices {
-                    Text(tr("Höchstens {n} Antworten", ["n": max])).font(.footnote).foregroundStyle(.secondary)
+                    Text(tr("Höchstens {n} Antworten", ["n": max])).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 ForEach(q.options) { o in
                     let base = umfrageOption(label: o.label, startsAt: o.startsAt, allDay: o.allDay)
@@ -202,7 +204,7 @@ private struct UmfrageFrage: View {
                     }
                 }
                 if !multi && !q.required && !chosen.isEmpty {
-                    Button(tr("Auswahl löschen")) { row.options = [] }.font(.footnote)
+                    Button(tr("Auswahl löschen")) { row.options = [] }.font(.hubi(.footnote))
                 }
             case "yesno":
                 KnopfReihe(spacing: 16) {
@@ -229,7 +231,7 @@ private struct UmfrageFrage: View {
             case "quantity":
                 let amounts = row.quantities ?? [:]
                 Text(trn("Zusammen höchstens {n} Stück", "Zusammen höchstens {n} Stück", q.quantityLimit))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
                 ForEach(q.options) { o in
                     let key = String(o.id)
                     Stepper(value: Binding(
@@ -265,13 +267,13 @@ struct UmfrageErgebnis: View {
         if result.hidden {
             Text(tr("Das Ergebnis erscheint ab fünf Antworten, damit niemand zurückrechnen kann.") + " "
                 + trn("Bisher {n} Antwort.", "Bisher {n} Antworten.", result.participants))
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.hubi(.footnote)).foregroundStyle(.secondary)
         } else {
             VStack(alignment: .leading, spacing: 10) {
-                Text(trn("{n} Teilnahme", "{n} Teilnahmen", result.participants)).font(.footnote).foregroundStyle(.secondary)
+                Text(trn("{n} Teilnahme", "{n} Teilnahmen", result.participants)).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 ForEach(result.questions) { q in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(q.text).font(.subheadline.weight(.semibold))
+                        Text(q.text).font(.hubi(.subheadline).weight(.semibold))
                         if let values = q.values {
                             ForEach(["yes", "no", "abstain"], id: \.self) { v in
                                 if let entry = values[v] {
@@ -281,7 +283,7 @@ struct UmfrageErgebnis: View {
                         }
                         if q.kind == "text" {
                             if (q.texts ?? []).isEmpty {
-                                Text(tr("Noch keine Antworten.")).font(.footnote).foregroundStyle(.secondary)
+                                Text(tr("Noch keine Antworten.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                             }
                             ForEach(Array((q.texts ?? []).enumerated()), id: \.offset) { _, t in
                                 Text(t.name.isEmpty ? "„\(t.text)“" : "„\(t.text)“ · \(t.name)")
@@ -311,7 +313,7 @@ struct UmfrageErgebnis: View {
             }
             ProgressView(value: total > 0 ? Double(count) / Double(total) : 0)
             if !names.isEmpty {
-                Text(names.joined(separator: ", ")).font(.footnote).foregroundStyle(.secondary)
+                Text(names.joined(separator: ", ")).font(.hubi(.footnote)).foregroundStyle(.secondary)
             }
         }
         .accessibilityElement(children: .combine)

@@ -21,16 +21,16 @@ struct VersammlungLiveView: View {
             if let state {
                 Section {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(state.title).font(.headline).accessibilityAddTraits(.isHeader)
+                        Text(state.title).font(.hubi(.headline)).accessibilityAddTraits(.isHeader)
                         if !state.subline.isEmpty {
-                            Text(state.subline).font(.footnote).foregroundStyle(.secondary)
+                            Text(state.subline).font(.hubi(.footnote)).foregroundStyle(.secondary)
                         }
                     }
                     .padding(.vertical, 4)
                     Text(state.statusText)
                     if state.isOrganization {
                         Text(tr("Organisationsmitglieder trägt die Leitung mit ihrem Vertreter ein."))
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                     if state.canCheckin {
                         Button(tr("QR-Code scannen: Ich bin da")) { scanning = true }
@@ -151,12 +151,12 @@ private struct AbstimmungKarte: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(poll.heading).font(.headline).accessibilityAddTraits(.isHeader)
-            Text(poll.details).font(.footnote).foregroundStyle(.secondary)
+            Text(poll.heading).font(.hubi(.headline)).accessibilityAddTraits(.isHeader)
+            Text(poll.details).font(.hubi(.footnote)).foregroundStyle(.secondary)
             let open = poll.openVotes
             if poll.running && !open.isEmpty {
                 ForEach(open) { own in
-                    Text(own.label).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                    Text(own.label).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
                     ForEach(poll.options) { option in
                         Button {
                             choice[own.attendance] = option.id
@@ -175,7 +175,7 @@ private struct AbstimmungKarte: View {
                     }
                 }
                 Text(tr("Eine abgegebene Stimme lässt sich nicht mehr ändern."))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
                 Button(open.count > 1 ? tr("Stimmen abgeben") : tr("Stimme abgeben")) {
                     var votes: [Int: Int] = [:]
                     for own in open { votes[own.attendance] = choice[own.attendance] }
@@ -188,7 +188,7 @@ private struct AbstimmungKarte: View {
             } else if poll.running {
                 Text(tr("Abstimmen können nur anwesende Stimmberechtigte."))
             } else if let result = poll.result {
-                Text(tr("Ergebnis:")).font(.subheadline.weight(.semibold))
+                Text(tr("Ergebnis:")).font(.hubi(.subheadline).weight(.semibold))
                 ForEach(result) { line in Text("\(line.label): \(line.votes)") }
             }
         }
@@ -208,7 +208,7 @@ struct VersammlungScan: View {
                     QrScanner(found: found)
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     Text(tr("Halte die Kamera auf den QR-Code, den die Versammlungsleitung zeigt."))
-                        .font(.footnote).foregroundStyle(Color.secondary)
+                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                 } else {
                     KameraHinweis()
                     Spacer()

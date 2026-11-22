@@ -5,47 +5,58 @@ struct HauptView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var phase
     /// „Mein Konto“ liegt im Reiter „Ich“ (das iPhone zeigt höchstens fünf Reiter)
-    @State private var tab = Demo.tab == "konto" ? "ausweis" : Demo.tab
+    @State private var tab = Demo.active ? (Demo.tab == "konto" ? "ausweis" : Demo.tab) : "start"
+    /// Eigene Wahl für den fünften Reiter („Mein Konto › Einstellungen“); leer = Vorgabe je Rolle
+    @AppStorage(Reiter.wahlSchluessel) private var wahl = ""
     /// Zuletzt gewählter Reiter, übersteht das Beenden durch das System (UX-Audit 16.11., IOS-25)
     @SceneStorage("gewaehlterReiter") private var savedTab = ""
 
-    private var availableTabs: [String] {
-        var tabs = Zustand.festeReiter
-        if model.accesses.contains(where: { $0.hasTodos || $0.hasHelpers }) { tabs.append("aufgaben") }
-        if model.accesses.contains(where: { $0.hasScores }) { tabs.append("noten") }
-        return tabs
-    }
+    /// Vorführmodus: der verlangte Bereich steht in der Leiste, damit das Bildschirmfoto ihn zeigt
+    private var gewaehlt: String { Demo.active ? Demo.tab : wahl }
+    private var fuenfter: String? { Zustand.fuenfterReiter(model.fuenfteReiter, wahl: gewaehlt) }
+    private var availableTabs: [String] { Zustand.leiste(model.fuenfteReiter, wahl: gewaehlt) }
     @State private var exportURL: URL?
 
     var body: some View {
         TabView(selection: $tab) {
+            // Reiter wie in der Android-App: Start, Termine, Neues, Ich und ein fünfter je Rolle
+            StartView(tab: $tab, weitere: Zustand.weitereReiter(model.fuenfteReiter, wahl: gewaehlt))
+                .tabItem { Reiter.marke("start") }
+                .tag("start")
             TermineView()
-                .tabItem { Label(tr("Termine"), systemImage: "calendar") }
+                .tabItem { Reiter.marke("termine") }
                 .tag("termine")
             MitteilungenView()
-                .tabItem { Label(tr("Neues"), systemImage: "envelope") }
+                .tabItem { Reiter.marke("mitteilungen") }
                 // Zahl der ungelesenen Mitteilungen (IOS-22, wie Android AND-15)
                 .badge(model.unreadCirculars.count)
                 .tag("mitteilungen")
-            if model.accesses.contains(where: { $0.hasTodos || $0.hasHelpers }) {
-                AufgabenView()
-                    .tabItem { Label(tr("Aufgaben"), systemImage: "checklist") }
-                    .tag("aufgaben")
+            AusweisView()
+                .tabItem { Reiter.marke("ausweis") }
+                .tag("ausweis")
+            if fuenfter == "verwaltung" {
+                NavigationStack { VerwaltungView() }
+                    .tabItem { Reiter.marke("verwaltung") }
+                    .tag("verwaltung")
             }
-            if model.accesses.contains(where: { $0.hasScores }) {
+            if fuenfter == "noten" {
                 NotenView()
-                    .tabItem { Label(tr("Noten"), systemImage: "music.note.list") }
+                    .tabItem { Reiter.marke("noten") }
                     .tag("noten")
             }
-            AusweisView()
-                .tabItem { Label(tr("Ich"), systemImage: "person.text.rectangle") }
-                .tag("ausweis")
+            if fuenfter == "aufgaben" {
+                AufgabenView()
+                    .tabItem { Reiter.marke("aufgaben") }
+                    .tag("aufgaben")
+            }
         }
+        // Der fünfte Reiter wechselt (Rechte geladen, andere Wahl): nicht auf einem Reiter bleiben, den es nicht mehr gibt
+        .onChange(of: fuenfter) { _, _ in if !availableTabs.contains(tab) { tab = "start" } }
         .task {
             model.checkStaleQuarantine()
             await model.refresh()
             // Nur, solange niemand schon einen anderen Reiter gewählt hat
-            if !Demo.active, tab == "termine" { tab = Zustand.reiter(savedTab, available: availableTabs, fallback: tab) }
+            if !Demo.active, tab == "start" { tab = Zustand.reiter(savedTab, available: availableTabs, fallback: tab) }
         }
         .onChange(of: tab) { _, new in if !Demo.active { savedTab = new } }
         // Alte Vorgänge aus beendeten Verbindungen (APP-04, FQ24): exportieren oder löschen
@@ -120,8 +131,13 @@ struct TermineView: View {
     @EnvironmentObject private var model: AppModel
     /// Vorführmodus: `-abschnitt termin` öffnet gleich das Detail eines Termins
     @State private var path: [String] = Demo.active && Demo.section == "termin" ? ["1"] : []
+    /// Nur Termine zeigen, die noch auf eine Rückmeldung warten
+    @State private var nurOffene = false
 
     var body: some View {
+        let offen = model.events.filter(\.responseMissing)
+        // Ist alles beantwortet, zeigt die Liste wieder alle Termine
+        let gefiltert = nurOffene && !offen.isEmpty
         NavigationStack(path: $path) {
             List {
                 if model.offlineSince != nil {
@@ -141,8 +157,19 @@ struct TermineView: View {
                 if model.offerHints {
                     HinweisAngebot()
                 }
-                ForEach(model.events) { event in
-                    TerminZeile(event: event)
+                if !offen.isEmpty {
+                    Toggle(tr("{n} ohne Rückmeldung", ["n": offen.count]), isOn: $nurOffene)
+                        .font(.hubi(.subheadline))
+                }
+                // Nach Monaten gegliedert (Gestaltung „Frisch mobil“)
+                ForEach(Startseite.monate(gefiltert ? offen : model.events)) { monat in
+                    Section {
+                        ForEach(monat.termine) { event in
+                            TerminZeile(event: event)
+                        }
+                    } header: {
+                        Text(monat.titel)
+                    }
                 }
             }
             .navigationTitle(tr("Termine"))
@@ -202,14 +229,14 @@ struct TerminZeile: View {
                     DatumKaestchen(iso: event.startsAt, allDay: event.allDay, gedaempft: event.isCancelled)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(event.title)
-                            .font(.headline)
+                            .font(.hubi(.headline))
                             .strikethrough(event.isCancelled)
-                        Text(terminWann(event)).font(.subheadline)
+                        Text(terminWann(event)).font(.hubi(.subheadline))
                         if !event.location.isEmpty {
-                            Text(event.location).font(.subheadline).foregroundStyle(.secondary)
+                            Text(event.location).font(.hubi(.subheadline)).foregroundStyle(.secondary)
                         }
                         if !event.owner.isEmpty {
-                            Text(event.owner).font(.footnote).foregroundStyle(.secondary)
+                            Text(event.owner).font(.hubi(.footnote)).foregroundStyle(.secondary)
                         }
                         if let status {
                             Abzeichen(
@@ -247,9 +274,9 @@ struct TerminZeile: View {
                 .padding(.top, 2)
             }
             if let failure = model.rsvpErrors[event.eventId] {
-                MeldungText(failure, .fehler).font(.footnote)
+                MeldungText(failure, .fehler).font(.hubi(.footnote))
             } else if let notice = model.rsvpNotices[event.eventId] {
-                MeldungText(notice, .gut).font(.footnote)
+                MeldungText(notice, .gut).font(.hubi(.footnote))
             }
         }
         .padding(.vertical, 4)
@@ -348,7 +375,7 @@ struct KontoView: View {
                             Label {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(seite.title)
-                                    Text(seite.hint).font(.footnote).foregroundStyle(.secondary)
+                                    Text(seite.hint).font(.hubi(.footnote)).foregroundStyle(.secondary)
                                 }
                             } icon: {
                                 Image(systemName: seite.symbol)
@@ -408,7 +435,7 @@ private struct KontoUnterseite: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(model.accounts.label(entry)).foregroundStyle(Color.primary)
-                                    Text(entry.email).font(.footnote).foregroundStyle(Color.secondary)
+                                    Text(entry.email).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                                 Spacer()
                                 if entry.id == model.accounts.activeId {
@@ -479,6 +506,10 @@ private struct KontoUnterseite: View {
                         Button(tr("Konto und Daten löschen")) { deleteInfo = true }
                     }
                 case .einstellungen:
+                if model.fuenfteReiter.count > 1 {
+                    FuenfterReiterWahl()
+                }
+                DarstellungWahl()
                 Section {
                     Toggle(tr("Termine in den Kalender des Geräts übernehmen"), isOn: Binding(
                         get: { model.calendarOn },
@@ -599,7 +630,8 @@ struct UeberDieApp: View {
 }
 
 /// Lizenz der App. Die iOS-App enthält keine fremden Bibliotheken; sie nutzt nur Apples
-/// Systembibliotheken (swift-crypto braucht nur der Kern unter Linux für die Tests).
+/// Systembibliotheken (swift-crypto braucht nur der Kern unter Linux für die Tests). Die Schrift
+/// Inter liegt mit ihrem Lizenztext bei.
 struct LizenzenView: View {
     @Environment(\.openURL) private var openURL
 
@@ -622,6 +654,12 @@ struct LizenzenView: View {
             } header: {
                 Text(tr("Enthaltene Bibliotheken"))
             }
+            Section {
+                Text(tr("Die App verwendet die Schrift {name} (SIL Open Font License 1.1).", ["name": Design.schriftFamilie]))
+                NavigationLink(tr("Lizenztext der Schrift anzeigen")) { SchriftLizenzView() }
+            } header: {
+                Text(tr("Schrift"))
+            }
         }
         .navigationTitle(tr("Lizenzen"))
         .navigationBarTitleDisplayMode(.inline)
@@ -637,9 +675,9 @@ struct HinweisAngebot: View {
         Section {
             VStack(alignment: .leading, spacing: 10) {
                 Label(tr("Soll die App dich erinnern, wenn eine Rückmeldung fehlt?"), systemImage: "bell")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.hubi(.subheadline).weight(.semibold))
                 Text(tr("Etwa einen Tag vor dem Anmeldeschluss, mit den Knöpfen Zusage und Absage. Das Gerät fragt dich danach einmal nach der Erlaubnis."))
-                    .font(.footnote)
+                    .font(.hubi(.footnote))
                     .foregroundStyle(Color.secondary)
                 HStack(spacing: 12) {
                     Button(tr("Erinnern lassen")) { Task { await model.setHints(on: true) } }

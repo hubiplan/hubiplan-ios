@@ -123,7 +123,7 @@ struct AufnahmeBlatt: View {
                 HStack {
                     VStack(alignment: .leading, spacing: 2) {
                         Text(item.name)
-                        Text(item.detail).font(.footnote).foregroundStyle(Color.secondary)
+                        Text(item.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                     }
                     Spacer()
                     if !item.alreadyMemberHere {

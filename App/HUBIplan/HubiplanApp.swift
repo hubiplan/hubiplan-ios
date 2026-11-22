@@ -5,10 +5,12 @@ import SwiftUI
 struct HubiplanApp: App {
     @StateObject private var model = AppModel()
     @Environment(\.scenePhase) private var phase
+    @AppStorage(DarstellungWahl.schluessel) private var darstellung = ""
 
     init() {
         // Früh zuständig sein: Zusage/Absage aus einer Mitteilung kann die App erst starten
         Hinweise.shared.start()
+        Schrift.anwenden()
     }
 
     var body: some Scene {
@@ -20,6 +22,10 @@ struct HubiplanApp: App {
                     HauptView()
                 }
             }
+            // Schrift der Gestaltung „Frisch mobil“ auch dort, wo keine Stufe gesetzt ist
+            .font(.hubi(.body))
+            // Eigene Wahl unter „Mein Konto“; nil folgt dem Gerät
+            .preferredColorScheme(darstellung == Darstellung.hell ? .light : darstellung == Darstellung.dunkel ? .dark : nil)
             .environmentObject(model)
             .task { Hinweise.shared.attach(model) }
             .onOpenURL { url in

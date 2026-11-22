@@ -25,7 +25,7 @@ struct BeschriftetesFeld: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(label).font(.caption).foregroundStyle(Color.secondary)
+            Text(label).font(.hubi(.caption)).foregroundStyle(Color.secondary)
             TextField("", text: $text, axis: axis)
                 .accessibilityLabel(label)
                 // Einzeilig: Eingabetaste springt weiter; mehrzeilig bleibt sie ein Zeilenumbruch (IOS-21)
@@ -39,6 +39,9 @@ struct BeschriftetesFeld: View {
 struct TermineVerwaltungView: View {
     @EnvironmentObject private var model: AppModel
     let unit: AdminUnit
+    /// Von „Neu“ auf der Startliste: gleich das Formular öffnen, wenn Anlegen erlaubt ist
+    var neu = false
+    @State private var neuGezeigt = false
     @State private var list: AdminEventList?
     @State private var creating = false
     /// Vorführmodus: für das Bildschirmfoto gleich in einen Termin
@@ -59,13 +62,13 @@ struct TermineVerwaltungView: View {
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(terminZeit(row.startsAt, row.endsAt, allDay: row.allDay))
-                                        .font(.footnote).foregroundStyle(Color.secondary)
+                                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     Text(row.title).strikethrough(row.isCancelled)
                                     if row.isCancelled {
                                         Abzeichen(tr("Abgesagt"), .fehler)
                                     }
                                     if !row.detail.isEmpty {
-                                        Text(row.detail).font(.footnote).foregroundStyle(Color.secondary)
+                                        Text(row.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     }
                                 }
                             }
@@ -109,6 +112,10 @@ struct TermineVerwaltungView: View {
         if let result = await model.verwaltung(unit, { try await $0.events(from: range.from, to: range.to) }) {
             list = result
             if Demo.active, Demo.section == "neuertermin" { creating = true }
+            if neu, !neuGezeigt {
+                neuGezeigt = true
+                if result.canManage { creating = true }
+            }
         }
     }
 }
@@ -141,10 +148,10 @@ struct TerminVerwaltungView: View {
                 if let event {
                     let shown = event.shown(occurrence: occurrence)
                     Section {
-                        Text(event.title).font(.title3.weight(.semibold))
+                        Text(event.title).font(.hubi(.title3).weight(.semibold))
                         Text(terminZeit(shown.start, shown.end, allDay: event.allDay))
                         if !event.detail.isEmpty {
-                            Text(event.detail).font(.footnote).foregroundStyle(Color.secondary)
+                            Text(event.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                         }
                         if shown.cancelled {
                             Text(shown.note.isEmpty ? tr("Abgesagt") : tr("Abgesagt: {hinweis}", ["hinweis": shown.note]))
@@ -173,11 +180,11 @@ struct TerminVerwaltungView: View {
                             }
                             if let deadline = event.rsvp.deadline {
                                 Text(tr("Anmeldeschluss {datum}", ["datum": Zeit.plainDate(deadline)]))
-                                    .font(.footnote).foregroundStyle(Color.secondary)
+                                    .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                             }
                             if event.isSeries {
                                 Text(tr("Bei Serien gelten Rückmeldungen für die ganze Serie."))
-                                    .font(.footnote).foregroundStyle(Color.secondary)
+                                    .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                             }
                         }
                     }
@@ -269,7 +276,7 @@ struct TerminVerwaltungView: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(row.title)
             if !row.detail.isEmpty {
-                Text(row.detail).font(.footnote).foregroundStyle(Color.secondary)
+                Text(row.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

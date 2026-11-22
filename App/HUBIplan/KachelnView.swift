@@ -18,7 +18,7 @@ struct KachelnUebersicht: View {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(tiles.visible) { KachelKarte(tile: $0, server: model.account?.server ?? "") }
                     Button(tiles.visible.isEmpty ? tr("Kacheln einblenden") : tr("Kacheln anpassen")) { customizing = true }
-                        .font(.footnote)
+                        .font(.hubi(.footnote))
                 }
                 .sheet(isPresented: $customizing) {
                     KachelnAnpassen(data: $data, save: save)
@@ -49,17 +49,17 @@ private struct KachelKarte: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(tile.title).font(.headline).accessibilityAddTraits(.isHeader)
+            Text(tile.title).font(.hubi(.headline)).accessibilityAddTraits(.isHeader)
             if let c = tile.content {
                 if !c.reason.isEmpty {
-                    Text(c.reason).font(.subheadline.weight(.semibold)).foregroundStyle(Color.accentColor)
+                    Text(c.reason).font(.hubi(.subheadline).weight(.semibold)).foregroundStyle(Color.accentColor)
                 }
                 if !c.figures.isEmpty {
                     LazyVGrid(columns: [GridItem(.adaptive(minimum: 96), alignment: .leading)], alignment: .leading, spacing: 6) {
                         ForEach(Array(c.figures.enumerated()), id: \.offset) { _, f in
                             VStack(alignment: .leading, spacing: 0) {
-                                Text(f.label).font(.caption).foregroundStyle(Color.secondary)
-                                Text(f.value).font(.headline).foregroundStyle(toneColor(f.tone))
+                                Text(f.label).font(.hubi(.caption)).foregroundStyle(Color.secondary)
+                                Text(f.value).font(.hubi(.headline)).foregroundStyle(toneColor(f.tone))
                             }
                             .accessibilityElement(children: .combine)
                         }
@@ -67,8 +67,8 @@ private struct KachelKarte: View {
                 }
                 ForEach(Array(c.rows.enumerated()), id: \.offset) { _, r in
                     let row = VStack(alignment: .leading, spacing: 1) {
-                        Text(r.title).font(.body.weight(.semibold)).foregroundStyle(toneColor(r.tone))
-                        if !r.detail.isEmpty { Text(r.detail).font(.subheadline).foregroundStyle(Color.secondary) }
+                        Text(r.title).font(.hubi(.body).weight(.semibold)).foregroundStyle(toneColor(r.tone))
+                        if !r.detail.isEmpty { Text(r.detail).font(.hubi(.subheadline)).foregroundStyle(Color.secondary) }
                     }
                     .frame(maxWidth: .infinity, minHeight: r.link == nil ? nil : 44, alignment: .leading)
                     if r.link != nil {
@@ -80,14 +80,14 @@ private struct KachelKarte: View {
                     }
                 }
                 if !c.text.isEmpty {
-                    Text(c.text).font(.subheadline).foregroundStyle(Color.secondary)
+                    Text(c.text).font(.hubi(.subheadline)).foregroundStyle(Color.secondary)
                 }
                 if let link = c.link {
                     Button(c.linkLabel.isEmpty ? tr("Öffnen") : c.linkLabel) { open(link) }
-                        .font(.subheadline)
+                        .font(.hubi(.subheadline))
                 }
             } else {
-                Text(tile.description).font(.subheadline).foregroundStyle(Color.secondary)
+                Text(tile.description).font(.hubi(.subheadline)).foregroundStyle(Color.secondary)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -108,7 +108,7 @@ private struct KachelnAnpassen: View {
             List {
                 Section {
                     Text(tr("„Bei Anlass“ zeigt eine Kachel nur, wenn gerade etwas ansteht. Die Auswahl gilt auch für die Startseite im Browser."))
-                        .font(.footnote)
+                        .font(.hubi(.footnote))
                         .foregroundStyle(.secondary)
                 }
                 ForEach(data?.tiles ?? []) { tile in

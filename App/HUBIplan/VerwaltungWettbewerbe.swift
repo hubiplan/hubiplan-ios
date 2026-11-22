@@ -59,12 +59,12 @@ struct WettbewerbeView: View {
                         let active = accesses[competition.id] ?? []
                         Section {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(competition.title).font(.headline)
+                                Text(competition.title).font(.hubi(.headline))
                                 if !competition.line.isEmpty {
-                                    Text(competition.line).font(.footnote).foregroundStyle(Color.secondary)
+                                    Text(competition.line).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                                 if !active.isEmpty {
-                                    Text(tr("Aktive Standzugänge: {n}", ["n": active.count])).font(.footnote).foregroundStyle(Color.secondary)
+                                    Text(tr("Aktive Standzugänge: {n}", ["n": active.count])).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                             }
                             Button(tr("Standmodus öffnen")) { Task { await open(competition) } }
@@ -243,7 +243,7 @@ private struct StandScan: View {
                 QrScanner(found: found)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 Text(tr("Halte die Kamera auf den QR-Code des Standzugangs."))
-                    .font(.footnote).foregroundStyle(Color.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             }
             .padding()
             .navigationTitle(tr("Stand-QR scannen"))

@@ -52,6 +52,7 @@ jobs:
           }
           for SPRACHE in de en; do
             foto verbinden "$SPRACHE"
+            foto start "$SPRACHE" -demo 1 -reiter start
             foto termine "$SPRACHE" -demo 1 -reiter termine
             foto termin "$SPRACHE" -demo 1 -reiter termine -abschnitt termin
             foto neues "$SPRACHE" -demo 1 -reiter mitteilungen

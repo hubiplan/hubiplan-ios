@@ -66,7 +66,73 @@ struct AusweisView: View {
     @State private var showBookings = Demo.active && Demo.section == "belegung"
     @State private var showAbsences = Demo.active && Demo.section == "abwesenheiten"
     @State private var showAccount = Demo.active && Demo.tab == "konto"
+    @AppStorage(Reiter.wahlSchluessel) private var wahl = ""
     @State private var showAdmin = Demo.active && ["verwaltung", "freischalten", "offen", "meldungen", "mitglieder", "mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank", "aufnahme", "dubletten", "anlaesse", "ausweispruefung", "vtermine", "vtermin", "neuertermin", "kasse", "buchung", "neuebuchung", "quittung", "entwuerfe", "vrechnungen", "vrechnung", "vaufgaben", "vaufgabe", "neueaufgabe", "partner", "qualifikationen", "fristen", "frist", "wettbewerbe", "standcode"].contains(Demo.section)
+
+    /// Bereiche, die dieser Zugang gerade hat (Schlüssel wie `IchGruppe.bereiche`).
+    private var vorhanden: Set<String> {
+        var da: Set<String> = []
+        if model.profile != nil { da.insert("daten") }
+        if model.profile?.cancellation?.shown == true { da.insert("kuendigung") }
+        if model.invoices != nil { da.insert("rechnungen") }
+        if model.mandate?.shown == true { da.insert("lastschrift") }
+        if model.meetings != nil { da.insert("versammlungen") }
+        if model.orders != nil { da.insert("bestellungen") }
+        if model.expenses != nil { da.insert("auslagen") }
+        if model.documents != nil { da.insert("dokumente") }
+        if let access = model.access {
+            if access.hasTraining { da.insert("training") }
+            if access.hasFeeProofs, model.feeProofs != nil { da.insert("nachweise") }
+            if access.hasResults || access.hasEntries { da.insert("ergebnisse") }
+            if access.hasAbsences { da.insert("abwesenheiten") }
+            if access.hasBookings { da.insert("belegung") }
+            if access.company { da.insert("mitarbeiter") }
+        }
+        return da
+    }
+
+    @ViewBuilder
+    private func bereich(_ schluessel: String) -> some View {
+        switch schluessel {
+        case "daten":
+            if let profile = model.profile { MeineDaten(profile: profile) }
+        case "kuendigung":
+            if let cancellation = model.profile?.cancellation { KuendigungAbschnitt(info: cancellation) }
+        case "rechnungen":
+            if let invoices = model.invoices {
+                MeineRechnungen(list: invoices, kurz: !(Demo.active && Demo.section == "rechnungen")).id("rechnungen")
+            }
+        case "lastschrift":
+            if let mandate = model.mandate { MeinMandat(state: mandate) }
+        case "nachweise":
+            IchVerweis(title: tr("Beitragsnachweise"), detail: feeProofSummary(due: model.access?.feeProofsDue ?? 0)) { BeitragsnachweiseView() }
+        case "bestellungen":
+            IchVerweis(title: tr("Bestellungen"), detail: model.orders?.summary ?? "") { BestellungenView() }
+        case "auslagen":
+            IchVerweis(title: tr("Auslagen"), detail: model.expenses?.summary ?? "") { AuslagenView() }
+        case "training":
+            IchVerweis(title: tr("Training"), detail: model.access?.trainingHint ?? "") { TrainingView() }
+        case "ergebnisse":
+            IchVerweis(
+                title: tr("Wettbewerbe"),
+                detail: model.access?.hasEntries == true ? tr("Meldungen, Plätze, Werte und Titel") : tr("Meine Ergebnisse und Ranglisten")
+            ) { ErgebnisseView() }
+        case "abwesenheiten":
+            IchVerweis(title: tr("Abwesenheiten"), detail: tr("Wann du nicht mitspielen kannst")) { AbwesenheitenView() }
+        case "belegung":
+            IchVerweis(title: tr("Belegung"), detail: tr("Vereinsheim, Räume oder Material anfragen")) { BelegungView() }
+        case "versammlungen":
+            if let meetings = model.meetings {
+                IchVerweis(title: tr("Versammlungen"), detail: versammlungenKurz(meetings)) { VersammlungenView() }
+            }
+        case "dokumente":
+            IchVerweis(title: tr("Dokumente"), detail: trn("1 Dokument", "{n} Dokumente", model.documents?.count ?? 0)) { DokumenteView() }
+        case "mitarbeiter":
+            IchVerweis(title: tr("Mitarbeiter"), detail: tr("Für wen die Firma zahlt")) { MitarbeiterView() }
+        default:
+            EmptyView()
+        }
+    }
 
     var body: some View {
         NavigationStack {
@@ -93,11 +159,11 @@ struct AusweisView: View {
                                 "Ohne Netz angezeigt, Stand {stand}. Wer den QR-Code prüft, sieht immer den aktuellen Stand.",
                                 ["stand": stored.savedAt.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale))]
                             ))
-                            .font(.footnote)
+                            .font(.hubi(.footnote))
                             .foregroundStyle(.secondary)
                         } else {
                             Text(tr("Der QR-Code führt zur Prüfseite deines Vereins. Sie zeigt immer den aktuellen Stand."))
-                                .font(.footnote)
+                                .font(.hubi(.footnote))
                                 .foregroundStyle(.secondary)
                         }
                         Button(tr("QR-Code groß zeigen")) { big = true }
@@ -106,68 +172,16 @@ struct AusweisView: View {
                             WalletKnopf()
                         }
                     }
-                    if let access = model.access {
-                        KachelnUebersicht(
-                            reloadKey: "p\(access.id)",
-                            load: { await model.memberTiles() },
-                            save: { await model.setMemberTile($0, $1) }
-                        )
-                        .padding(.top, 8)
-                    }
-                    // Verwaltung gleich unter dem Ausweis, nicht unter allen Rechnungen (UX-Audit 16.11., IOS-17)
-                    if let units = model.adminOverview?.allUnits, !units.isEmpty {
+                    // Die Kacheln der Startseite stehen im Reiter „Start“. Die Verwaltung steht hier nur,
+                    // wenn sie nicht selbst Reiter ist (dann gleich unter dem Ausweis, IOS-17).
+                    if let units = model.adminOverview?.allUnits, !units.isEmpty,
+                       Zustand.fuenfterReiter(model.fuenfteReiter, wahl: Demo.active ? Demo.tab : wahl) != "verwaltung" {
                         IchVerweis(title: tr("Verwaltung"), detail: units.map(\.name).joined(separator: ", ")) { VerwaltungView() }
                     }
-                    if let pinboard = model.pinboard {
-                        IchVerweis(title: tr("Pinnwand"), detail: pinboard.summary) { PinnwandView() }
-                    }
-                    if let profile = model.profile {
-                        MeineDaten(profile: profile)
-                        if let cancellation = profile.cancellation, cancellation.shown {
-                            KuendigungAbschnitt(info: cancellation)
-                        }
-                    }
-                    if let invoices = model.invoices {
-                        MeineRechnungen(list: invoices, kurz: !(Demo.active && Demo.section == "rechnungen")).id("rechnungen")
-                    }
-                    if let mandate = model.mandate {
-                        MeinMandat(state: mandate)
-                    }
-                    if let meetings = model.meetings {
-                        IchVerweis(title: tr("Versammlungen"), detail: versammlungenKurz(meetings)) { VersammlungenView() }
-                    }
-                    if let access = model.access, access.hasTraining {
-                        IchVerweis(title: tr("Training"), detail: access.trainingHint) { TrainingView() }
-                    }
-                    if let surveys = model.surveys {
-                        IchVerweis(title: tr("Umfragen"), detail: surveys.summary) { UmfragenView() }
-                    }
-                    if let orders = model.orders {
-                        IchVerweis(title: tr("Bestellungen"), detail: orders.summary) { BestellungenView() }
-                    }
-                    if let expenses = model.expenses {
-                        IchVerweis(title: tr("Auslagen"), detail: expenses.summary) { AuslagenView() }
-                    }
-                    if let access = model.access, access.hasFeeProofs, model.feeProofs != nil {
-                        IchVerweis(title: tr("Beitragsnachweise"), detail: feeProofSummary(due: access.feeProofsDue)) { BeitragsnachweiseView() }
-                    }
-                    if let access = model.access, access.hasResults || access.hasEntries {
-                        IchVerweis(
-                            title: tr("Wettbewerbe"),
-                            detail: access.hasEntries ? tr("Meldungen, Plätze, Werte und Titel") : tr("Meine Ergebnisse und Ranglisten")
-                        ) { ErgebnisseView() }
-                    }
-                    if let access = model.access, access.hasAbsences {
-                        IchVerweis(title: tr("Abwesenheiten"), detail: tr("Wann du nicht mitspielen kannst")) { AbwesenheitenView() }
-                    }
-                    if let access = model.access, access.hasBookings {
-                        IchVerweis(title: tr("Belegung"), detail: tr("Vereinsheim, Räume oder Material anfragen")) { BelegungView() }
-                    }
-                    if let access = model.access, access.company {
-                        IchVerweis(title: tr("Mitarbeiter"), detail: tr("Für wen die Firma zahlt")) { MitarbeiterView() }
-                    }
-                    if let documents = model.documents {
-                        IchVerweis(title: tr("Dokumente"), detail: trn("1 Dokument", "{n} Dokumente", documents.count)) { DokumenteView() }
+                    // „Mein Bereich“ in vier Gruppen; Pinnwand und Umfragen stehen im Reiter „Neues“
+                    ForEach(IchGruppe.gruppen(vorhanden), id: \.gruppe) { eintrag in
+                        Abschnittstitel(eintrag.gruppe.titel).padding(.top, Design.Abstand.mittel)
+                        ForEach(eintrag.bereiche, id: \.self) { bereich($0) }
                     }
                 }
                 .frame(maxWidth: 520, alignment: .leading)
@@ -224,8 +238,8 @@ struct AusweisKarte: View {
     private func zeile(_ label: String, _ value: String) -> some View {
         if !label.isEmpty && !value.trimmingCharacters(in: .whitespaces).isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                Text(label).font(.caption2).foregroundStyle(Color(white: 0.33))
-                Text(value).font(.footnote)
+                Text(label).font(.hubi(.caption2)).foregroundStyle(Color(white: 0.33))
+                Text(value).font(.hubi(.footnote))
             }
         }
     }
@@ -240,8 +254,8 @@ struct AusweisKarte: View {
                         Image(uiImage: logo).resizable().scaledToFit().frame(width: 36, height: 36)
                     }
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(display.club).font(.subheadline.bold())
-                        Text(tr("Mitgliedsausweis")).font(.caption2)
+                        Text(display.club).font(.hubi(.subheadline).bold())
+                        Text(tr("Mitgliedsausweis")).font(.hubi(.caption2))
                     }
                     Spacer(minLength: 0)
                 }
@@ -267,13 +281,13 @@ struct AusweisKarte: View {
                         }
                     }
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(display.firstLine).font(.subheadline)
-                        Text(display.lastName).font(.headline)
+                        Text(display.firstLine).font(.hubi(.subheadline))
+                        Text(display.lastName).font(.hubi(.headline))
                         zeile(display.departmentLabel, display.departments.joined(separator: ", "))
                         zeile(tr("Mitgliedsnummer"), display.clubNumber)
                         zeile(tr("Mitgliedsart"), display.memberType ?? "")
                         Text(display.statusLabel)
-                            .font(.caption.bold())
+                            .font(.hubi(.caption).bold())
                             .foregroundStyle(display.status == "active"
                                 ? Color(red: 27 / 255, green: 94 / 255, blue: 32 / 255)
                                 : Color(red: 183 / 255, green: 28 / 255, blue: 28 / 255))
@@ -310,8 +324,8 @@ struct GrosserQrCode: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Text(club).font(.headline)
-            Text(name).font(.title2.bold())
+            Text(club).font(.hubi(.headline))
+            Text(name).font(.hubi(.title2).bold())
             if let qr = qrImage(url) {
                 Image(uiImage: qr).interpolation(.none).resizable().scaledToFit()
                     .frame(maxWidth: 420)
@@ -342,7 +356,8 @@ struct IchAbschnitt<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline).accessibilityAddTraits(.isHeader)
+            // Ohne Titel, wenn die Überschrift der Gruppe schon dasselbe sagt
+            if !title.isEmpty { Text(title).font(.hubi(.headline)).accessibilityAddTraits(.isHeader) }
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -365,8 +380,8 @@ struct IchVerweis<Ziel: View>: View {
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.headline).foregroundStyle(Color.primary)
-                    if !detail.isEmpty { Text(detail).font(.footnote).foregroundStyle(Color.secondary) }
+                    Text(title).font(.hubi(.headline)).foregroundStyle(Color.primary)
+                    if !detail.isEmpty { Text(detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary) }
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right").foregroundStyle(Color.secondary)
@@ -388,15 +403,15 @@ struct MeineDaten: View {
     private func zeile(_ label: String, _ value: String) -> some View {
         if !value.trimmingCharacters(in: .whitespaces).isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                Text(label).font(.caption).foregroundStyle(.secondary)
+                Text(label).font(.hubi(.caption)).foregroundStyle(.secondary)
                 Text(value)
             }
         }
     }
 
     var body: some View {
-        IchAbschnitt(title: tr("Meine Daten")) {
-            Text(profile.name).font(.body.weight(.semibold))
+        IchAbschnitt(title: "") {
+            Text(profile.name).font(.hubi(.body).weight(.semibold))
             zeile(tr("Mitgliedsnummer"), profile.clubNumber)
             zeile(tr("Mitgliedsart"), profile.memberType ?? "")
             if !profile.isOrganization {
@@ -409,7 +424,7 @@ struct MeineDaten: View {
                 zeile(tr("Telefon"), contact.phone)
             }
             Text(tr("Stimmt etwas nicht? Ändern kannst du deine Daten im Mitgliederbereich im Browser."))
-                .font(.footnote)
+                .font(.hubi(.footnote))
                 .foregroundStyle(.secondary)
         }
     }
@@ -427,23 +442,23 @@ struct MeineRechnungen: View {
                 Text(tr("Keine Rechnungen")).foregroundStyle(.secondary)
             }
             if let sum = list.openSum {
-                Text(tr("Offen insgesamt: {betrag}", ["betrag": sum])).font(.body.weight(.semibold))
+                Text(tr("Offen insgesamt: {betrag}", ["betrag": sum])).font(.hubi(.body).weight(.semibold))
             }
             if model.previewBusy {
-                Laedt(text: tr("Datei wird geladen …")).font(.footnote)
+                Laedt(text: tr("Datei wird geladen …")).font(.hubi(.footnote))
             } else if let message = model.error {
-                MeldungText(message, .fehler).font(.footnote)
+                MeldungText(message, .fehler).font(.hubi(.footnote))
             }
             ForEach(kurz ? list.preview : list.sorted) { invoice in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(invoice.subject.isEmpty ? invoice.number : invoice.subject)
-                    Text(invoice.headline).font(.footnote).foregroundStyle(.secondary)
+                    Text(invoice.headline).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     HStack {
                         // Überfällig, offen, bezahlt auch ohne Farbe unterscheidbar (IOS-12)
                         ZustandText(invoice.stateText, invoice.overdue ? .fehler : invoice.open ? .warnung : .gut)
-                            .font(.footnote.weight(invoice.open ? .semibold : .regular))
+                            .font(.hubi(.footnote).weight(invoice.open ? .semibold : .regular))
                         Spacer(minLength: 8)
-                        Text(Geld.format(invoice.total)).font(.footnote)
+                        Text(Geld.format(invoice.total)).font(.hubi(.footnote))
                     }
                     KnopfReihe(spacing: 12) {
                         Button(tr("PDF ansehen")) { Task { await model.openInvoice(invoice) } }
@@ -460,13 +475,13 @@ struct MeineRechnungen: View {
                 .padding(.vertical, 4)
             }
             if !list.collective.isEmpty {
-                Text(tr("Über eine Sammelrechnung")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                Text(tr("Über eine Sammelrechnung")).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
                 Text(tr("Diese Beiträge zahlt deine Einheit gesammelt; die Rechnung bekommt sie."))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
                 ForEach(list.collective) { line in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(line.title)
-                        Text(line.line).font(.footnote).foregroundStyle(.secondary)
+                        Text(line.line).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                     .accessibilityElement(children: .combine)
                 }
@@ -477,7 +492,7 @@ struct MeineRechnungen: View {
                 }
             } else if !list.invoices.isEmpty {
                 Text(tr("Rechnungen öffnet die App nur online und speichert sie nicht."))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
             }
         }
     }

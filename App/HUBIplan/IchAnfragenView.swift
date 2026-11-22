@@ -51,11 +51,11 @@ struct BelegungView: View {
                         if data.own.isEmpty { Text(tr("Noch keine.")).foregroundStyle(.secondary) }
                         ForEach(data.own) { booking in
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(booking.title).font(.subheadline.weight(.semibold))
+                                Text(booking.title).font(.hubi(.subheadline).weight(.semibold))
                                 Text([booking.itemTitle, belegungZeit(booking.startsAt, booking.endsAt, allDay: booking.allDay)]
                                     .filter { !$0.isEmpty }.joined(separator: " · "))
-                                    .font(.footnote).foregroundStyle(.secondary)
-                                Text(booking.statusLabel).font(.footnote)
+                                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
+                                Text(booking.statusLabel).font(.hubi(.footnote))
                                 if booking.cancellable {
                                     Button(tr("Buchung stornieren"), role: .destructive) { cancelling = booking }
                                         .buttonStyle(.bordered)
@@ -70,6 +70,7 @@ struct BelegungView: View {
             }
         }
         .navigationTitle(tr("Belegung"))
+        .zurueckSchutz()
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
         .task(id: "\(model.accessId ?? 0)-\(monday.timeIntervalSince1970)") { await load() }
@@ -91,7 +92,7 @@ struct BelegungView: View {
         let until = Calendar.current.date(byAdding: .day, value: 6, to: monday) ?? monday
         Section {
             Text(tr("Woche vom {from} bis {until}", ["from": Zeit.plainDate(Zeit.day(monday)), "until": Zeit.plainDate(Zeit.day(until))]))
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.hubi(.footnote)).foregroundStyle(.secondary)
             KnopfReihe {
                 Button(tr("Vorige Woche")) { monday = Calendar.current.date(byAdding: .day, value: -7, to: monday) ?? monday }
                 Spacer()
@@ -100,14 +101,14 @@ struct BelegungView: View {
             .buttonStyle(.borderless)
             ForEach(data.items) { item in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(item.title).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                    Text(item.title).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
                     let rows = data.busy(item.id)
                     if rows.isEmpty {
-                        Text(tr("In dieser Woche frei.")).font(.footnote).foregroundStyle(.secondary)
+                        Text(tr("In dieser Woche frei.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                     ForEach(rows.indices, id: \.self) { index in
                         Text(belegungZeit(rows[index].startsAt, rows[index].endsAt, allDay: rows[index].allDay) + " · " + rows[index].title)
-                            .font(.footnote)
+                            .font(.hubi(.footnote))
                     }
                 }
             }
@@ -167,7 +168,7 @@ private struct BelegungAnfrage: View {
 
     var body: some View {
         Text(tr("Die Verwaltung bestätigt deine Anfrage oder lehnt sie ab; du bekommst eine E-Mail."))
-            .font(.footnote).foregroundStyle(.secondary)
+            .font(.hubi(.footnote)).foregroundStyle(.secondary)
         Picker(tr("Objekt"), selection: Binding(get: { item?.id ?? 0 }, set: { itemId = $0 })) {
             ForEach(items) { Text($0.title).tag($0.id) }
         }
@@ -179,11 +180,11 @@ private struct BelegungAnfrage: View {
         DatePicker(tr("Ende"), selection: $end, displayedComponents: allDay ? [.date] : [.date, .hourAndMinute])
             .environment(\.locale, Texte.locale)
         if let item, item.horizonDays > 0 {
-            Text(tr("Bis zu {n} Tage im Voraus buchbar.", ["n": item.horizonDays])).font(.footnote).foregroundStyle(.secondary)
+            Text(tr("Bis zu {n} Tage im Voraus buchbar.", ["n": item.horizonDays])).font(.hubi(.footnote)).foregroundStyle(.secondary)
         }
         TextField(tr("Notiz (optional)"), text: $note, axis: .vertical).lineLimit(2...5)
         if times == nil {
-            ZustandText(tr("Das Ende liegt vor dem Beginn."), .fehler).font(.footnote)
+            ZustandText(tr("Das Ende liegt vor dem Beginn."), .fehler).font(.hubi(.footnote))
         }
         if let problem { MeldungText(problem, .fehler) }
         if let notice { MeldungText(notice, .gut) }
@@ -191,6 +192,7 @@ private struct BelegungAnfrage: View {
             .buttonStyle(.borderedProminent)
             .disabled(busy || title.trimmingCharacters(in: .whitespaces).isEmpty || times == nil || item == nil)
             .onChange(of: start) { if end <= start { end = start.addingTimeInterval(allDay ? 0 : 2 * 3600) } }
+            .entwurf(!title.isEmpty || !note.isEmpty)
     }
 
     private func send() async {
@@ -228,7 +230,7 @@ struct GemeldetAbschnitt: View {
             if let entries {
                 if entries.isEmpty {
                     Text(tr("Zurzeit bist du für nichts gemeldet. Sobald der Verein dich zu einem Wettbewerb oder Anlass meldet, steht das hier."))
-                        .font(.footnote).foregroundStyle(.secondary)
+                        .font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 let today = Zeit.day(Date())
                 let coming = entries.filter { !$0.past(today: today) }
@@ -243,12 +245,12 @@ struct GemeldetAbschnitt: View {
 
     @ViewBuilder
     private func gruppe(_ title: String, _ rows: [MyEntry]) -> some View {
-        Text(title).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+        Text(title).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
         ForEach(rows) { entry in
             VStack(alignment: .leading, spacing: 2) {
-                Text(entry.title).font(.subheadline.weight(.semibold))
-                if !entry.meta.isEmpty { Text(entry.meta).font(.footnote).foregroundStyle(.secondary) }
-                Text(entry.line).font(.footnote)
+                Text(entry.title).font(.hubi(.subheadline).weight(.semibold))
+                if !entry.meta.isEmpty { Text(entry.meta).font(.hubi(.footnote)).foregroundStyle(.secondary) }
+                Text(entry.line).font(.hubi(.footnote))
             }
             .accessibilityElement(children: .combine)
         }
@@ -283,7 +285,7 @@ struct AbwesenheitenView: View {
                 } else {
                     Section {
                         Text(tr("Trage Zeiträume ein, in denen du nicht mitspielen kannst. Eine Begründung wird nicht erfasst. Bestehende Einteilungen bleiben erhalten; bitte dort zusätzlich absagen."))
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.hubi(.footnote)).foregroundStyle(.secondary)
                         if let notice { MeldungText(notice, .gut) }
                         if let problem { MeldungText(problem, .fehler) }
                         Button(tr("Abwesenheit eintragen")) { notice = nil; editing = AbwesenheitEntwurf(row: nil) }
@@ -392,7 +394,7 @@ private struct AbwesenheitFormular: View {
                 DatePicker(tr("Von"), selection: $start).environment(\.locale, Texte.locale)
                 DatePicker(tr("Bis"), selection: $end).environment(\.locale, Texte.locale)
                 if end <= start {
-                    ZustandText(tr("Das Ende der Abwesenheit muss nach dem Beginn liegen."), .fehler).font(.footnote)
+                    ZustandText(tr("Das Ende der Abwesenheit muss nach dem Beginn liegen."), .fehler).font(.hubi(.footnote))
                 }
                 if let problem { MeldungText(problem, .fehler) }
             }
@@ -462,7 +464,7 @@ struct KuendigungAbschnitt: View {
             }
             if info.possible, !open, let earliest = info.earliestDate {
                 Text(tr("Kündigen ist {rule} möglich, heute also frühestens zum {date}.", ["rule": info.rule, "date": Zeit.plainDate(earliest)]))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
                 Button(tr("Kündigen")) {
                     notice = nil
                     exitDate = Self.date(earliest) ?? Date()
@@ -481,14 +483,14 @@ struct KuendigungAbschnitt: View {
             }
             if open, let earliest = info.earliestDate {
                 Text(tr("Kündigen ist {rule} möglich. Ein späteres Datum kannst du wählen.", ["rule": info.rule]))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
                 DatePicker(tr("Austritt zum"), selection: $exitDate, in: (Self.date(earliest) ?? Date())..., displayedComponents: [.date])
                     .environment(\.locale, Texte.locale)
                 TextField(tr("Nachricht an den Verein (optional)"), text: $message, axis: .vertical)
                     .lineLimit(2...5)
                     .textFieldStyle(.roundedBorder)
                 if info.tooEarly(chosen) {
-                    ZustandText(tr("Frühestens zum {date}.", ["date": Zeit.plainDate(earliest)]), .fehler).font(.footnote)
+                    ZustandText(tr("Frühestens zum {date}.", ["date": Zeit.plainDate(earliest)]), .fehler).font(.hubi(.footnote))
                 }
                 KnopfReihe {
                     // Gewöhnlicher Knopf; rot ist erst die Bestätigung in der Rückfrage (IOS-23)
@@ -502,14 +504,14 @@ struct KuendigungAbschnitt: View {
             if let problem { MeldungText(problem, .fehler) }
             ForEach(info.requests.filter { !$0.pending }) { item in
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(item.statusLabel).font(.subheadline)
+                    Text(item.statusLabel).font(.hubi(.subheadline))
                     Text(tr("Kündigung zum {date}, gesendet {sent}", [
                         "date": Zeit.plainDate(item.exitDate),
                         "sent": Zeit.plainDate(item.createdAt),
                     ]))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
                     if !item.response.isEmpty {
-                        Text(tr("Antwort deines Vereins: {text}", ["text": item.response])).font(.footnote)
+                        Text(tr("Antwort deines Vereins: {text}", ["text": item.response])).font(.hubi(.footnote))
                     }
                 }
                 .accessibilityElement(children: .combine)
