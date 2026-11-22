@@ -111,7 +111,7 @@ jobs:
           done
           xcrun simctl shutdown booted
           # iPad: Liste und Detail nebeneinander (wenige Bilder, nur Deutsch)
-          TABLET=$(xcrun simctl list devices available | grep -m1 -oE 'iPad [^(]*\(' | sed 's/ ($//')
+          TABLET=$(xcrun simctl list devices available | grep -m1 -oE 'iPad [^(]*\(' | sed 's/ ($//' || true)
           if [ -n "$TABLET" ]; then
             echo "Simulator: $TABLET"
             xcrun simctl boot "$TABLET"
