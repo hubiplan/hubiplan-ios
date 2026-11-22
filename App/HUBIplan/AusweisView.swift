@@ -66,6 +66,7 @@ struct AusweisView: View {
     @State private var showBookings = Demo.active && Demo.section == "belegung"
     @State private var showAbsences = Demo.active && Demo.section == "abwesenheiten"
     @State private var showAccount = Demo.active && Demo.tab == "konto"
+    @AppStorage(Reiter.wahlSchluessel) private var wahl = ""
     @State private var showAdmin = Demo.active && ["verwaltung", "freischalten", "offen", "meldungen", "mitglieder", "mitglied", "stammdaten", "austritt", "folgen", "akte", "ehrung", "zusatzfelder", "bank", "aufnahme", "dubletten", "anlaesse", "ausweispruefung", "vtermine", "vtermin", "neuertermin", "kasse", "buchung", "neuebuchung", "quittung", "entwuerfe", "vrechnungen", "vrechnung", "vaufgaben", "vaufgabe", "neueaufgabe", "partner", "qualifikationen", "fristen", "frist", "wettbewerbe", "standcode"].contains(Demo.section)
 
     var body: some View {
@@ -106,16 +107,10 @@ struct AusweisView: View {
                             WalletKnopf()
                         }
                     }
-                    if let access = model.access {
-                        KachelnUebersicht(
-                            reloadKey: "p\(access.id)",
-                            load: { await model.memberTiles() },
-                            save: { await model.setMemberTile($0, $1) }
-                        )
-                        .padding(.top, 8)
-                    }
-                    // Verwaltung gleich unter dem Ausweis, nicht unter allen Rechnungen (UX-Audit 16.11., IOS-17)
-                    if let units = model.adminOverview?.allUnits, !units.isEmpty {
+                    // Die Kacheln der Startseite stehen im Reiter „Start“. Die Verwaltung steht hier nur,
+                    // wenn sie nicht selbst Reiter ist (dann gleich unter dem Ausweis, IOS-17).
+                    if let units = model.adminOverview?.allUnits, !units.isEmpty,
+                       Zustand.fuenfterReiter(model.fuenfteReiter, wahl: Demo.active ? Demo.tab : wahl) != "verwaltung" {
                         IchVerweis(title: tr("Verwaltung"), detail: units.map(\.name).joined(separator: ", ")) { VerwaltungView() }
                     }
                     if let pinboard = model.pinboard {

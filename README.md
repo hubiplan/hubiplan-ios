@@ -42,6 +42,9 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
   `Font.hubi(.body)` liefert sie in den Stufen des Systems. Seiten setzen sich aus den
   Bausteinen in `App/HUBIplan/Bausteine.swift` zusammen (`Karte`, `Abschnittstitel`, `Zeile`,
   `Zaehler`, `Leerzustand`, `Platzhalter`, `SymbolBild`).
+- **Reiter wie in der Android-App:** Start, Termine, Neues, Ich und ein fünfter je Rolle
+  (Verwaltung, sonst Noten, sonst Aufgaben; `Zustand.fuenfterReiter`, wählbar unter „Mein Konto ›
+  Einstellungen“). Was nicht in der Leiste steht, ist auf „Start“ unter „Schnell erreichbar“.
 
 ## Bauen und testen
 

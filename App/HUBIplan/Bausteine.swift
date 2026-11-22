@@ -322,3 +322,25 @@ struct SchriftLizenzView: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 }
+
+/// Symbol des gemeinsamen Satzes als Bild, für Stellen, die nur Bilder nehmen (Reiterleiste).
+/// Als Vorlage gezeichnet: die Leiste färbt es selbst (gewählt, nicht gewählt).
+enum SymbolZeichner {
+    static func bild(_ symbol: Strichsymbol, groesse: CGFloat = 25) -> UIImage {
+        let rect = CGRect(x: 0, y: 0, width: groesse, height: groesse)
+        let form = Symbolsatz.form(symbol)
+        let bild = UIGraphicsImageRenderer(size: rect.size).image { kontext in
+            let cg = kontext.cgContext
+            cg.setLineWidth(Symbolsatz.strich * groesse / Symbolsatz.raster)
+            cg.setLineCap(.round)
+            cg.setLineJoin(.round)
+            cg.setStrokeColor(UIColor.black.cgColor)
+            cg.setFillColor(UIColor.black.cgColor)
+            cg.addPath(SymbolUmriss(pfade: form?.strich ?? []).path(in: rect).cgPath)
+            cg.strokePath()
+            cg.addPath(SymbolUmriss(pfade: form?.flaeche ?? []).path(in: rect).cgPath)
+            cg.fillPath()
+        }
+        return bild.withRenderingMode(.alwaysTemplate)
+    }
+}

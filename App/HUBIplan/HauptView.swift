@@ -5,47 +5,58 @@ struct HauptView: View {
     @EnvironmentObject private var model: AppModel
     @Environment(\.scenePhase) private var phase
     /// „Mein Konto“ liegt im Reiter „Ich“ (das iPhone zeigt höchstens fünf Reiter)
-    @State private var tab = Demo.tab == "konto" ? "ausweis" : Demo.tab
+    @State private var tab = Demo.active ? (Demo.tab == "konto" ? "ausweis" : Demo.tab) : "start"
+    /// Eigene Wahl für den fünften Reiter („Mein Konto › Einstellungen“); leer = Vorgabe je Rolle
+    @AppStorage(Reiter.wahlSchluessel) private var wahl = ""
     /// Zuletzt gewählter Reiter, übersteht das Beenden durch das System (UX-Audit 16.11., IOS-25)
     @SceneStorage("gewaehlterReiter") private var savedTab = ""
 
-    private var availableTabs: [String] {
-        var tabs = Zustand.festeReiter
-        if model.accesses.contains(where: { $0.hasTodos || $0.hasHelpers }) { tabs.append("aufgaben") }
-        if model.accesses.contains(where: { $0.hasScores }) { tabs.append("noten") }
-        return tabs
-    }
+    /// Vorführmodus: der verlangte Bereich steht in der Leiste, damit das Bildschirmfoto ihn zeigt
+    private var gewaehlt: String { Demo.active ? Demo.tab : wahl }
+    private var fuenfter: String? { Zustand.fuenfterReiter(model.fuenfteReiter, wahl: gewaehlt) }
+    private var availableTabs: [String] { Zustand.leiste(model.fuenfteReiter, wahl: gewaehlt) }
     @State private var exportURL: URL?
 
     var body: some View {
         TabView(selection: $tab) {
+            // Reiter wie in der Android-App: Start, Termine, Neues, Ich und ein fünfter je Rolle
+            StartView(tab: $tab, weitere: Zustand.weitereReiter(model.fuenfteReiter, wahl: gewaehlt))
+                .tabItem { Reiter.marke("start") }
+                .tag("start")
             TermineView()
-                .tabItem { Label(tr("Termine"), systemImage: "calendar") }
+                .tabItem { Reiter.marke("termine") }
                 .tag("termine")
             MitteilungenView()
-                .tabItem { Label(tr("Neues"), systemImage: "envelope") }
+                .tabItem { Reiter.marke("mitteilungen") }
                 // Zahl der ungelesenen Mitteilungen (IOS-22, wie Android AND-15)
                 .badge(model.unreadCirculars.count)
                 .tag("mitteilungen")
-            if model.accesses.contains(where: { $0.hasTodos || $0.hasHelpers }) {
-                AufgabenView()
-                    .tabItem { Label(tr("Aufgaben"), systemImage: "checklist") }
-                    .tag("aufgaben")
+            AusweisView()
+                .tabItem { Reiter.marke("ausweis") }
+                .tag("ausweis")
+            if fuenfter == "verwaltung" {
+                NavigationStack { VerwaltungView() }
+                    .tabItem { Reiter.marke("verwaltung") }
+                    .tag("verwaltung")
             }
-            if model.accesses.contains(where: { $0.hasScores }) {
+            if fuenfter == "noten" {
                 NotenView()
-                    .tabItem { Label(tr("Noten"), systemImage: "music.note.list") }
+                    .tabItem { Reiter.marke("noten") }
                     .tag("noten")
             }
-            AusweisView()
-                .tabItem { Label(tr("Ich"), systemImage: "person.text.rectangle") }
-                .tag("ausweis")
+            if fuenfter == "aufgaben" {
+                AufgabenView()
+                    .tabItem { Reiter.marke("aufgaben") }
+                    .tag("aufgaben")
+            }
         }
+        // Der fünfte Reiter wechselt (Rechte geladen, andere Wahl): nicht auf einem Reiter bleiben, den es nicht mehr gibt
+        .onChange(of: fuenfter) { _, _ in if !availableTabs.contains(tab) { tab = "start" } }
         .task {
             model.checkStaleQuarantine()
             await model.refresh()
             // Nur, solange niemand schon einen anderen Reiter gewählt hat
-            if !Demo.active, tab == "termine" { tab = Zustand.reiter(savedTab, available: availableTabs, fallback: tab) }
+            if !Demo.active, tab == "start" { tab = Zustand.reiter(savedTab, available: availableTabs, fallback: tab) }
         }
         .onChange(of: tab) { _, new in if !Demo.active { savedTab = new } }
         // Alte Vorgänge aus beendeten Verbindungen (APP-04, FQ24): exportieren oder löschen
@@ -479,6 +490,9 @@ private struct KontoUnterseite: View {
                         Button(tr("Konto und Daten löschen")) { deleteInfo = true }
                     }
                 case .einstellungen:
+                if model.fuenfteReiter.count > 1 {
+                    FuenfterReiterWahl()
+                }
                 Section {
                     Toggle(tr("Termine in den Kalender des Geräts übernehmen"), isOn: Binding(
                         get: { model.calendarOn },

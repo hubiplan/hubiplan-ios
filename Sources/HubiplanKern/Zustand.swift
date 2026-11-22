@@ -4,8 +4,36 @@ import Foundation
 /// zuletzt gewählter Reiter und zuletzt gewählter Zugang je Konto, wie in der Android-App
 /// (`selectedAccess` am Konto).
 public enum Zustand {
-    /// Reiter, die es immer gibt; die übrigen nur, wenn ein Zugang sie hat.
-    public static let festeReiter = ["termine", "mitteilungen", "ausweis"]
+    /// Die vier festen Reiter, in beiden Apps gleich (Gestaltung „Frisch mobil“): Start, Termine,
+    /// Neues, Ich. Dazu kommt ein fünfter je Rolle ([fuenfterReiter]).
+    public static let festeReiter = ["start", "termine", "mitteilungen", "ausweis"]
+
+    /// Wer den fünften Platz der Leiste bekommen kann, in der Reihenfolge der Vorgabe: Verwaltung
+    /// vor Noten vor Aufgaben. Nur was dieses Konto überhaupt hat.
+    public static func fuenfteReiter(verwaltung: Bool, noten: Bool, aufgaben: Bool) -> [String] {
+        var reiter: [String] = []
+        if verwaltung { reiter.append("verwaltung") }
+        if noten { reiter.append("noten") }
+        if aufgaben { reiter.append("aufgaben") }
+        return reiter
+    }
+
+    /// Der fünfte Reiter: die eigene Wahl aus „Mein Konto“, wenn es sie (noch) gibt, sonst die Vorgabe.
+    public static func fuenfterReiter(_ moeglich: [String], wahl: String?) -> String? {
+        if let wahl, moeglich.contains(wahl) { return wahl }
+        return moeglich.first
+    }
+
+    /// Reiter der Leiste: nie mehr als fünf.
+    public static func leiste(_ moeglich: [String], wahl: String?) -> [String] {
+        festeReiter + (fuenfterReiter(moeglich, wahl: wahl).map { [$0] } ?? [])
+    }
+
+    /// Bereiche dieses Kontos, die nicht in der Leiste stehen: „Start“ führt dorthin.
+    public static func weitereReiter(_ moeglich: [String], wahl: String?) -> [String] {
+        let fuenfter = fuenfterReiter(moeglich, wahl: wahl)
+        return moeglich.filter { $0 != fuenfter }
+    }
 
     /// Gespeicherten Reiter nur übernehmen, wenn es ihn gerade gibt; sonst [fallback].
     public static func reiter(_ saved: String?, available: [String], fallback: String) -> String {

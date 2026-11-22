@@ -1440,5 +1440,18 @@
  "Schrift": "Typeface",
  "Die App verwendet die Schrift {name} (SIL Open Font License 1.1).": "The app uses the {name} typeface (SIL Open Font License 1.1).",
  "Lizenztext der Schrift anzeigen": "Show the typeface licence",
- "Lizenz der Schrift": "Typeface licence"
+ "Lizenz der Schrift": "Typeface licence",
+ "Start": "Home",
+ "Nächster Termin": "Next event",
+ "Alle Termine": "All events",
+ "Für dich zu tun": "For you to do",
+ "{n} Termin wartet auf deine Rückmeldung": "{n} event is waiting for your reply",
+ "{n} Termine warten auf deine Rückmeldung": "{n} events are waiting for your reply",
+ "Schnell erreichbar": "Quick access",
+ "Ausweis zeigen": "Show ID card",
+ "Verwalten": "Admin",
+ "Fünfter Reiter": "Fifth tab",
+ "Welcher Bereich unten in der Leiste steht. Die anderen erreichst du über „Start“.": "Which area sits in the bar at the bottom. You reach the others from “Home”.",
+ "{n} neue Mitteilung": "{n} new message",
+ "{n} neue Mitteilungen": "{n} new messages"
 }
