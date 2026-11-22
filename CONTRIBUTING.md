@@ -44,6 +44,9 @@ Hinweise zum Stil:
 - Neue Abhängigkeiten müssen mit der AGPL-3.0 verträglich sein (z. B. MIT, BSD, Apache-2.0,
   LGPL, MPL-2.0). Nicht möglich: GPL-2.0-only, SSPL, „nur nicht-kommerziell“, proprietär.
   Abhängigkeiten bleiben sparsam; bisher ist es nur swift-crypto (Apache-2.0) für Linux.
+- Gestaltung „Frisch mobil“: neue Seiten aus den Bausteinen in `App/HUBIplan/Bausteine.swift`;
+  Werte und Symbole (`Sources/HubiplanKern/Gestaltung/`) sind dieselben Dateien wie in der
+  Android-App (`GestaltungTests`). Formulare schützen angefangene Eingaben (`FormulareTests`).
 - Jeder neue Text in der App gleich auch auf Englisch: `tr(…)` und ein Eintrag in
   `Sources/HubiplanKern/Texte/en.json`; `TexteTests` schlägt sonst fehl.
 - Es gibt keine automatische CI. Vor dem Merge testet der Betreuer jeden Pull Request lokal

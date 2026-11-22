@@ -52,7 +52,12 @@ Besonders interessant sind:
 - Push-Hinweise oder Links, die ein fremdes Konto oder einen fremden Mitgliedszugang öffnen
   oder Aktionen ohne Freischaltung auslösen,
 - ein Standmodus, der mit dem Standzugang mehr als den eigenen Wettbewerb erreicht,
-- Anmelden an einer Versammlung oder Abstimmen für ein anderes Mitglied.
+- Pinnwand-Beiträge mit Fotos, Umfragen, Bestellungen oder das Schießbuch, die nach dem
+  Abmelden oder Kontowechsel noch auf dem Gerät lesbar sind,
+- geöffnete Kalenderdateien (`.ics`) oder andere Apps, die über die App ohne Bestätigung Termine
+  anlegen oder Aktionen auslösen,
+- Anmelden an einer Versammlung, Einchecken zu einem Training oder Abstimmen für ein anderes
+  Mitglied.
 
 Liegt der Fehler in der Schnittstelle von HUBIplan, bitte
 [dort melden](https://github.com/hubiplan/hubiplan/security/advisories/new); Lücken der Android-App in
