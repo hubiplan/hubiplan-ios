@@ -545,7 +545,7 @@ final class AppModel: ObservableObject {
     /// Rückfrage zu alten Vorgängen: wie viele und wann sie endgültig gelöscht werden.
     var staleQuarantineText: String {
         let date = DraftQuarantine.finalDeletion(Self.quarantineBoxes).map {
-            $0.formatted(date: .numeric, time: .omitted)
+            Zeit.datum($0)
         } ?? ""
         return tr(
             "{anzahl} nicht gesendete Vorgänge liegen seit über 90 Tagen auf diesem Gerät, weil die Verbindung beendet wurde. Sie werden am {datum} gelöscht. Vorher exportieren?",

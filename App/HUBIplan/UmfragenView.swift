@@ -79,7 +79,7 @@ struct UmfragenView: View {
             if let event = s.followEvent {
                 Text(tr("Termin steht fest: {title} am {day}.", [
                     "title": event.title,
-                    "day": event.start?.formatted(.dateTime.day().month().year().locale(Texte.locale)) ?? "",
+                    "day": event.start.map { Zeit.datum($0) } ?? "",
                 ]))
                 if event.response == "yes" {
                     Text(tr("Du hast zugesagt.")).font(.hubi(.footnote)).foregroundStyle(.secondary)

@@ -460,7 +460,7 @@ private struct VerwaltungStart: View {
             } footer: {
                 if let until, let date = Zeit.parse(until) {
                     Text(tr("Freigeschaltet bis {datum}", [
-                        "datum": date.formatted(.dateTime.day().month().year().locale(Texte.locale)),
+                        "datum": Zeit.datum(date),
                     ]))
                 }
             }
@@ -945,7 +945,7 @@ struct AenderungenView: View {
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(request.memberName).font(.hubi(.headline))
                                 if let date = request.createdAt.flatMap(Zeit.parse) {
-                                    Text(date.formatted(.dateTime.day().month().year().locale(Texte.locale)))
+                                    Text(Zeit.datum(date))
                                         .font(.hubi(.caption)).foregroundStyle(Color.secondary)
                                 }
                                 ForEach(request.lines, id: \.key) { Text($0.text) }

@@ -252,6 +252,20 @@ extension Zeit {
         let mark = Texte.language == "en" ? "/" : "."
         return parts[2] + mark + parts[1] + mark + parts[0]
     }
+
+    /// Zeitpunkt als Datum ohne Wochentag, in derselben Form wie `plainDate` („20.11.2026“,
+    /// Englisch „20/11/2026“), damit ein Datum überall gleich aussieht.
+    public static func datum(_ date: Date, timeZone: TimeZone = .current) -> String {
+        plainDate(day(date, timeZone: timeZone))
+    }
+
+    /// Datum und Uhrzeit („20.11.2026, 18:30“), Uhrzeit immer mit 24 Stunden.
+    public static func datumUhrzeit(_ date: Date, timeZone: TimeZone = .current) -> String {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = timeZone
+        let parts = calendar.dateComponents([.hour, .minute], from: date)
+        return datum(date, timeZone: timeZone) + ", " + String(format: "%02d:%02d", parts.hour ?? 0, parts.minute ?? 0)
+    }
 }
 
 extension Api {

@@ -92,7 +92,8 @@ private struct MitteilungenListe: View {
                 }
             }
         }
-        .navigationTitle(tr("Mitteilungen"))
+        // Der Reiter heißt „Neues“; „Mitteilungen“ steht nur in der Auswahl darüber
+        .navigationTitle(tr("Neues"))
         .zugangsWahl()
         .toolbar {
             if let senders = model.senders, !senders.senders.isEmpty {
@@ -124,7 +125,7 @@ private struct MitteilungenListe: View {
 func kopfzeile(_ item: CircularItem) -> String {
     var parts = [item.sender, item.kindLabel].filter { !$0.isEmpty }
     if let sent = item.sent {
-        parts.append(sent.formatted(.dateTime.day().month().year().locale(Texte.locale))
+        parts.append(Zeit.datum(sent)
             .replacingOccurrences(of: " ", with: "\u{00A0}"))
     }
     return parts.joined(separator: " · ")

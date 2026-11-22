@@ -62,7 +62,8 @@ struct TerminDetailView: View {
                 Section { Laedt() }
             }
         }
-        .navigationTitle(event.title)
+        // Der Titel des Termins steht groß in der Karte darunter, nicht zweimal
+        .navigationTitle(tr("Termin"))
         .zurueckSchutz()
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
@@ -175,7 +176,7 @@ struct TerminDetailView: View {
             }
             if let deadline = rsvp.deadline, let date = Zeit.parse(deadline) {
                 Text(tr("Anmeldeschluss: {date}", [
-                    "date": date.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale)),
+                    "date": Zeit.datumUhrzeit(date),
                 ]))
             }
             if let free = rsvp.free {

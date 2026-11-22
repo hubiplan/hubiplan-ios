@@ -212,7 +212,7 @@ struct DemoTransport: Transport {
     /// „Aufgaben verteilen“ in der Verwaltung: Liste, eine Aufgabe, erledigen, anlegen.
     private func aufgaben(_ path: String, _ method: String, english: Bool) -> HttpResponse {
         let t = english
-            ? ["Order the marquee", "Ask three suppliers for a quote and compare prices by the board meeting.", "due 27 Nov 2026, 6:00 pm", "Invite the guests of honour", "due 4 Dec 2026", "Renew the liability insurance", "Quote from last year is in the shared folder.", "Book the band"]
+            ? ["Order the marquee", "Ask three suppliers for a quote and compare prices by the board meeting.", "due 27 Nov 2026, 18:00", "Invite the guests of honour", "due 4 Dec 2026", "Renew the liability insurance", "Quote from last year is in the shared folder.", "Book the band"]
             : ["Festzelt bestellen", "Drei Angebote einholen und bis zur Vorstandssitzung vergleichen.", "bis 27.11.2026, 18:00 Uhr", "Ehrengäste einladen", "bis 04.12.2026", "Haftpflichtversicherung verlängern", "Das Angebot vom letzten Jahr liegt in der Ablage.", "Kapelle buchen"]
         func eine(_ status: String, _ version: Int) -> String {
             """
