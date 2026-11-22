@@ -45,6 +45,9 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 - **Reiter wie in der Android-App:** Start, Termine, Neues, Ich und ein fünfter je Rolle
   (Verwaltung, sonst Noten, sonst Aufgaben; `Zustand.fuenfterReiter`, wählbar unter „Mein Konto ›
   Einstellungen“). Was nicht in der Leiste steht, ist auf „Start“ unter „Schnell erreichbar“.
+- **„Neues“** fasst Mitteilungen, Pinnwand und Umfragen zusammen (`Neues.teile`); **„Ich“** zeigt
+  den Ausweis und „Mein Bereich“ in vier Gruppen: Geld, Mitmachen, Verein, Meine Daten
+  (`IchGruppe.gruppen`).
 - **„Für dich zu tun“ auf „Start“** kommt aus `portal/<Zugang>/start/` (`Start.swift`); ältere
   HUBIplan-Stände ohne diesen Abruf zeigen, was die App aus der Terminliste weiß. Die Terminliste
   ist nach Monaten gegliedert und lässt sich auf Termine ohne Rückmeldung einschränken.
