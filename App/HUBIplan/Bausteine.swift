@@ -355,10 +355,12 @@ struct ListeDetail<Wert: Hashable, Liste: View, Detail: View>: View {
     let leer: String
     @ViewBuilder var liste: (Binding<Wert?>?) -> Liste
     @ViewBuilder var detail: (Wert) -> Detail
+    /// Die Liste bleibt auch im Hochformat neben dem Detail stehen, statt sich einzuklappen.
+    @State private var spalten: NavigationSplitViewVisibility = .all
 
     var body: some View {
         if Zweispaltig.gilt(breit: breite == .regular) {
-            NavigationSplitView {
+            NavigationSplitView(columnVisibility: $spalten) {
                 liste(Binding(get: { Zweispaltig.auswahl(path) }, set: { path = Zweispaltig.pfad($0) }))
             } detail: {
                 NavigationStack {
