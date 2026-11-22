@@ -32,4 +32,15 @@ final class NeuesIchTests: XCTestCase {
         XCTAssertEqual(IchGruppe.gruppen(["pinnwand", "daten"]).map(\.gruppe), [.daten])
         XCTAssertEqual(IchGruppe.allCases.map(\.titel), ["Geld", "Mitmachen", "Verein", "Meine Daten"])
     }
+
+    func testDarstellungWieGeraetHellOderDunkel() {
+        // Ohne eigene Wahl folgt die App dem Gerät
+        XCTAssertTrue(Darstellung.istDunkel("", geraetDunkel: true))
+        XCTAssertFalse(Darstellung.istDunkel("", geraetDunkel: false))
+        XCTAssertFalse(Darstellung.istDunkel("hell", geraetDunkel: true))
+        XCTAssertTrue(Darstellung.istDunkel("dunkel", geraetDunkel: false))
+        // Unbekanntes (z. B. aus einer neueren Fassung) folgt dem Gerät
+        XCTAssertTrue(Darstellung.istDunkel("sepia", geraetDunkel: true))
+        XCTAssertEqual(Darstellung.werte.map(Darstellung.name), ["Wie das Gerät", "Hell", "Dunkel"])
+    }
 }

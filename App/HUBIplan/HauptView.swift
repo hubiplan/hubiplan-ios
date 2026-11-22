@@ -509,6 +509,7 @@ private struct KontoUnterseite: View {
                 if model.fuenfteReiter.count > 1 {
                     FuenfterReiterWahl()
                 }
+                DarstellungWahl()
                 Section {
                     Toggle(tr("Termine in den Kalender des Geräts übernehmen"), isOn: Binding(
                         get: { model.calendarOn },

@@ -74,6 +74,20 @@ struct FuenfterReiterWahl: View {
     }
 }
 
+/// Einstellung „Darstellung“: wie das Gerät, hell oder dunkel.
+struct DarstellungWahl: View {
+    static let schluessel = "darstellung"
+    @AppStorage(DarstellungWahl.schluessel) private var wahl = ""
+
+    var body: some View {
+        Section {
+            Picker(tr("Darstellung"), selection: $wahl) {
+                ForEach(Darstellung.werte, id: \.self) { Text(Darstellung.name($0)).tag($0) }
+            }
+        }
+    }
+}
+
 /// Reiter „Start“ (Gestaltung „Frisch mobil“): der nächste Termin mit Zusage und Absage, was
 /// gerade auf dich wartet, die Kacheln der Startseite und kurze Wege zu den Bereichen, die nicht
 /// in der Leiste stehen.

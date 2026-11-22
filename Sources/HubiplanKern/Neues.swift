@@ -79,3 +79,28 @@ public enum IchGruppe: String, CaseIterable, Sendable {
         return gruppen
     }
 }
+
+/// Einstellung „Darstellung“ unter „Mein Konto“: wie das Gerät, hell oder dunkel.
+public enum Darstellung {
+    public static let hell = "hell"
+    public static let dunkel = "dunkel"
+    /// Leer heißt: wie das Gerät.
+    public static let werte = ["", hell, dunkel]
+
+    /// Dunkel zeigen? Die eigene Wahl gilt vor dem Gerät; Unbekanntes folgt dem Gerät.
+    public static func istDunkel(_ wahl: String, geraetDunkel: Bool) -> Bool {
+        switch wahl {
+        case hell: return false
+        case dunkel: return true
+        default: return geraetDunkel
+        }
+    }
+
+    public static func name(_ wahl: String) -> String {
+        switch wahl {
+        case hell: return tr("Hell")
+        case dunkel: return tr("Dunkel")
+        default: return tr("Wie das Gerät")
+        }
+    }
+}

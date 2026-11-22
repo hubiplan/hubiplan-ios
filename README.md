@@ -47,7 +47,8 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
   Einstellungen“). Was nicht in der Leiste steht, ist auf „Start“ unter „Schnell erreichbar“.
 - **„Neues“** fasst Mitteilungen, Pinnwand und Umfragen zusammen (`Neues.teile`); **„Ich“** zeigt
   den Ausweis und „Mein Bereich“ in vier Gruppen: Geld, Mitmachen, Verein, Meine Daten
-  (`IchGruppe.gruppen`).
+  (`IchGruppe.gruppen`). Unter „Mein Konto › Einstellungen“ lässt sich die Darstellung wählen: wie
+  das Gerät, hell oder dunkel.
 - **Verwaltung als Arbeitsplatz** (`VerwaltungStart.swift`): oben „Ausweis prüfen“ und „Neu“
   (Quittung, Buchung, Termin, Aufgabe je nach Rechten), darunter „Zu erledigen“ mit Zähler, die
   Kacheln und die Bereiche in den Gruppen des Hauptmenüs im Browser; die Suche schränkt ein.
