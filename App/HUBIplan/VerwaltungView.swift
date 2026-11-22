@@ -357,10 +357,10 @@ private struct VerwaltungStart: View {
                             Button {
                                 scanning = true
                             } label: {
-                                Label {
-                                    Text(tr("Ausweis prüfen"))
-                                } icon: {
+                                // Eine Zeile, auch auf Englisch: lieber etwas kleiner als umbrochen
+                                HStack(spacing: 6) {
                                     SymbolBild(.scannen, groesse: 20)
+                                    Text(tr("Ausweis prüfen")).lineLimit(1).minimumScaleFactor(0.75)
                                 }
                                 .frame(maxWidth: .infinity)
                                 .padding(.vertical, 6)
@@ -373,10 +373,9 @@ private struct VerwaltungStart: View {
                                     Button(aktion.titel) { neu = aktion }
                                 }
                             } label: {
-                                Label {
-                                    Text(tr("Neu"))
-                                } icon: {
+                                HStack(spacing: 6) {
                                     SymbolBild(.plus, groesse: 20)
+                                    Text(tr("Neu")).lineLimit(1)
                                 }
                                 .frame(maxWidth: unit.canCheckCards ? nil : .infinity)
                                 .padding(.vertical, 6)
