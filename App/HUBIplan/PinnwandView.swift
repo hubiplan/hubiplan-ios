@@ -80,9 +80,9 @@ private struct PinBeitrag: View {
                 if notice.pinned {
                     Image(systemName: "pin.fill").accessibilityLabel(tr("Angeheftet"))
                 }
-                Text(notice.from.isEmpty ? notice.unit : notice.from).font(.headline)
+                Text(notice.from.isEmpty ? notice.unit : notice.from).font(.hubi(.headline))
                 if notice.isNew {
-                    ZustandText(tr("neu"), .gut).font(.footnote)
+                    ZustandText(tr("neu"), .gut).font(.hubi(.footnote))
                 }
             }
             Text(notice.text).textSelection(.enabled)
@@ -96,7 +96,7 @@ private struct PinBeitrag: View {
                 }
             }
             Text([zeitpunkt, notice.line].filter { !$0.isEmpty }.joined(separator: " · "))
-                .font(.footnote)
+                .font(.hubi(.footnote))
                 .foregroundStyle(.secondary)
             if notice.canEdit {
                 HStack {

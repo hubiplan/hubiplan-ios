@@ -9,6 +9,7 @@ struct HubiplanApp: App {
     init() {
         // Früh zuständig sein: Zusage/Absage aus einer Mitteilung kann die App erst starten
         Hinweise.shared.start()
+        Schrift.anwenden()
     }
 
     var body: some Scene {
@@ -20,6 +21,8 @@ struct HubiplanApp: App {
                     HauptView()
                 }
             }
+            // Schrift der Gestaltung „Frisch mobil“ auch dort, wo keine Stufe gesetzt ist
+            .font(.hubi(.body))
             .environmentObject(model)
             .task { Hinweise.shared.attach(model) }
             .onOpenURL { url in

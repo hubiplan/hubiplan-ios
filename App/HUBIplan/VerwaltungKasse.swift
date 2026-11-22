@@ -141,7 +141,7 @@ struct KassenbuchView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(account.name)
                                     if !account.kindLabel.isEmpty {
-                                        Text(account.kindLabel).font(.footnote).foregroundStyle(Color.secondary)
+                                        Text(account.kindLabel).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     }
                                 }
                                 Spacer()
@@ -286,9 +286,9 @@ struct KassenbuchView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(receipt.line)
                         Text([receipt.accountName, receipt.categoryName].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.footnote).foregroundStyle(Color.secondary)
+                            .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                         if let problem = receipt.error {
-                            MeldungText(problem, .fehler).font(.footnote)
+                            MeldungText(problem, .fehler).font(.hubi(.footnote))
                         }
                         if unit.canEditFinance {
                             HStack(spacing: 16) {
@@ -296,7 +296,7 @@ struct KassenbuchView: View {
                                 Button(tr("Verwerfen …"), role: .destructive) { discardReceipt = receipt }
                             }
                             .buttonStyle(.borderless)
-                            .font(.footnote)
+                            .font(.hubi(.footnote))
                         }
                     }
                 }
@@ -304,9 +304,9 @@ struct KassenbuchView: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(draft.line)
                         Text([draft.accountName, draft.categoryName].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.footnote).foregroundStyle(Color.secondary)
+                            .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                         if let problem = draft.error {
-                            MeldungText(problem, .fehler).font(.footnote)
+                            MeldungText(problem, .fehler).font(.hubi(.footnote))
                         }
                         if unit.canEditFinance {
                             HStack(spacing: 16) {
@@ -314,7 +314,7 @@ struct KassenbuchView: View {
                                 Button(tr("Verwerfen …"), role: .destructive) { discard = draft }
                             }
                             .buttonStyle(.borderless)
-                            .font(.footnote)
+                            .font(.hubi(.footnote))
                         }
                     }
                 }
@@ -392,10 +392,10 @@ private struct BuchungZeile: View {
     var body: some View {
         HStack(alignment: .firstTextBaseline) {
             VStack(alignment: .leading, spacing: 2) {
-                Text(booking.head).font(.footnote).foregroundStyle(Color.secondary)
+                Text(booking.head).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                 Text(booking.title)
                 if !booking.detail.isEmpty {
-                    Text(booking.detail).font(.footnote).foregroundStyle(Color.secondary)
+                    Text(booking.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                 }
             }
             Spacer()
@@ -421,9 +421,9 @@ struct BuchungView: View {
                 if let error { Section { MeldungText(error, .fehler) } }
                 if let booking {
                     Section {
-                        Text(booking.title).font(.title3.weight(.semibold))
+                        Text(booking.title).font(.hubi(.title3).weight(.semibold))
                         Text("\(booking.kindLabel) · \(booking.signedAmount)")
-                        Text(booking.facts).font(.footnote).foregroundStyle(Color.secondary)
+                        Text(booking.facts).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                     } footer: {
                         Text(tr("Ändern oder stornieren bitte im Browser."))
                     }
@@ -658,7 +658,7 @@ private struct EntwurfKorrigierenBlatt: View {
                 if let error { Section { MeldungText(error, .fehler) } }
                 Section {
                     Text(line)
-                    if let problem { MeldungText(problem, .fehler).font(.footnote) }
+                    if let problem { MeldungText(problem, .fehler).font(.hubi(.footnote)) }
                 }
                 Section {
                     Picker(tr("Konto"), selection: $chosenAccount) {

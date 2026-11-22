@@ -81,57 +81,57 @@ struct TeilnahmeSection: View {
         if !offer.stateText.isEmpty { Text(offer.stateText) }
         if let closes = offer.closesAt, let date = Zeit.parse(closes) {
             Text(tr("Anmeldeschluss: {date}", ["date": date.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale))]))
-                .font(.footnote)
+                .font(.hubi(.footnote))
         }
-        if let free = offer.free { Text(tr("Noch {n} Plätze frei.", ["n": free])).font(.footnote) }
+        if let free = offer.free { Text(tr("Noch {n} Plätze frei.", ["n": free])).font(.hubi(.footnote)) }
         ForEach(offer.prices.filter(\.isActive)) { p in
             VStack(alignment: .leading, spacing: 2) {
                 Text(Teilnahme.priceLine(p))
                 let extra = Teilnahme.priceExtra(p)
-                if !extra.isEmpty { Text(extra).font(.footnote).foregroundStyle(.secondary) }
+                if !extra.isEmpty { Text(extra).font(.hubi(.footnote)).foregroundStyle(.secondary) }
             }
         }
         ForEach(d.mine) { reg in
             VStack(alignment: .leading, spacing: 4) {
-                Text(tr("Deine Anmeldung {number}", ["number": reg.number])).font(.headline)
-                Text(reg.paidText).font(.footnote).foregroundStyle(.secondary)
+                Text(tr("Deine Anmeldung {number}", ["number": reg.number])).font(.hubi(.headline))
+                Text(reg.paidText).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 if let n = reg.waitlistPosition {
                     Text(tr("Du stehst auf Platz {n} der Warteliste. Wird ein Platz frei, rückst du automatisch verbindlich nach und bekommst die Rechnung per E-Mail.", ["n": n]))
-                        .font(.footnote)
+                        .font(.hubi(.footnote))
                 }
                 if reg.status == "registered", reg.movedUpAt != nil, let until = reg.freeCancelUntil, let date = Zeit.parse(until) {
                     Text(tr("Nachgerückt: Bis {when} kannst du dich kostenfrei abmelden.", [
                         "when": date.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale)),
-                    ])).font(.footnote)
+                    ])).font(.hubi(.footnote))
                 }
                 ForEach(reg.participants) { p in
                     Text(p.line)
-                    if !p.bookings.isEmpty { Text(Booking.line(p.bookings)).font(.footnote).foregroundStyle(.secondary) }
+                    if !p.bookings.isEmpty { Text(Booking.line(p.bookings)).font(.hubi(.footnote)).foregroundStyle(.secondary) }
                     if p.status == "active" && reg.canSubstitute {
                         Button(tr("Ersatzperson für {name}", ["name": p.name])) { replacing = Replacing(reg: reg, participant: p) }
                             .buttonStyle(.borderless)
                             .disabled(busy)
                     }
                 }
-                if !reg.bookings.isEmpty { Text(Booking.line(reg.bookings)).font(.footnote).foregroundStyle(.secondary) }
+                if !reg.bookings.isEmpty { Text(Booking.line(reg.bookings)).font(.hubi(.footnote)).foregroundStyle(.secondary) }
                 if (Geld.cents(reg.cancelFee) ?? 0) > 0 {
-                    Text(tr("Stornogebühr {fee}", ["fee": Geld.format(reg.cancelFee)])).font(.footnote)
+                    Text(tr("Stornogebühr {fee}", ["fee": Geld.format(reg.cancelFee)])).font(.hubi(.footnote))
                 }
                 if let inv = reg.feeInvoice {
                     Text(tr("Rechnung {number} über {total}, zahlbar bis {due}", [
                         "number": inv.number, "total": Geld.format(inv.total), "due": Zeit.plainDate(inv.dueDate),
-                    ])).font(.footnote)
+                    ])).font(.hubi(.footnote))
                 }
                 if let inv = reg.invoice, reg.status == "registered" {
                     Text(tr("Rechnung {number} über {total}, zahlbar bis {due}", [
                         "number": inv.number, "total": Geld.format(inv.total), "due": Zeit.plainDate(inv.dueDate),
-                    ])).font(.footnote)
+                    ])).font(.hubi(.footnote))
                 }
                 if reg.hasTickets {
                     Button(tr("Eintrittskarten (PDF)")) { Task { await model.openTickets(eventId: eventId, registration: reg) } }
                         .buttonStyle(.bordered)
                         .disabled(busy)
-                    Text(tr("Bitte beim Einlass zeigen, auf dem Handy oder ausgedruckt.")).font(.footnote).foregroundStyle(.secondary)
+                    Text(tr("Bitte beim Einlass zeigen, auf dem Handy oder ausgedruckt.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 if reg.active && (reg.canCancel ?? d.canCancel) {
                     Button(tr("Anmeldung abmelden"), role: .destructive) { cancelling = reg }
@@ -151,7 +151,7 @@ struct TeilnahmeSection: View {
         let offer = d.offer
         let memberPrices = offer.prices(member: true)
         let guestPrices = offer.prices(member: false)
-        Text(tr("Personen anmelden")).font(.headline).accessibilityAddTraits(.isHeader)
+        Text(tr("Personen anmelden")).font(.hubi(.headline)).accessibilityAddTraits(.isHeader)
         ForEach(free) { person in
             Toggle(person.name, isOn: Binding(
                 get: { chosen[person.membershipId] != nil },
@@ -200,8 +200,8 @@ struct TeilnahmeSection: View {
         TextField(tr("Bemerkung (optional)"), text: $note, axis: .vertical)
             .onChange(of: note) { _, now in if now.count > 500 { note = String(now.prefix(500)) } }
         if !offer.terms.isEmpty {
-            Text(tr("Teilnahmebedingungen")).font(.subheadline.bold())
-            Text(offer.terms).font(.footnote)
+            Text(tr("Teilnahmebedingungen")).font(.hubi(.subheadline).bold())
+            Text(offer.terms).font(.hubi(.footnote))
             Toggle(tr("Ich habe die Teilnahmebedingungen gelesen und akzeptiere sie."), isOn: $terms)
         }
         let persons = auswahl(d)
@@ -210,13 +210,13 @@ struct TeilnahmeSection: View {
             Toggle(tr("Ich willige ein, dass der Verein die Angaben zu Allergien und Unverträglichkeiten für die Planung des Essens verarbeitet."), isOn: $consent)
                 .disabled(busy)
         }
-        if !persons.isEmpty { Text(tr("Summe: {sum}", ["sum": Geld.format(cents: sum)])).font(.headline) }
+        if !persons.isEmpty { Text(tr("Summe: {sum}", ["sum": Geld.format(cents: sum)])).font(.hubi(.headline)) }
         if let closes = offer.closesAt, let date = Zeit.parse(closes) {
             Text(tr("Abmelden ist bis {when} möglich.", ["when": date.formatted(.dateTime.day().month().year().locale(Texte.locale))]))
-                .font(.footnote).foregroundStyle(.secondary)
+                .font(.hubi(.footnote)).foregroundStyle(.secondary)
         }
         if let gap { MeldungText(gap.text(max: offer.maxPersons), .fehler) }
-        if ohneTarif { Text(tr("Bitte für jede Person einen Tarif wählen.")).font(.footnote) }
+        if ohneTarif { Text(tr("Bitte für jede Person einen Tarif wählen.")).font(.hubi(.footnote)) }
         Button(offer.toWaitlist ? tr("Auf die Warteliste") : sum > 0 ? tr("Zahlungspflichtig anmelden") : tr("Verbindlich anmelden")) { anmelden(d) }
             .buttonStyle(.borderedProminent)
             .disabled(busy || persons.isEmpty)
@@ -403,19 +403,19 @@ private struct AbmeldenSheet: View {
                 Section {
                     if let quote { Text(quote.text) } else if !chosen.isEmpty { Laedt() }
                     if quote?.hasFee == true && offer.waitlist && offer.waiting > 0 {
-                        Text(tr("Rückt dafür jemand von der Warteliste nach, entfällt die Gebühr.")).font(.footnote)
+                        Text(tr("Rückt dafür jemand von der Warteliste nach, entfällt die Gebühr.")).font(.hubi(.footnote))
                     }
                     if let inv = reg.invoice, !reg.waiting {
                         if whole && quote?.hasFee != true {
                             Text((Geld.cents(inv.paid) ?? 0) > 0
                                 ? tr("Die Rechnung wird storniert; den gezahlten Betrag erstattet der Verein.")
-                                : tr("Die Rechnung wird storniert.")).font(.footnote)
+                                : tr("Die Rechnung wird storniert.")).font(.hubi(.footnote))
                         } else {
                             Text(tr("Die Rechnung wird storniert, und es kommt eine neue Rechnung über den Rest. Schon Gezahltes wird damit verrechnet."))
-                                .font(.footnote)
+                                .font(.hubi(.footnote))
                         }
                     } else if reg.invoice == nil {
-                        Text(tr("Du bist dann nicht mehr angemeldet.")).font(.footnote)
+                        Text(tr("Du bist dann nicht mehr angemeldet.")).font(.hubi(.footnote))
                     }
                 }
                 Section {
@@ -480,7 +480,7 @@ private struct ErsatzSheet: View {
                 Section {
                     Text(tr("Tarif und Preis bleiben, die Rechnung auch: {price}, {amount}", [
                         "price": participant.priceName, "amount": Geld.format(participant.amount),
-                    ])).font(.footnote)
+                    ])).font(.hubi(.footnote))
                     Picker(tr("Ersatzperson"), selection: $member) {
                         if offer.guestsAllowed { Text(tr("ein Gast (Name eingeben)")).tag(-1) }
                         ForEach(family) { f in Text(f.name).tag(f.membershipId) }

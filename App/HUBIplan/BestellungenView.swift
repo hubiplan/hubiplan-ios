@@ -54,8 +54,8 @@ struct BestellungenView: View {
     @ViewBuilder
     private func karte(_ c: OrderCampaign) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(c.title).font(.headline).accessibilityAddTraits(.isHeader)
-            Text(c.line).font(.footnote).foregroundStyle(.secondary)
+            Text(c.title).font(.hubi(.headline)).accessibilityAddTraits(.isHeader)
+            Text(c.line).font(.hubi(.footnote)).foregroundStyle(.secondary)
             if let detail = open, detail.id == c.id {
                 if !detail.text.isEmpty { Text(detail.text) }
                 if detail.canOrder {
@@ -69,17 +69,17 @@ struct BestellungenView: View {
                 }
             } else {
                 if let order = c.order {
-                    Text(tr("Deine Bestellung")).font(.subheadline.weight(.semibold))
+                    Text(tr("Deine Bestellung")).font(.hubi(.subheadline).weight(.semibold))
                     Text(order.linesText)
                     if c.showPrices, let total = order.total {
                         Text(tr("Summe: {x}", ["x": Geld.format(total)]))
                     }
                     if let invoice = order.invoice {
                         Text(tr("Rechnung {number}", ["number": invoice.number]) + (invoice.paid ? " · " + tr("bezahlt") : ""))
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                     if order.handedOut {
-                        Text(tr("Ausgegeben")).font(.footnote).foregroundStyle(.secondary)
+                        Text(tr("Ausgegeben")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                 } else if !c.isOpen {
                     Text(tr("Du hast nichts bestellt.")).foregroundStyle(.secondary)
@@ -123,11 +123,11 @@ private struct BestellFormular: View {
             ForEach(campaign.articles) { a in
                 VStack(alignment: .leading, spacing: 4) {
                     let price = campaign.showPrices ? Geld.format(a.price) : ""
-                    Text(price.isEmpty ? a.name : "\(a.name) · \(price)").font(.subheadline.weight(.semibold))
-                    if !a.text.isEmpty { Text(a.text).font(.footnote).foregroundStyle(.secondary) }
-                    if !a.limitText.isEmpty { Text(a.limitText).font(.footnote).foregroundStyle(.secondary) }
+                    Text(price.isEmpty ? a.name : "\(a.name) · \(price)").font(.hubi(.subheadline).weight(.semibold))
+                    if !a.text.isEmpty { Text(a.text).font(.hubi(.footnote)).foregroundStyle(.secondary) }
+                    if !a.limitText.isEmpty { Text(a.limitText).font(.hubi(.footnote)).foregroundStyle(.secondary) }
                     if !a.variants.isEmpty && !a.variantLabel.isEmpty {
-                        Text(tr("Auswahl: {label}", ["label": a.variantLabel])).font(.footnote).foregroundStyle(.secondary)
+                        Text(tr("Auswahl: {label}", ["label": a.variantLabel])).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                     ForEach(a.choices, id: \.self) { v in
                         let key = orderKey(a.id, v)
@@ -146,9 +146,9 @@ private struct BestellFormular: View {
             }
             TextField(tr("Bemerkung (optional)"), text: Binding(get: { note }, set: { note = String($0.prefix(500)) }), axis: .vertical)
                 .lineLimit(2...4)
-            Text(tr("z. B. Name zum Besticken")).font(.footnote).foregroundStyle(.secondary)
+            Text(tr("z. B. Name zum Besticken")).font(.hubi(.footnote)).foregroundStyle(.secondary)
             if campaign.showPrices, let total = orderTotal(campaign.articles, inputs) {
-                Text(tr("Summe: {x}", ["x": Geld.format(total)])).font(.subheadline.weight(.semibold))
+                Text(tr("Summe: {x}", ["x": Geld.format(total)])).font(.hubi(.subheadline).weight(.semibold))
             }
             KnopfReihe {
                 Button(campaign.order == nil ? tr("Bestellen") : tr("Bestellung ändern")) {

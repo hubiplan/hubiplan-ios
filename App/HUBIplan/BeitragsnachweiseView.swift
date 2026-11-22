@@ -32,9 +32,9 @@ struct BeitragsnachweiseView: View {
                             Text([proof.discountName, proof.yearLabel, proof.receivedOn.map(Zeit.plainDate) ?? "", proof.fileName]
                                 .filter { !$0.isEmpty }
                                 .joined(separator: " · "))
-                            Text(proof.statusLabel).font(.footnote).foregroundStyle(.secondary)
+                            Text(proof.statusLabel).font(.hubi(.footnote)).foregroundStyle(.secondary)
                             if !proof.note.isEmpty {
-                                Text(proof.note).font(.footnote).foregroundStyle(.secondary)
+                                Text(proof.note).font(.hubi(.footnote)).foregroundStyle(.secondary)
                             }
                         }
                     }

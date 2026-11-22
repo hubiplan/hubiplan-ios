@@ -34,9 +34,9 @@ struct AufgabenVerwaltungView: View {
                                 AufgabeVerwaltungView(unit: unit, id: todo.id) { await load() }
                             } label: {
                                 VStack(alignment: .leading, spacing: 2) {
-                                    Text(todo.sharedText).font(.caption).foregroundStyle(Color.secondary)
+                                    Text(todo.sharedText).font(.hubi(.caption)).foregroundStyle(Color.secondary)
                                     Text(todo.title)
-                                    Text(todo.dueText).font(.footnote).foregroundStyle(todo.urgent ? Color.fehlerText : Color.secondary)
+                                    Text(todo.dueText).font(.hubi(.footnote)).foregroundStyle(todo.urgent ? Color.fehlerText : Color.secondary)
                                 }
                             }
                         }
@@ -106,11 +106,11 @@ struct AufgabeVerwaltungView: View {
                 }
                 if let todo {
                     Section {
-                        Text(todo.title).font(.title3.weight(.semibold))
+                        Text(todo.title).font(.hubi(.title3).weight(.semibold))
                         Text("\(todo.statusText) · \(todo.sharedText)")
                         Text(todo.dueText).foregroundStyle(todo.urgent && !todo.done ? Color.fehlerText : Color.primary)
                         if todo.dueTime != nil {
-                            Text(tr("Zeitzone: {zone}", ["zone": todo.timezone])).font(.footnote).foregroundStyle(Color.secondary)
+                            Text(tr("Zeitzone: {zone}", ["zone": todo.timezone])).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                         }
                     }
                     if !todo.description.isEmpty {

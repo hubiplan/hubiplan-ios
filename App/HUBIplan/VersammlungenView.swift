@@ -59,12 +59,12 @@ struct VersammlungenView: View {
                     kopf(meeting)
                     if !meeting.agenda.isEmpty {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text(tr("Tagesordnung")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                            Text(tr("Tagesordnung")).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
                             ForEach(meeting.sortedAgenda, id: \.position) { point in
                                 VStack(alignment: .leading, spacing: 0) {
                                     Text(point.line)
                                     if !point.description.isEmpty {
-                                        Text(point.description).font(.footnote).foregroundStyle(.secondary)
+                                        Text(point.description).font(.hubi(.footnote)).foregroundStyle(.secondary)
                                     }
                                 }
                                 .padding(.leading, point.level > 0 ? 16 : 0)
@@ -73,12 +73,12 @@ struct VersammlungenView: View {
                         .padding(.vertical, 4)
                     }
                     if !meeting.motions.isEmpty {
-                        Text(tr("Deine Anträge")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                        Text(tr("Deine Anträge")).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
                         ForEach(meeting.motions) { motion in
                             VStack(alignment: .leading, spacing: 4) {
                                 Text(motion.title + " · " + motion.statusText)
                                 if !motion.reply.isEmpty {
-                                    Text(tr("Antwort: {antwort}", ["antwort": motion.reply])).font(.footnote).foregroundStyle(.secondary)
+                                    Text(tr("Antwort: {antwort}", ["antwort": motion.reply])).font(.hubi(.footnote)).foregroundStyle(.secondary)
                                 }
                                 if motion.withdrawable && meeting.motionsOpen() {
                                     Button(tr("Antrag zurückziehen"), role: .destructive) { withdraw = motion }
@@ -90,10 +90,10 @@ struct VersammlungenView: View {
                     }
                     if meeting.motionsOpen() {
                         Text(tr("Anträge bis {bis}", ["bis": tagUndZeit(meeting.motionUntil.flatMap(Zeit.parse))]))
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.hubi(.footnote)).foregroundStyle(.secondary)
                         Button(tr("Antrag stellen")) { motionFor = meeting }
                     } else if meeting.motionUntil != nil {
-                        Text(tr("Die Frist für Anträge ist vorbei.")).font(.footnote).foregroundStyle(.secondary)
+                        Text(tr("Die Frist für Anträge ist vorbei.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -102,7 +102,7 @@ struct VersammlungenView: View {
                     ForEach(minutes) { meeting in
                         VStack(alignment: .leading, spacing: 4) {
                             Text(meeting.title)
-                            Text(tagUndZeit(meeting.start)).font(.footnote).foregroundStyle(.secondary)
+                            Text(tagUndZeit(meeting.start)).font(.hubi(.footnote)).foregroundStyle(.secondary)
                             Button(tr("Protokoll (PDF)")) { Task { await model.openMinutes(meeting) } }
                                 .buttonStyle(.bordered)
                                 .disabled(model.previewBusy)
@@ -144,10 +144,10 @@ struct VersammlungenView: View {
     @ViewBuilder
     private func kopf(_ meeting: UpcomingMeeting) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(meeting.title).font(.headline)
-            if !meeting.kindLine.isEmpty { Text(meeting.kindLine).font(.footnote).foregroundStyle(.secondary) }
+            Text(meeting.title).font(.hubi(.headline))
+            if !meeting.kindLine.isEmpty { Text(meeting.kindLine).font(.hubi(.footnote)).foregroundStyle(.secondary) }
             Text([tagUndZeit(meeting.start), meeting.location].filter { !$0.isEmpty }.joined(separator: " · "))
-            if !meeting.address.isEmpty { Text(meeting.address).font(.footnote).foregroundStyle(.secondary) }
+            if !meeting.address.isEmpty { Text(meeting.address).font(.hubi(.footnote)).foregroundStyle(.secondary) }
         }
         .padding(.vertical, 4)
         if meeting.checkinOpen {
@@ -237,7 +237,7 @@ struct DokumenteView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(document.shownTitle).foregroundStyle(Color.primary)
                                     if !document.line.isEmpty {
-                                        Text(document.line).font(.footnote).foregroundStyle(Color.secondary)
+                                        Text(document.line).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     }
                                 }
                                 Spacer(minLength: 8)

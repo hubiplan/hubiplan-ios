@@ -25,6 +25,8 @@ targets:
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
         CFBundleLocalizations: [de, en]
         UILaunchScreen: {}
+        # Schrift der Gestaltung „Frisch mobil“ (SIL OFL 1.1, Lizenztext daneben)
+        UIAppFonts: [Inter.ttf]
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationLandscapeLeft

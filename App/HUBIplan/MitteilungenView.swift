@@ -33,10 +33,10 @@ struct MitteilungenView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             // Neu: Punkt und Wort, nicht nur Farbe (IOS-22)
                             if unread {
-                                Text(tr("● neu")).font(.footnote.bold()).foregroundStyle(Color.accentColor)
+                                Text(tr("● neu")).font(.hubi(.footnote).bold()).foregroundStyle(Color.accentColor)
                             }
-                            Text(item.subject).font(unread ? .headline.weight(.heavy) : .headline)
-                            Text(kopfzeile(item)).font(.footnote).foregroundStyle(.secondary)
+                            Text(item.subject).font(unread ? .hubi(.headline).weight(.heavy) : .hubi(.headline))
+                            Text(kopfzeile(item)).font(.hubi(.footnote)).foregroundStyle(.secondary)
                         }
                         .padding(.vertical, 4)
                         .accessibilityElement(children: .combine)
@@ -109,8 +109,8 @@ struct MitteilungView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
-                Text(item.subject).font(.title2.bold())
-                Text(kopfzeile(item)).font(.footnote).foregroundStyle(.secondary)
+                Text(item.subject).font(.hubi(.title2).bold())
+                Text(kopfzeile(item)).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 ForEach(Array(CircularText.blocks(item.body ?? "").enumerated()), id: \.offset) { _, block in
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(Array(block.lines.enumerated()), id: \.offset) { index, line in
@@ -138,7 +138,7 @@ struct MitteilungView: View {
                     }
                     if model.previewBusy { Laedt(text: tr("Datei wird geladen …")) }
                     if let message = model.error, model.offlineSince == nil {
-                        MeldungText(message, .fehler).font(.footnote)
+                        MeldungText(message, .fehler).font(.hubi(.footnote))
                     }
                 }
             }

@@ -134,7 +134,7 @@ struct VerwaltungSchutz<Inhalt: View>: View {
                     } else if phase != .active && !Demo.active {
                         ZStack {
                             Color(.systemBackground)
-                            Image(systemName: "lock.fill").font(.largeTitle).foregroundStyle(Color.secondary)
+                            Image(systemName: "lock.fill").font(.hubi(.largeTitle)).foregroundStyle(Color.secondary)
                         }
                         .ignoresSafeArea()
                         .accessibilityHidden(true)
@@ -310,7 +310,7 @@ private struct VerwaltungStart: View {
             Section {
                 if units.count > 1 {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(tr("Einheit")).font(.caption).foregroundStyle(Color.secondary)
+                        Text(tr("Einheit")).font(.hubi(.caption)).foregroundStyle(Color.secondary)
                         Picker(tr("Einheit"), selection: Binding(get: { unit.key }, set: { unitKey = $0 })) {
                             ForEach(units, id: \.key) { Text($0.name).tag($0.key) }
                         }
@@ -319,7 +319,7 @@ private struct VerwaltungStart: View {
                     }
                 } else {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(tr("Einheit")).font(.caption).foregroundStyle(Color.secondary)
+                        Text(tr("Einheit")).font(.hubi(.caption)).foregroundStyle(Color.secondary)
                         Text(unit.name)
                     }
                 }
@@ -525,7 +525,7 @@ private struct Bereich: View {
         Label {
             VStack(alignment: .leading, spacing: 2) {
                 Text(title)
-                Text(hint).font(.footnote).foregroundStyle(Color.secondary)
+                Text(hint).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             }
         } icon: {
             Image(systemName: symbol)
@@ -587,11 +587,11 @@ struct OffenePunkteView: View {
     private func zeile(_ task: AdminTask) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             if !task.kindLabel.isEmpty {
-                Text(task.kindLabel).font(.caption).foregroundStyle(Color.secondary)
+                Text(task.kindLabel).font(.hubi(.caption)).foregroundStyle(Color.secondary)
             }
             Text(task.title)
             if !task.detail.isEmpty {
-                Text(task.detail).font(.footnote).foregroundStyle(Color.secondary)
+                Text(task.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             }
         }
     }
@@ -639,7 +639,7 @@ struct MitgliederView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(row.listName)
                                     if !row.listDetail.isEmpty {
-                                        Text(row.listDetail).font(.footnote).foregroundStyle(Color.secondary)
+                                        Text(row.listDetail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     }
                                 }
                             }
@@ -731,7 +731,7 @@ struct MitgliedView: View {
                                     .accessibilityLabel(tr("Neues Foto"))
                                 VStack(alignment: .leading, spacing: 8) {
                                     Text(tr("Dieses Foto wartet auf deine Freigabe für den Ausweis."))
-                                        .font(.footnote).foregroundStyle(Color.secondary)
+                                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     Button(tr("Freigeben")) { Task { await decide(approve: true) } }
                                         .buttonStyle(.borderedProminent)
                                     Button(tr("Ablehnen")) { Task { await decide(approve: false) } }
@@ -749,7 +749,7 @@ struct MitgliedView: View {
                                 .frame(width: 105, height: 135).clipShape(RoundedRectangle(cornerRadius: 8))
                                 .accessibilityLabel(tr("Foto"))
                         }
-                        Text(member.name).font(.title3.weight(.semibold))
+                        Text(member.name).font(.hubi(.title3).weight(.semibold))
                         if member.isFormer { Text(tr("Ehemaliges Mitglied")).foregroundStyle(.secondary) }
                         zeile(tr("Mitgliedsart"), member.typeName)
                         zeile(tr("Mitgliedsnummer"), member.clubNumber)
@@ -842,7 +842,7 @@ struct MitgliedView: View {
     private func zeile(_ label: String, _ value: String) -> some View {
         if !value.trimmingCharacters(in: .whitespaces).isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                Text(label).font(.caption).foregroundStyle(Color.secondary)
+                Text(label).font(.hubi(.caption)).foregroundStyle(Color.secondary)
                 Text(value)
             }
         }
@@ -941,14 +941,14 @@ struct AenderungenView: View {
                     ForEach(items) { request in
                         Section {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(request.memberName).font(.headline)
+                                Text(request.memberName).font(.hubi(.headline))
                                 if let date = request.createdAt.flatMap(Zeit.parse) {
                                     Text(date.formatted(.dateTime.day().month().year().locale(Texte.locale)))
-                                        .font(.caption).foregroundStyle(Color.secondary)
+                                        .font(.hubi(.caption)).foregroundStyle(Color.secondary)
                                 }
                                 ForEach(request.lines, id: \.key) { Text($0.text) }
                                 if !request.message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                                    Text(tr("„{text}“", ["text": request.message])).font(.footnote).foregroundStyle(Color.secondary)
+                                    Text(tr("„{text}“", ["text": request.message])).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                             }
                             KnopfReihe(spacing: 12) {
@@ -1031,7 +1031,7 @@ private struct AusweisScan: View {
                     QrScanner { text in Task { await check(text) } }
                         .clipShape(RoundedRectangle(cornerRadius: 12))
                     Text(tr("Halte die Kamera auf den QR-Code des Mitgliedsausweises."))
-                        .font(.footnote).foregroundStyle(Color.secondary)
+                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                 } else {
                     KameraHinweis()
                     Spacer()
@@ -1074,7 +1074,7 @@ private struct AusweisErgebnis: View {
             ScrollView {
                 VStack(spacing: 12) {
                     Label(check.statusLabel, systemImage: check.valid ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
-                        .font(.title2.weight(.semibold))
+                        .font(.hubi(.title2).weight(.semibold))
                         .foregroundStyle(check.valid ? Color.gutText : Color.fehlerText)
                     if let photo {
                         Image(uiImage: photo).resizable()
@@ -1083,11 +1083,11 @@ private struct AusweisErgebnis: View {
                             .clipShape(RoundedRectangle(cornerRadius: 8))
                             .accessibilityLabel(check.isOrganization ? tr("Logo") : tr("Foto"))
                     }
-                    if check.isOrganization { Text(tr("Organisationsmitglied")).font(.subheadline.weight(.semibold)) }
-                    if !check.name.isEmpty { Text(check.name).font(.title) }
+                    if check.isOrganization { Text(tr("Organisationsmitglied")).font(.hubi(.subheadline).weight(.semibold)) }
+                    if !check.name.isEmpty { Text(check.name).font(.hubi(.title)) }
                     if !check.detail.isEmpty { Text(check.detail) }
                     if !check.departments.isEmpty {
-                        Text(check.departments.joined(separator: ", ")).font(.footnote).foregroundStyle(Color.secondary)
+                        Text(check.departments.joined(separator: ", ")).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                     }
                     if check.membership != nil, unit.showsMembers {
                         Button(tr("Akte öffnen")) { showMember = true }.buttonStyle(.bordered)
@@ -1224,7 +1224,7 @@ struct AnlaesseView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(row.name)
                                     Text(tr("{datum} · wird {alter}", ["datum": Zeit.plainDate(row.date), "alter": row.age]))
-                                        .font(.footnote).foregroundStyle(Color.secondary)
+                                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                             }
                         }
@@ -1239,7 +1239,7 @@ struct AnlaesseView: View {
                                     Text(row.name)
                                     Text(tr("{datum} · {jahre} Jahre {einheit}", ["datum": Zeit.plainDate(row.date), "jahre": row.years, "einheit": row.organization])
                                         .trimmingCharacters(in: .whitespaces))
-                                        .font(.footnote).foregroundStyle(Color.secondary)
+                                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                             }
                         }

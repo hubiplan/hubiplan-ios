@@ -29,7 +29,7 @@ struct Abzeichen: View {
             }
             Text(text)
         }
-        .font(.footnote.weight(.semibold))
+        .font(.hubi(.footnote).weight(.semibold))
         .foregroundStyle(designFarbe(farben.schrift, sonst: .primary))
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
@@ -52,8 +52,8 @@ struct DatumKaestchen: View {
     var body: some View {
         if let teile = Design.datumKaestchen(iso, allDay: allDay) {
             VStack(spacing: 0) {
-                Text(teile.tag).font(.headline.monospacedDigit())
-                Text(teile.monat).font(.caption2.weight(.semibold))
+                Text(teile.tag).font(.hubi(.headline).monospacedDigit())
+                Text(teile.monat).font(.hubi(.caption2).weight(.semibold))
             }
             // Geprüftes Farbpaar statt Akzentblau auf 14 % Blau (3,3 : 1, UX-Audit 16.11., IOS-11)
             .foregroundStyle(gedaempft ? Color.secondary : Color.zustand(.hinweis))

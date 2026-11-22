@@ -78,8 +78,8 @@ struct AufgabenView: View {
             ForEach(shown) { todo in
                 NavigationLink(value: todo.id) {
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(todo.title).font(.headline)
-                        Text(todo.dueText).font(.footnote).foregroundStyle(.secondary)
+                        Text(todo.title).font(.hubi(.headline))
+                        Text(todo.dueText).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
                 }
@@ -106,7 +106,7 @@ struct AufgabeView: View {
                     Section { MeldungText(notice, .gut) }
                 }
                 Section {
-                    Text(todo.title).font(.title3.bold())
+                    Text(todo.title).font(.hubi(.title3).bold())
                     Text((todo.done ? tr("Erledigt") : tr("Offen")) + " · " + todo.dueText).foregroundStyle(.secondary)
                     if !todo.description.isEmpty { Text(todo.description) }
                     if todo.claimed {
@@ -158,16 +158,16 @@ struct HelferListe: View {
             }
             ForEach(data?.mine ?? []) { shift in
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(shift.title).font(.headline)
-                    Text(zeitraum(shift.startsAt, shift.endsAt)).font(.subheadline)
-                    if !shift.location.isEmpty { Text(shift.location).font(.subheadline).foregroundStyle(.secondary) }
+                    Text(shift.title).font(.hubi(.headline))
+                    Text(zeitraum(shift.startsAt, shift.endsAt)).font(.hubi(.subheadline))
+                    if !shift.location.isEmpty { Text(shift.location).font(.hubi(.subheadline)).foregroundStyle(.secondary) }
                     if data?.canCancel(shift.id) == true {
                         Button(tr("Dienst absagen"), role: .destructive) { cancel = shift }
                             .buttonStyle(.bordered)
                             .accessibilityLabel(tr("Dienst absagen: {title}", ["title": shift.title]))
                             .disabled(model.loading)
                     } else {
-                        Text(tr("Absage nur über die Verwaltung")).font(.footnote).foregroundStyle(.secondary)
+                        Text(tr("Absage nur über die Verwaltung")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                 }
                 .padding(.vertical, 4)
@@ -210,28 +210,28 @@ struct HelferListe: View {
         }
         ForEach(data?.openPlans ?? []) { plan in
             Section {
-                if !plan.info.isEmpty { Text(plan.info).font(.footnote).foregroundStyle(.secondary) }
+                if !plan.info.isEmpty { Text(plan.info).font(.hubi(.footnote)).foregroundStyle(.secondary) }
                 if !plan.note.isEmpty { Text(plan.note) }
                 if plan.signup != "self" {
-                    Text(tr("In diesen Plan trägt nur die Verwaltung ein.")).font(.footnote).foregroundStyle(.secondary)
+                    Text(tr("In diesen Plan trägt nur die Verwaltung ein.")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 if let most = plan.maxShifts, most > 0 {
-                    Text(tr("Höchstens {n} Schichten je Person.", ["n": most])).font(.footnote).foregroundStyle(.secondary)
+                    Text(tr("Höchstens {n} Schichten je Person.", ["n": most])).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 ForEach(plan.duties.filter { !$0.open.isEmpty }) { duty in
                     VStack(alignment: .leading, spacing: 8) {
-                        Text(duty.line).font(.headline)
-                        if !duty.description.isEmpty { Text(duty.description).font(.footnote).foregroundStyle(.secondary) }
+                        Text(duty.line).font(.hubi(.headline))
+                        if !duty.description.isEmpty { Text(duty.description).font(.hubi(.footnote)).foregroundStyle(.secondary) }
                         ForEach(duty.open) { shift in
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(zeitraum(shift.startsAt, shift.endsAt)).font(.subheadline)
-                                Text(shift.freeLabel).font(.footnote).foregroundStyle(.secondary)
-                                if !shift.note.isEmpty { Text(shift.note).font(.footnote).foregroundStyle(.secondary) }
+                                Text(zeitraum(shift.startsAt, shift.endsAt)).font(.hubi(.subheadline))
+                                Text(shift.freeLabel).font(.hubi(.footnote)).foregroundStyle(.secondary)
+                                if !shift.note.isEmpty { Text(shift.note).font(.hubi(.footnote)).foregroundStyle(.secondary) }
                                 if !shift.names.isEmpty {
-                                    Text(shift.names.joined(separator: ", ")).font(.footnote).foregroundStyle(.secondary)
+                                    Text(shift.names.joined(separator: ", ")).font(.hubi(.footnote)).foregroundStyle(.secondary)
                                 }
                                 if shift.mine != nil {
-                                    ZustandText(tr("Du bist eingetragen."), .gut).font(.footnote.weight(.semibold))
+                                    ZustandText(tr("Du bist eingetragen."), .gut).font(.hubi(.footnote).weight(.semibold))
                                 } else if plan.canSignup(shift) {
                                     Button(tr("Mich eintragen")) {
                                         if plan.cancellableAfterSignup(shift) {

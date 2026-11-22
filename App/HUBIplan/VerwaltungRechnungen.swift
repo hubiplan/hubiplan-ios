@@ -83,13 +83,13 @@ private struct RechnungZeile: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(invoice.payer)
                 if !invoice.listDetail.isEmpty {
-                    Text(invoice.listDetail).font(.footnote).foregroundStyle(Color.secondary)
+                    Text(invoice.listDetail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                 }
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 Text(invoice.listAmount).monospacedDigit()
-                Text(invoice.listStatus).font(.footnote).foregroundStyle(invoice.isOverdue ? Color.fehlerText : Color.secondary)
+                Text(invoice.listStatus).font(.hubi(.footnote)).foregroundStyle(invoice.isOverdue ? Color.fehlerText : Color.secondary)
             }
         }
     }
@@ -121,9 +121,9 @@ struct RechnungView: View {
                 if let error { Section { MeldungText(error, .fehler) } }
                 if let invoice {
                     Section {
-                        Text(invoice.payer).font(.title3.weight(.semibold))
+                        Text(invoice.payer).font(.hubi(.title3).weight(.semibold))
                         if !invoice.headline.isEmpty { Text(invoice.headline) }
-                        Text(invoice.dates).font(.footnote).foregroundStyle(invoice.isOverdue ? Color.fehlerText : Color.secondary)
+                        Text(invoice.dates).font(.hubi(.footnote)).foregroundStyle(invoice.isOverdue ? Color.fehlerText : Color.secondary)
                     }
                     Section {
                         ForEach(Array(invoice.lines.enumerated()), id: \.offset) { _, line in
@@ -131,7 +131,7 @@ struct RechnungView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(line.text)
                                     if !line.detail.isEmpty {
-                                        Text(line.detail).font(.footnote).foregroundStyle(Color.secondary)
+                                        Text(line.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     }
                                 }
                                 Spacer()
@@ -144,7 +144,7 @@ struct RechnungView: View {
                     }
                     if let lastPayment {
                         Section {
-                            Text(tr("Bar kassiert und gebucht.")).font(.headline)
+                            Text(tr("Bar kassiert und gebucht.")).font(.hubi(.headline))
                             Button(tr("Quittung ansehen oder teilen")) {
                                 Task { await model.openCashReceipt(unit, payment: lastPayment, name: invoice.receiptName(payment: lastPayment)) }
                             }
@@ -173,7 +173,7 @@ struct RechnungView: View {
                                 HStack(alignment: .firstTextBaseline) {
                                     VStack(alignment: .leading, spacing: 2) {
                                         Text(Geld.format(payment.amount)).monospacedDigit()
-                                        Text(payment.detail).font(.footnote).foregroundStyle(Color.secondary)
+                                        Text(payment.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     }
                                     Spacer()
                                     if payment.isCash {
@@ -211,14 +211,14 @@ struct RechnungView: View {
             ? nil : CashDraft.amountError(draft.amount, outstanding: invoice.outstanding)
         BeschriftetesFeld(label: tr("Betrag in €"), text: $draft.amount)
             .keyboardType(.decimalPad)
-        if let problem { MeldungText(problem, .fehler).font(.footnote) }
+        if let problem { MeldungText(problem, .fehler).font(.hubi(.footnote)) }
         DatePicker(tr("Datum"), selection: $day, in: ...Date(), displayedComponents: .date)
         if accounts.count > 1 {
             Picker(tr("Barkasse"), selection: $draft.account) {
                 ForEach(accounts) { Text($0.name).tag(Optional($0.id)) }
             }
         } else {
-            Text(tr("in die {konto}", ["konto": accounts[0].name])).font(.footnote).foregroundStyle(Color.secondary)
+            Text(tr("in die {konto}", ["konto": accounts[0].name])).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
         }
         Button(tr("Bar kassiert buchen")) { Task { await pay() } }
             .disabled(busy || values.body(outstanding: invoice.outstanding) == nil)

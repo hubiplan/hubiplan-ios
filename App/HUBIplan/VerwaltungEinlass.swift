@@ -35,7 +35,7 @@ struct EinlassView: View {
                 VerwaltungMeldung { await load() }
                 if let list {
                     Section {
-                        Text(list.title).font(.title3.weight(.semibold))
+                        Text(list.title).font(.hubi(.title3).weight(.semibold))
                         Text(list.stand)
                         if offline {
                             MeldungText(tr("Ohne Netz: Die Liste ist vielleicht nicht aktuell."), .fehler)
@@ -71,7 +71,7 @@ struct EinlassView: View {
                             MeldungText(last.message, last.good ? .gut : .fehler)
                             if let p = last.participant {
                                 Text(p.name)
-                                Text(p.detail).font(.footnote).foregroundStyle(Color.secondary)
+                                Text(p.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                             }
                         }
                     }
@@ -108,15 +108,15 @@ struct EinlassView: View {
     @ViewBuilder
     private func zeile(_ row: CheckInRow, _ list: CheckInList) -> some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(row.minor ? row.name + " · " + tr("minderjährig") : row.name).font(.headline)
-            Text(row.detail).font(.footnote).foregroundStyle(Color.secondary)
+            Text(row.minor ? row.name + " · " + tr("minderjährig") : row.name).font(.hubi(.headline))
+            Text(row.detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             if let at = row.checkedInAt {
                 Text(tr("eingelassen {when}", ["when": uhrzeit(at)]) + (row.checkedInVia.isEmpty ? "" : " · " + row.checkedInVia))
                     .foregroundStyle(Color.gutText)
             }
             ForEach(Array(row.bookings.enumerated()), id: \.offset) { _, b in
                 Text(b.name + " · " + (b.redeemedAt.map { tr("eingelöst {when}", ["when": uhrzeit($0)]) } ?? tr("noch nicht eingelöst")))
-                    .font(.footnote)
+                    .font(.hubi(.footnote))
             }
             HStack {
                 if list.canEdit && !row.checkedIn {
@@ -204,7 +204,7 @@ private struct KartenScan: View {
                 QrScanner(found: found)
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                 Text(tr("Halte die Kamera auf den QR-Code der Eintrittskarte."))
-                    .font(.footnote).foregroundStyle(Color.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
             }
             .padding()
             .navigationTitle(tr("Eintrittskarte scannen"))

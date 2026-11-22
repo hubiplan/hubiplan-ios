@@ -202,14 +202,14 @@ struct TerminZeile: View {
                     DatumKaestchen(iso: event.startsAt, allDay: event.allDay, gedaempft: event.isCancelled)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(event.title)
-                            .font(.headline)
+                            .font(.hubi(.headline))
                             .strikethrough(event.isCancelled)
-                        Text(terminWann(event)).font(.subheadline)
+                        Text(terminWann(event)).font(.hubi(.subheadline))
                         if !event.location.isEmpty {
-                            Text(event.location).font(.subheadline).foregroundStyle(.secondary)
+                            Text(event.location).font(.hubi(.subheadline)).foregroundStyle(.secondary)
                         }
                         if !event.owner.isEmpty {
-                            Text(event.owner).font(.footnote).foregroundStyle(.secondary)
+                            Text(event.owner).font(.hubi(.footnote)).foregroundStyle(.secondary)
                         }
                         if let status {
                             Abzeichen(
@@ -247,9 +247,9 @@ struct TerminZeile: View {
                 .padding(.top, 2)
             }
             if let failure = model.rsvpErrors[event.eventId] {
-                MeldungText(failure, .fehler).font(.footnote)
+                MeldungText(failure, .fehler).font(.hubi(.footnote))
             } else if let notice = model.rsvpNotices[event.eventId] {
-                MeldungText(notice, .gut).font(.footnote)
+                MeldungText(notice, .gut).font(.hubi(.footnote))
             }
         }
         .padding(.vertical, 4)
@@ -348,7 +348,7 @@ struct KontoView: View {
                             Label {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(seite.title)
-                                    Text(seite.hint).font(.footnote).foregroundStyle(.secondary)
+                                    Text(seite.hint).font(.hubi(.footnote)).foregroundStyle(.secondary)
                                 }
                             } icon: {
                                 Image(systemName: seite.symbol)
@@ -408,7 +408,7 @@ private struct KontoUnterseite: View {
                             HStack {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(model.accounts.label(entry)).foregroundStyle(Color.primary)
-                                    Text(entry.email).font(.footnote).foregroundStyle(Color.secondary)
+                                    Text(entry.email).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                 }
                                 Spacer()
                                 if entry.id == model.accounts.activeId {
@@ -599,7 +599,8 @@ struct UeberDieApp: View {
 }
 
 /// Lizenz der App. Die iOS-App enthält keine fremden Bibliotheken; sie nutzt nur Apples
-/// Systembibliotheken (swift-crypto braucht nur der Kern unter Linux für die Tests).
+/// Systembibliotheken (swift-crypto braucht nur der Kern unter Linux für die Tests). Die Schrift
+/// Inter liegt mit ihrem Lizenztext bei.
 struct LizenzenView: View {
     @Environment(\.openURL) private var openURL
 
@@ -622,6 +623,12 @@ struct LizenzenView: View {
             } header: {
                 Text(tr("Enthaltene Bibliotheken"))
             }
+            Section {
+                Text(tr("Die App verwendet die Schrift {name} (SIL Open Font License 1.1).", ["name": Design.schriftFamilie]))
+                NavigationLink(tr("Lizenztext der Schrift anzeigen")) { SchriftLizenzView() }
+            } header: {
+                Text(tr("Schrift"))
+            }
         }
         .navigationTitle(tr("Lizenzen"))
         .navigationBarTitleDisplayMode(.inline)
@@ -637,9 +644,9 @@ struct HinweisAngebot: View {
         Section {
             VStack(alignment: .leading, spacing: 10) {
                 Label(tr("Soll die App dich erinnern, wenn eine Rückmeldung fehlt?"), systemImage: "bell")
-                    .font(.subheadline.weight(.semibold))
+                    .font(.hubi(.subheadline).weight(.semibold))
                 Text(tr("Etwa einen Tag vor dem Anmeldeschluss, mit den Knöpfen Zusage und Absage. Das Gerät fragt dich danach einmal nach der Erlaubnis."))
-                    .font(.footnote)
+                    .font(.hubi(.footnote))
                     .foregroundStyle(Color.secondary)
                 HStack(spacing: 12) {
                     Button(tr("Erinnern lassen")) { Task { await model.setHints(on: true) } }

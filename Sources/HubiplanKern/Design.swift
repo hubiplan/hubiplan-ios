@@ -8,6 +8,55 @@ public enum Design {
     public static let radiusKlein = 4.0
     public static let radius = 6.0
     public static let radiusGross = 8.0
+    /// Blätter und Dialoge
+    public static let radiusBlatt = 12.0
+
+    /// Abstände wie in der Android-App (`Abstand`) und der Werte-Datei `Gestaltung/werte.json`.
+    public enum Abstand {
+        public static let zeile = 2.0
+        public static let eng = 4.0
+        public static let klein = 8.0
+        public static let mittel = 12.0
+        public static let rand = 16.0
+        public static let gross = 24.0
+    }
+
+    /// Anteil der Vereinsfarbe in getönten Flächen.
+    public static let getoent = 0.11
+    /// Mindesthöhe einer antippbaren Zeile und Seitenlänge des Symbolkopfs.
+    public static let zeileHoehe = 56.0
+    public static let symbolKopf = 36.0
+    /// Kleinstes Ziel zum Antippen auf iOS (Punkte).
+    public static let ziel = 44.0
+
+    /// Neutrale Flächen, Schrift und Linien wie in der Weboberfläche und der Android-App
+    /// (`NEUTRAL_HELL`, `NEUTRAL_DUNKEL`), als `#rrggbb`.
+    public struct Neutral: Equatable, Sendable {
+        /// Grund der Seite
+        public let grund: String
+        /// Karten und Felder
+        public let karte: String
+        public let schrift: String
+        public let gedaempft: String
+        /// Kartenrand und Trennlinien
+        public let linie: String
+        /// Feldrand und Symbole (3 : 1 gegen den Grund)
+        public let rand: String
+        /// Platzhalter beim Laden
+        public let platzhalter: String
+    }
+
+    public static func neutral(dunkel: Bool) -> Neutral {
+        dunkel
+            ? Neutral(grund: "#111614", karte: "#1a201d", schrift: "#dfe5e2", gedaempft: "#a3ada8", linie: "#2f3833", rand: "#838d88", platzhalter: "#242b27")
+            : Neutral(grund: "#fbfcfb", karte: "#ffffff", schrift: "#121614", gedaempft: "#545e5a", linie: "#dde1de", rand: "#737d79", platzhalter: "#e7eae7")
+    }
+
+    /// Schriftfamilie der Werte-Datei.
+    public static let schriftFamilie = "Inter"
+
+    /// Beschriftung eines Zählers: ab 100 „99+“.
+    public static func zaehlerText(_ anzahl: Int) -> String { anzahl > 99 ? "99+" : String(anzahl) }
 
     /// Bedeutung eines Abzeichens. Der Text trägt die Bedeutung, die Farbe hilft nur.
     public enum Zustand: CaseIterable, Sendable {

@@ -22,7 +22,7 @@ struct VerbindenView: View {
         NavigationStack {
             Form {
                 Section {
-                    Text(tr("Mit deinem Verein verbinden")).font(.title2.bold())
+                    Text(tr("Mit deinem Verein verbinden")).font(.hubi(.title2).bold())
                         .accessibilityAddTraits(.isHeader)
                     Text(tr("Es gibt drei Wege. Nimm den, der für dich am einfachsten ist."))
                 }
@@ -94,7 +94,7 @@ struct VerbindenView: View {
                 .onSubmit { focus = .email }
                 .accessibilityIdentifier("server")
             if missing.contains(.server) {
-                MeldungText(tr("Bitte die Adresse von HUBIplan angeben, z. B. verein.example.de."), .fehler).font(.footnote)
+                MeldungText(tr("Bitte die Adresse von HUBIplan angeben, z. B. verein.example.de."), .fehler).font(.hubi(.footnote))
             }
             TextField(tr("E-Mail"), text: $email)
                 .textInputAutocapitalization(.never)
@@ -105,7 +105,7 @@ struct VerbindenView: View {
                 .focused($focus, equals: .email)
                 .onSubmit { focus = .password }
             if missing.contains(.email) {
-                MeldungText(tr("Bitte deine E-Mail-Adresse eingeben."), .fehler).font(.footnote)
+                MeldungText(tr("Bitte deine E-Mail-Adresse eingeben."), .fehler).font(.hubi(.footnote))
             }
             SecureField(tr("Passwort"), text: $password)
                 .textContentType(.password)
@@ -113,13 +113,13 @@ struct VerbindenView: View {
                 .focused($focus, equals: .password)
                 .onSubmit { anmelden() }
             if missing.contains(.password) {
-                MeldungText(tr("Bitte dein Passwort eingeben."), .fehler).font(.footnote)
+                MeldungText(tr("Bitte dein Passwort eingeben."), .fehler).font(.hubi(.footnote))
             }
             Button(tr("Anmelden")) { anmelden() }
                 .accessibilityIdentifier("anmelden")
             if let reset = Anmeldung.passwordReset(server: server) {
                 Button(tr("Passwort vergessen? Im Browser zurücksetzen")) { openURL(reset) }
-                    .font(.footnote)
+                    .font(.hubi(.footnote))
             }
         } header: {
             Text(tr("Mit E-Mail und Passwort"))

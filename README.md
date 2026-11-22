@@ -34,6 +34,14 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
   baut auch unter Linux; dort ersetzt [swift-crypto](https://github.com/apple/swift-crypto)
   (Apache-2.0) das CryptoKit von Apple.
 - Formate und Verhalten folgen der Android-App; gleiche Fälle haben gleiche Tests.
+- **Gestaltung „Frisch mobil“:** Werte (`Sources/HubiplanKern/Gestaltung/werte.json`) und
+  Symbolsatz (`symbole.json`, Raster 24, Strich 1,75) sind dieselben Dateien wie in der
+  Android-App; `GestaltungTests` hält ihre Prüfsummen fest und vergleicht die Werte im Code
+  (`Design`, `Symbolsatz`). Wer einen Wert oder ein Symbol ändert, ändert die Datei in beiden
+  Apps. Die Schrift Inter (SIL Open Font License 1.1, `App/HUBIplan/Schrift/`) liegt bei;
+  `Font.hubi(.body)` liefert sie in den Stufen des Systems. Seiten setzen sich aus den
+  Bausteinen in `App/HUBIplan/Bausteine.swift` zusammen (`Karte`, `Abschnittstitel`, `Zeile`,
+  `Zaehler`, `Leerzustand`, `Platzhalter`, `SymbolBild`).
 
 ## Bauen und testen
 

@@ -47,7 +47,7 @@ struct ZusatzFelder: View {
                 ), axis: .vertical)
                 .disabled(!enabled)
                 Text(tr("Nur für die Planung des Essens; sieht nur die Verwaltung, wird 14 Tage nach der Veranstaltung gelöscht."))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
             }
         case "yesno":
             Picker(titel(q), selection: Binding(
@@ -99,9 +99,9 @@ struct ZusatzFelder: View {
     @ViewBuilder
     private var erziehungsberechtigte: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(tr("Erziehungsberechtigte")).font(.subheadline.bold())
+            Text(tr("Erziehungsberechtigte")).font(.hubi(.subheadline).bold())
             Text(tr("Unter 18: Bitte Name, Telefonnummer (während der Veranstaltung erreichbar) und E-Mail angeben; die Anschrift nur, wenn sie abweicht."))
-                .font(.footnote)
+                .font(.hubi(.footnote))
         }
         TextField(tr("Name"), text: Binding(
             get: { guardian.name },

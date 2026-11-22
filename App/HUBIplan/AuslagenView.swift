@@ -49,10 +49,10 @@ struct AuslagenView: View {
                 } label: {
                     VStack(alignment: .leading, spacing: 4) {
                         Text([claim.number.isEmpty ? tr("Entwurf") : claim.number, claim.purpose.isEmpty ? tr("ohne Zweck") : claim.purpose].joined(separator: " · "))
-                            .font(.headline)
-                        Text(claim.line).font(.footnote).foregroundStyle(.secondary)
+                            .font(.hubi(.headline))
+                        Text(claim.line).font(.hubi(.footnote)).foregroundStyle(.secondary)
                         if claim.asksMe {
-                            ZustandText(tr("Die Kasse hat eine Rückfrage."), .warnung).font(.footnote)
+                            ZustandText(tr("Die Kasse hat eine Rückfrage."), .warnung).font(.hubi(.footnote))
                         }
                     }
                 }
@@ -251,7 +251,7 @@ private struct AuslageView: View {
             if let c = claim {
                 Section {
                     Text([c.number.isEmpty ? tr("Entwurf") : c.number, c.statusLabel].filter { !$0.isEmpty }.joined(separator: " · "))
-                        .font(.headline)
+                        .font(.hubi(.headline))
                         .accessibilityAddTraits(.isHeader)
                     if !c.purpose.isEmpty { Text(c.purpose) }
                     Text(tr("Summe: {amount}", ["amount": Geld.format(c.total)]))
@@ -264,7 +264,7 @@ private struct AuslageView: View {
                     if let day = c.purchaseDate.flatMap(kalendertag) {
                         Text(tr("Datum: {day}", ["day": day.formatted(.dateTime.day().month().year().locale(Texte.locale))]))
                     }
-                    Text(trn("1 Beleg", "{n} Belege", c.files.count)).font(.footnote).foregroundStyle(.secondary)
+                    Text(trn("1 Beleg", "{n} Belege", c.files.count)).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 }
                 if c.asksMe {
                     Section {
@@ -286,7 +286,7 @@ private struct AuslageView: View {
                 if c.status == "draft", !c.problems.isEmpty {
                     Section {
                         Text(tr("Zum Einreichen fehlt noch: {list}", ["list": c.problems.values.sorted().joined(separator: " ")]))
-                            .font(.footnote)
+                            .font(.hubi(.footnote))
                     }
                 }
                 if c.canAddFile {
@@ -323,7 +323,7 @@ private struct AuslageView: View {
                         ForEach(Array(c.events.enumerated()), id: \.offset) { _, e in
                             let day = Zeit.parse(e.at).map { $0.formatted(.dateTime.day().month().year().locale(Texte.locale)) } ?? ""
                             Text([day, e.label, e.who, e.text].filter { !$0.isEmpty }.joined(separator: " · "))
-                                .font(.footnote)
+                                .font(.hubi(.footnote))
                         }
                     } header: {
                         Text(tr("Verlauf"))

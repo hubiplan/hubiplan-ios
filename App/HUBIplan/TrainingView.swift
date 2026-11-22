@@ -47,14 +47,14 @@ struct TrainingView: View {
                     }
                     ForEach(d.attendance.prefix(30)) { a in
                         Text([Zeit.plainDate(a.date), a.title, a.kindLabel, a.departmentName].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.subheadline)
+                            .font(.hubi(.subheadline))
                     }
                 }
                 if d.shootingEnabled, let log = d.shooting {
                     Section(tr("Schießnachweis nach § 14 WaffG")) {
                         Text(tr("Es zählen nur vom Verein bestätigte Termine mit erlaubnispflichtigen Waffen. Was der Verband anerkennt, entscheidet er selbst."))
-                            .font(.footnote).foregroundStyle(.secondary)
-                        ForEach(log.evaluation?.lines ?? [], id: \.self) { Text($0).font(.subheadline) }
+                            .font(.hubi(.footnote)).foregroundStyle(.secondary)
+                        ForEach(log.evaluation?.lines ?? [], id: \.self) { Text($0).font(.hubi(.subheadline)) }
                         Button(tr("Schießtermin melden")) { reporting = true }
                     }
                     Section(tr("Mein Schießbuch")) {
@@ -63,9 +63,9 @@ struct TrainingView: View {
                         }
                         ForEach(log.entries) { e in
                             VStack(alignment: .leading, spacing: 4) {
-                                Text("\(Zeit.plainDate(e.date)): \(e.discipline)").font(.headline)
-                                if !e.details.isEmpty { Text(e.details).font(.footnote) }
-                                Text(e.statusLabel).font(.caption).foregroundStyle(e.status == "rejected" ? Color.fehlerText : Color.accentColor)
+                                Text("\(Zeit.plainDate(e.date)): \(e.discipline)").font(.hubi(.headline))
+                                if !e.details.isEmpty { Text(e.details).font(.hubi(.footnote)) }
+                                Text(e.statusLabel).font(.hubi(.caption)).foregroundStyle(e.status == "rejected" ? Color.fehlerText : Color.accentColor)
                                 if e.canWithdraw {
                                     Button(tr("Zurückziehen")) {
                                         act(done: tr("Meldung zurückgezogen.")) { api, id in
@@ -186,7 +186,7 @@ private struct SchiessterminMelden: View {
         Form {
             Section {
                 Text(tr("Für Termine außerhalb der Trainings, etwa in einem anderen Verein oder bei einem Wettkampf. Der Verein prüft die Meldung und bestätigt sie; erst dann zählt sie."))
-                    .font(.footnote)
+                    .font(.hubi(.footnote))
                 DatePicker(tr("Datum"), selection: $day, in: ...Date(), displayedComponents: .date)
                 TextField(tr("Disziplin"), text: $discipline)
                     .weiterFeld()
@@ -252,10 +252,10 @@ private struct TrainingLeitenView: View {
                             TrainingLeitungView(sessionId: s.id)
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(s.title).font(.headline)
+                                Text(s.title).font(.hubi(.headline))
                                 Text([Zeit.plainDate(s.date), trainingTime(s.startsAt, s.endsAt), s.departmentName, s.discipline]
-                                    .filter { !$0.isEmpty }.joined(separator: " · ")).font(.footnote)
-                                Text(trn("1 anwesend", "{n} anwesend", s.count)).font(.caption)
+                                    .filter { !$0.isEmpty }.joined(separator: " · ")).font(.hubi(.footnote))
+                                Text(trn("1 anwesend", "{n} anwesend", s.count)).font(.hubi(.caption))
                             }
                         }
                     }
@@ -328,7 +328,7 @@ private struct TrainingLeitungView: View {
             if let d = detail {
                 Section {
                     Text([Zeit.plainDate(d.date), trainingTime(d.startsAt, d.endsAt), d.kindLabel, d.location, d.departmentName, d.discipline]
-                        .filter { !$0.isEmpty }.joined(separator: " · ")).font(.footnote)
+                        .filter { !$0.isEmpty }.joined(separator: " · ")).font(.hubi(.footnote))
                 }
                 if d.checkinPossible || d.checkinOpen {
                     Section(tr("Einchecken per QR-Code")) {

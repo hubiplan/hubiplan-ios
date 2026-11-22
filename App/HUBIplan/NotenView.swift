@@ -72,8 +72,8 @@ struct NotenView: View {
     private func zeile(_ mappe: Mappe) -> some View {
         NavigationLink(value: mappe.key) {
             VStack(alignment: .leading, spacing: 4) {
-                Text(mappe.name).font(.headline)
-                Text(mappeZeile(mappe)).font(.footnote).foregroundStyle(.secondary)
+                Text(mappe.name).font(.hubi(.headline))
+                Text(mappeZeile(mappe)).font(.hubi(.footnote)).foregroundStyle(.secondary)
             }
             .padding(.vertical, 4)
         }
@@ -91,14 +91,14 @@ struct NotenView: View {
                 }
             } label: {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(hit.item.title).font(.headline).foregroundStyle(Color.primary)
+                    Text(hit.item.title).font(.hubi(.headline)).foregroundStyle(Color.primary)
                     Text(hit.stellen.map { place in
                         place.item.number.isEmpty ? place.mappe.name
                             : tr("{mappe} Nr. {nummer}", ["mappe": place.mappe.name, "nummer": place.item.number])
                     }.joined(separator: " · "))
-                        .font(.footnote).foregroundStyle(Color.secondary)
+                        .font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                     if hit.item.sheets.isEmpty {
-                        ZustandText(tr("Keine Noten für deine Stimme"), .fehler).font(.footnote)
+                        ZustandText(tr("Keine Noten für deine Stimme"), .fehler).font(.hubi(.footnote))
                     }
                 }
             }
@@ -142,7 +142,7 @@ struct MappeView: View {
                 if mappe.cancelled {
                     ZustandText(tr("Abgesagt: Noten gibt es dafür nicht mehr."), .fehler)
                 }
-                Text(mappeZeile(mappe)).font(.footnote).foregroundStyle(.secondary)
+                Text(mappeZeile(mappe)).font(.hubi(.footnote)).foregroundStyle(.secondary)
                 if !mappe.note.isEmpty { Text(mappe.note) }
                 if !mappe.playable.isEmpty {
                     Button(tr("Spielen")) { play = PultStart(mappe: mappe, piece: 0) }
@@ -165,16 +165,16 @@ struct MappeView: View {
                         } label: {
                             HStack(alignment: .firstTextBaseline, spacing: 12) {
                                 if !item.number.isEmpty {
-                                    Text(item.number).font(.headline.monospacedDigit()).foregroundStyle(Color.secondary)
+                                    Text(item.number).font(.hubi(.headline).monospacedDigit()).foregroundStyle(Color.secondary)
                                         .frame(minWidth: nummernBreite, alignment: .trailing)
                                 }
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(item.title).foregroundStyle(Color.primary)
                                     if !item.credit.isEmpty {
-                                        Text(item.credit).font(.footnote).foregroundStyle(Color.secondary)
+                                        Text(item.credit).font(.hubi(.footnote)).foregroundStyle(Color.secondary)
                                     }
                                     if item.sheets.isEmpty {
-                                        ZustandText(tr("Keine Noten für deine Stimme"), .fehler).font(.footnote)
+                                        ZustandText(tr("Keine Noten für deine Stimme"), .fehler).font(.hubi(.footnote))
                                     }
                                 }
                             }
@@ -182,7 +182,7 @@ struct MappeView: View {
                         .disabled(item.sheets.isEmpty)
                     } else {
                         Text(item.title.isEmpty ? (item.note.isEmpty ? tr("Pause") : item.note) : item.title)
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                 }
             }
@@ -425,9 +425,9 @@ struct NotenPult: View {
             if header {
                 HStack(alignment: .top) {
                     VStack(alignment: .leading, spacing: 2) {
-                        Text(title).font(.headline)
+                        Text(title).font(.hubi(.headline))
                         Text(pages > 0 ? tr("Seite {seite} von {seiten}", ["seite": at.page + 1, "seiten": pages]) + " · " + mappe.name : mappe.name)
-                            .font(.footnote).foregroundStyle(.secondary)
+                            .font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                     Spacer(minLength: 12)
                     if canSend {
@@ -444,7 +444,7 @@ struct NotenPult: View {
                 .background(.regularMaterial)
             } else if liveOk == false {
                 HStack {
-                    Text(tr("Live getrennt")).font(.caption2).foregroundStyle(.secondary)
+                    Text(tr("Live getrennt")).font(.hubi(.caption2)).foregroundStyle(.secondary)
                     Spacer()
                 }
                 .padding(8)
@@ -453,7 +453,7 @@ struct NotenPult: View {
         .overlay(alignment: .top) {
             if let shown = vorgabe {
                 VStack(alignment: .leading, spacing: 8) {
-                    Text(shown.cue.headline).font(.title3.weight(.semibold))
+                    Text(shown.cue.headline).font(.hubi(.title3).weight(.semibold))
                     if shown.mappe == nil {
                         Text(tr("Dieses Stück ist nicht in deinen Noten."))
                     }
@@ -496,7 +496,7 @@ struct NotenPult: View {
                     } label: {
                         VStack(alignment: .leading, spacing: 2) {
                             Text(item.number.isEmpty ? item.title : item.number + " · " + item.title).foregroundStyle(Color.primary)
-                            if !item.credit.isEmpty { Text(item.credit).font(.footnote).foregroundStyle(Color.secondary) }
+                            if !item.credit.isEmpty { Text(item.credit).font(.hubi(.footnote)).foregroundStyle(Color.secondary) }
                         }
                     }
                 }
@@ -509,7 +509,7 @@ struct NotenPult: View {
         }
         .overlay(alignment: .bottom) {
             if let next {
-                Text(next).font(.footnote).padding(.horizontal, 12).padding(.vertical, 6)
+                Text(next).font(.hubi(.footnote)).padding(.horizontal, 12).padding(.vertical, 6)
                     .background(.regularMaterial, in: Capsule())
                     .padding(.bottom, 8)
             }

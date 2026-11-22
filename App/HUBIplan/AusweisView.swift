@@ -93,11 +93,11 @@ struct AusweisView: View {
                                 "Ohne Netz angezeigt, Stand {stand}. Wer den QR-Code prüft, sieht immer den aktuellen Stand.",
                                 ["stand": stored.savedAt.formatted(.dateTime.day().month().year().hour().minute().locale(Texte.locale))]
                             ))
-                            .font(.footnote)
+                            .font(.hubi(.footnote))
                             .foregroundStyle(.secondary)
                         } else {
                             Text(tr("Der QR-Code führt zur Prüfseite deines Vereins. Sie zeigt immer den aktuellen Stand."))
-                                .font(.footnote)
+                                .font(.hubi(.footnote))
                                 .foregroundStyle(.secondary)
                         }
                         Button(tr("QR-Code groß zeigen")) { big = true }
@@ -224,8 +224,8 @@ struct AusweisKarte: View {
     private func zeile(_ label: String, _ value: String) -> some View {
         if !label.isEmpty && !value.trimmingCharacters(in: .whitespaces).isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                Text(label).font(.caption2).foregroundStyle(Color(white: 0.33))
-                Text(value).font(.footnote)
+                Text(label).font(.hubi(.caption2)).foregroundStyle(Color(white: 0.33))
+                Text(value).font(.hubi(.footnote))
             }
         }
     }
@@ -240,8 +240,8 @@ struct AusweisKarte: View {
                         Image(uiImage: logo).resizable().scaledToFit().frame(width: 36, height: 36)
                     }
                     VStack(alignment: .leading, spacing: 0) {
-                        Text(display.club).font(.subheadline.bold())
-                        Text(tr("Mitgliedsausweis")).font(.caption2)
+                        Text(display.club).font(.hubi(.subheadline).bold())
+                        Text(tr("Mitgliedsausweis")).font(.hubi(.caption2))
                     }
                     Spacer(minLength: 0)
                 }
@@ -267,13 +267,13 @@ struct AusweisKarte: View {
                         }
                     }
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(display.firstLine).font(.subheadline)
-                        Text(display.lastName).font(.headline)
+                        Text(display.firstLine).font(.hubi(.subheadline))
+                        Text(display.lastName).font(.hubi(.headline))
                         zeile(display.departmentLabel, display.departments.joined(separator: ", "))
                         zeile(tr("Mitgliedsnummer"), display.clubNumber)
                         zeile(tr("Mitgliedsart"), display.memberType ?? "")
                         Text(display.statusLabel)
-                            .font(.caption.bold())
+                            .font(.hubi(.caption).bold())
                             .foregroundStyle(display.status == "active"
                                 ? Color(red: 27 / 255, green: 94 / 255, blue: 32 / 255)
                                 : Color(red: 183 / 255, green: 28 / 255, blue: 28 / 255))
@@ -310,8 +310,8 @@ struct GrosserQrCode: View {
 
     var body: some View {
         VStack(spacing: 16) {
-            Text(club).font(.headline)
-            Text(name).font(.title2.bold())
+            Text(club).font(.hubi(.headline))
+            Text(name).font(.hubi(.title2).bold())
             if let qr = qrImage(url) {
                 Image(uiImage: qr).interpolation(.none).resizable().scaledToFit()
                     .frame(maxWidth: 420)
@@ -342,7 +342,7 @@ struct IchAbschnitt<Content: View>: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(title).font(.headline).accessibilityAddTraits(.isHeader)
+            Text(title).font(.hubi(.headline)).accessibilityAddTraits(.isHeader)
             content
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -365,8 +365,8 @@ struct IchVerweis<Ziel: View>: View {
         } label: {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title).font(.headline).foregroundStyle(Color.primary)
-                    if !detail.isEmpty { Text(detail).font(.footnote).foregroundStyle(Color.secondary) }
+                    Text(title).font(.hubi(.headline)).foregroundStyle(Color.primary)
+                    if !detail.isEmpty { Text(detail).font(.hubi(.footnote)).foregroundStyle(Color.secondary) }
                 }
                 Spacer(minLength: 8)
                 Image(systemName: "chevron.right").foregroundStyle(Color.secondary)
@@ -388,7 +388,7 @@ struct MeineDaten: View {
     private func zeile(_ label: String, _ value: String) -> some View {
         if !value.trimmingCharacters(in: .whitespaces).isEmpty {
             VStack(alignment: .leading, spacing: 0) {
-                Text(label).font(.caption).foregroundStyle(.secondary)
+                Text(label).font(.hubi(.caption)).foregroundStyle(.secondary)
                 Text(value)
             }
         }
@@ -396,7 +396,7 @@ struct MeineDaten: View {
 
     var body: some View {
         IchAbschnitt(title: tr("Meine Daten")) {
-            Text(profile.name).font(.body.weight(.semibold))
+            Text(profile.name).font(.hubi(.body).weight(.semibold))
             zeile(tr("Mitgliedsnummer"), profile.clubNumber)
             zeile(tr("Mitgliedsart"), profile.memberType ?? "")
             if !profile.isOrganization {
@@ -409,7 +409,7 @@ struct MeineDaten: View {
                 zeile(tr("Telefon"), contact.phone)
             }
             Text(tr("Stimmt etwas nicht? Ändern kannst du deine Daten im Mitgliederbereich im Browser."))
-                .font(.footnote)
+                .font(.hubi(.footnote))
                 .foregroundStyle(.secondary)
         }
     }
@@ -427,23 +427,23 @@ struct MeineRechnungen: View {
                 Text(tr("Keine Rechnungen")).foregroundStyle(.secondary)
             }
             if let sum = list.openSum {
-                Text(tr("Offen insgesamt: {betrag}", ["betrag": sum])).font(.body.weight(.semibold))
+                Text(tr("Offen insgesamt: {betrag}", ["betrag": sum])).font(.hubi(.body).weight(.semibold))
             }
             if model.previewBusy {
-                Laedt(text: tr("Datei wird geladen …")).font(.footnote)
+                Laedt(text: tr("Datei wird geladen …")).font(.hubi(.footnote))
             } else if let message = model.error {
-                MeldungText(message, .fehler).font(.footnote)
+                MeldungText(message, .fehler).font(.hubi(.footnote))
             }
             ForEach(kurz ? list.preview : list.sorted) { invoice in
                 VStack(alignment: .leading, spacing: 2) {
                     Text(invoice.subject.isEmpty ? invoice.number : invoice.subject)
-                    Text(invoice.headline).font(.footnote).foregroundStyle(.secondary)
+                    Text(invoice.headline).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     HStack {
                         // Überfällig, offen, bezahlt auch ohne Farbe unterscheidbar (IOS-12)
                         ZustandText(invoice.stateText, invoice.overdue ? .fehler : invoice.open ? .warnung : .gut)
-                            .font(.footnote.weight(invoice.open ? .semibold : .regular))
+                            .font(.hubi(.footnote).weight(invoice.open ? .semibold : .regular))
                         Spacer(minLength: 8)
-                        Text(Geld.format(invoice.total)).font(.footnote)
+                        Text(Geld.format(invoice.total)).font(.hubi(.footnote))
                     }
                     KnopfReihe(spacing: 12) {
                         Button(tr("PDF ansehen")) { Task { await model.openInvoice(invoice) } }
@@ -460,13 +460,13 @@ struct MeineRechnungen: View {
                 .padding(.vertical, 4)
             }
             if !list.collective.isEmpty {
-                Text(tr("Über eine Sammelrechnung")).font(.subheadline.weight(.semibold)).accessibilityAddTraits(.isHeader)
+                Text(tr("Über eine Sammelrechnung")).font(.hubi(.subheadline).weight(.semibold)).accessibilityAddTraits(.isHeader)
                 Text(tr("Diese Beiträge zahlt deine Einheit gesammelt; die Rechnung bekommt sie."))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
                 ForEach(list.collective) { line in
                     VStack(alignment: .leading, spacing: 2) {
                         Text(line.title)
-                        Text(line.line).font(.footnote).foregroundStyle(.secondary)
+                        Text(line.line).font(.hubi(.footnote)).foregroundStyle(.secondary)
                     }
                     .accessibilityElement(children: .combine)
                 }
@@ -477,7 +477,7 @@ struct MeineRechnungen: View {
                 }
             } else if !list.invoices.isEmpty {
                 Text(tr("Rechnungen öffnet die App nur online und speichert sie nicht."))
-                    .font(.footnote).foregroundStyle(.secondary)
+                    .font(.hubi(.footnote)).foregroundStyle(.secondary)
             }
         }
     }
