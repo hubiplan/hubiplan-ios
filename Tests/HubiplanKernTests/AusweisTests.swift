@@ -30,6 +30,20 @@ final class AusweisTests: XCTestCase {
         XCTAssertEqual(card.wallet?.google, false)
     }
 
+    /// Gültigkeit auf Englisch, auch wenn der Server sie deutsch schickt (wie Android `TabletTest`)
+    func testGueltigkeitInAppSprache() throws {
+        func display(_ status: String, _ label: String) throws -> CardDisplay {
+            try JSONDecoder().decode(CardDisplay.self, from: Data(#"{"status":"\#(status)","status_label":"\#(label)"}"#.utf8))
+        }
+        Texte.language = "en"
+        XCTAssertEqual(try display("active", "Gültige Mitgliedschaft").statusText, "Valid membership")
+        XCTAssertEqual(try display("future", "Mitgliedschaft beginnt später").statusText, "Membership starts later")
+        XCTAssertEqual(try display("inactive", "Keine gültige Mitgliedschaft").statusText, "No valid membership")
+        XCTAssertEqual(try display("revoked", "Gesperrt").statusText, "Gesperrt")
+        Texte.language = "de"
+        XCTAssertEqual(try display("active", "egal").statusText, "Gültige Mitgliedschaft")
+    }
+
     func testLeereAntwortUndOrganisation() throws {
         let none = try JSONDecoder().decode(CardState.self, from: Data("{}".utf8))
         XCTAssertEqual(none.state, "none")

@@ -385,6 +385,7 @@ struct KontoView: View {
             }
             .tastaturFuehrung()
             .navigationTitle(tr("Mein Konto"))
+            .lesebreite()
             .navigationBarTitleDisplayMode(.inline)
             .navigationDestination(isPresented: $showSettings) { KontoUnterseite(seite: .einstellungen) }
             .sheet(isPresented: $model.adding, onDismiss: {

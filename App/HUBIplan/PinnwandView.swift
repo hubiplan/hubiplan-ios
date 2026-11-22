@@ -42,6 +42,7 @@ struct PinnwandView: View {
             }
         }
         .navigationTitle(tr("Pinnwand"))
+        .lesebreite()
         .task { await model.reloadPinboard() }
         .refreshable { await model.reloadPinboard() }
         .sheet(isPresented: $writing) {

@@ -196,6 +196,7 @@ struct MitteilungView: View {
             .textSelection(.enabled)
         }
         .navigationTitle(item.sender.isEmpty ? tr("Mitteilung") : item.sender)
+        .lesebreite()
         .navigationBarTitleDisplayMode(.inline)
         .quickLookPreview($model.preview)
         .onAppear { model.circularOpened(item) }

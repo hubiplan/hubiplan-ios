@@ -52,6 +52,7 @@ struct UmfragenView: View {
             }
         }
         .navigationTitle(tr("Umfragen"))
+        .lesebreite()
         .zurueckSchutz()
         .task { await model.reloadSurveys() }
         .refreshable { await model.reloadSurveys() }
