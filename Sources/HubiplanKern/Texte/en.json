@@ -1476,5 +1476,8 @@
  "Aufgabe auswählen": "Select a task",
  "Mappe auswählen": "Select a folder",
  "Mitteilung auswählen": "Select a message",
- "Diese Mitteilung gibt es nicht mehr.": "This message no longer exists."
+ "Diese Mitteilung gibt es nicht mehr.": "This message no longer exists.",
+ "Gültige Mitgliedschaft": "Valid membership",
+ "Mitgliedschaft beginnt später": "Membership starts later",
+ "Keine gültige Mitgliedschaft": "No valid membership"
 }

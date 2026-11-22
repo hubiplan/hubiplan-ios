@@ -286,7 +286,7 @@ struct AusweisKarte: View {
                         zeile(display.departmentLabel, display.departments.joined(separator: ", "))
                         zeile(tr("Mitgliedsnummer"), display.clubNumber)
                         zeile(tr("Mitgliedsart"), display.memberType ?? "")
-                        Text(display.statusLabel)
+                        Text(display.statusText)
                             .font(.hubi(.caption).bold())
                             .foregroundStyle(display.status == "active"
                                 ? Color(red: 27 / 255, green: 94 / 255, blue: 32 / 255)

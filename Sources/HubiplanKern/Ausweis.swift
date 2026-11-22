@@ -85,6 +85,17 @@ public struct CardDisplay: Codable, Equatable, Sendable {
 
     /// Erste Zeile im Ausweis: Vorname, bei Organisationen ein fester Hinweis.
     public var firstLine: String { isOrganization ? tr("Organisationsmitglied") : firstName }
+
+    /// Gültigkeit in der Sprache der App: Der Server liefert den Text deutsch, die bekannten
+    /// Zustände übersetzt die App selbst (auch beim gespeicherten Ausweis ohne Netz).
+    public var statusText: String {
+        switch status {
+        case "active": return tr("Gültige Mitgliedschaft")
+        case "future": return tr("Mitgliedschaft beginnt später")
+        case "inactive": return tr("Keine gültige Mitgliedschaft")
+        default: return statusLabel
+        }
+    }
 }
 
 /// Antwort von `/api/portal/<Zugang>/card/`.

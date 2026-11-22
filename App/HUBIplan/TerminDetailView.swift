@@ -64,6 +64,8 @@ struct TerminDetailView: View {
         }
         // Der Titel des Termins steht groß in der Karte darunter, nicht zweimal
         .navigationTitle(tr("Termin"))
+        // iPad quer: Zusage und Absage nicht über die ganze Breite
+        .lesebreite()
         .zurueckSchutz()
         .navigationBarTitleDisplayMode(.inline)
         .refreshable { await load() }
