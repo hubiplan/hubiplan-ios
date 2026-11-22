@@ -134,3 +134,22 @@ extension Startseite {
         return gruppen
     }
 }
+
+/// Einmaliger Hinweis „So findest du dich zurecht“ nach dem Umbau der Oberfläche
+/// (wie `zeigtEinfuehrung` der Android-App).
+public enum Einfuehrung {
+    /// Stand der Einführung; eine höhere Zahl zeigt sie allen noch einmal.
+    public static let stand = 1
+
+    /// Einführung zeigen? Nur solange dieser Stand noch nicht geschlossen wurde.
+    public static func zeigt(gesehen: Int, stand: Int = Einfuehrung.stand) -> Bool { gesehen < stand }
+
+    /// Zeilen der Einführung: wo was steht.
+    public static func zeilen() -> [(symbol: Strichsymbol, text: String)] {
+        [
+            (.start, tr("„Start“ zeigt deinen nächsten Termin und was auf dich wartet.")),
+            (.neues, tr("„Neues“ fasst Mitteilungen, Pinnwand und Umfragen zusammen.")),
+            (.ich, tr("„Ich“ zeigt deinen Ausweis und „Mein Bereich“ in vier Gruppen.")),
+        ]
+    }
+}

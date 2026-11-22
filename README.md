@@ -45,6 +45,9 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 - **Reiter wie in der Android-App:** Start, Termine, Neues, Ich und ein fünfter je Rolle
   (Verwaltung, sonst Noten, sonst Aufgaben; `Zustand.fuenfterReiter`, wählbar unter „Mein Konto ›
   Einstellungen“). Was nicht in der Leiste steht, ist auf „Start“ unter „Schnell erreichbar“.
+- **Einführung:** „Start“ zeigt nach dem Umbau einmal die Karte „So findest du dich zurecht“
+  (`Einfuehrung.zeigt`; der Stand steht in den Einstellungen des Geräts, eine höhere Zahl zeigt
+  sie allen noch einmal).
 - **„Neues“** fasst Mitteilungen, Pinnwand und Umfragen zusammen (`Neues.teile`); **„Ich“** zeigt
   den Ausweis und „Mein Bereich“ in vier Gruppen: Geld, Mitmachen, Verein, Meine Daten
   (`IchGruppe.gruppen`). Unter „Mein Konto › Einstellungen“ lässt sich die Darstellung wählen: wie

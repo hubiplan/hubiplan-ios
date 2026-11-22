@@ -101,4 +101,12 @@ final class StartTests: XCTestCase {
         XCTAssertEqual(gruppen.map(\.termine.count), [2, 1])
         XCTAssertEqual(gruppen.map(\.titel), ["Juni 2027", "Juli 2027"])
     }
+
+    func testEinfuehrungErscheintEinmalJeStand() {
+        XCTAssertTrue(Einfuehrung.zeigt(gesehen: 0))
+        XCTAssertFalse(Einfuehrung.zeigt(gesehen: Einfuehrung.stand))
+        // ein höherer Stand zeigt sie allen noch einmal
+        XCTAssertTrue(Einfuehrung.zeigt(gesehen: 1, stand: 2))
+        XCTAssertEqual(Einfuehrung.zeilen().map(\.symbol), [.start, .neues, .ich])
+    }
 }

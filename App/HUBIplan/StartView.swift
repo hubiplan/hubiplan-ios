@@ -98,6 +98,8 @@ struct StartView: View {
     let weitere: [String]
     @State private var path: [String] = []
     @State private var blatt: Blatt?
+    /// Stand der Einführung, den dieses Gerät schon geschlossen hat
+    @AppStorage("einfuehrung_gesehen") private var einfuehrungGesehen = 0
 
     private struct Blatt: Identifiable {
         let id: String
@@ -112,6 +114,24 @@ struct StartView: View {
                     Section {
                         MeldungText(message, .fehler)
                         Button(tr("Erneut versuchen")) { Task { await model.refresh() } }
+                    }
+                }
+                if Einfuehrung.zeigt(gesehen: einfuehrungGesehen) {
+                    Section {
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text(tr("So findest du dich zurecht"))
+                                .font(.hubi(.headline))
+                                .accessibilityAddTraits(.isHeader)
+                            ForEach(Einfuehrung.zeilen(), id: \.text) { zeile in
+                                HStack(spacing: 12) {
+                                    SymbolKopf(zeile.symbol)
+                                    Text(zeile.text).font(.hubi(.subheadline))
+                                }
+                            }
+                            Button(tr("Verstanden")) { einfuehrungGesehen = Einfuehrung.stand }
+                                .buttonStyle(.bordered)
+                        }
+                        .padding(.vertical, 4)
                     }
                 }
                 let naechster = Startseite.naechsterTermin(model.events)
