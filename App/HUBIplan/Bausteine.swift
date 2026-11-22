@@ -362,6 +362,8 @@ struct ListeDetail<Wert: Hashable, Liste: View, Detail: View>: View {
         if Zweispaltig.gilt(breit: breite == .regular) {
             NavigationSplitView(columnVisibility: $spalten) {
                 liste(Binding(get: { Zweispaltig.auswahl(path) }, set: { path = Zweispaltig.pfad($0) }))
+                    // Breit genug für lange Terminnamen und das Suchfeld der Notenmappe
+                    .navigationSplitViewColumnWidth(min: 340, ideal: 400, max: 480)
             } detail: {
                 NavigationStack {
                     Group {
