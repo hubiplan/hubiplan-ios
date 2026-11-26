@@ -64,7 +64,12 @@ struct HauptView: View {
             tr("Alte Vorgänge"),
             isPresented: Binding(get: { model.staleQuarantine > 0 && exportURL == nil }, set: { if !$0 { model.staleQuarantine = 0 } })
         ) {
-            Button(tr("Exportieren")) { exportURL = model.exportStaleQuarantine() }
+            // Nur Vorgänge eines verbundenen Kontos, und erst nach Face ID oder Gerätecode (SEC-02)
+            if model.staleExportable {
+                Button(tr("Exportieren")) {
+                    Task { if await model.unlockForExport() { exportURL = model.exportStaleQuarantine() } }
+                }
+            }
             Button(tr("Jetzt löschen"), role: .destructive) { model.deleteStaleQuarantine() }
             Button(tr("Später"), role: .cancel) { model.staleQuarantine = 0 }
         } message: {
@@ -102,7 +107,7 @@ struct HauptView: View {
             }
         }
         // Verwaltung: nach mehr als einer Minute im Hintergrund neu entsperren
-        .onChange(of: phase) { _, now in model.sceneChanged(active: now == .active) }
+        .onChange(of: phase) { _, now in model.sceneChanged(active: now == .active, background: now == .background) }
         // Link zum Verbinden kam von außen (hubiplan://…), während schon ein Konto verbunden ist
         .verbindenFrage(aktiv: !model.adding)
         // Kurzer Titel, der Fehlertext steht darunter (IOS-23)

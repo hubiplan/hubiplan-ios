@@ -59,6 +59,41 @@ final class VerwaltungWettbewerbeTests: XCTestCase {
         XCTAssertFalse(StandLink.sameInstance(server: server, url: "https://boese.example/?u=https://verein.example.de/"))
         XCTAssertFalse(StandLink.sameInstance(server: server, url: "about:blank"))
         XCTAssertFalse(StandLink.sameInstance(server: server, url: ""))
+        // Sicherheitsprüfung 26.11.2026, SEC-04: keine Benutzerangabe
+        XCTAssertFalse(StandLink.sameInstance(server: server, url: "https://nutzer@verein.example.de/stand/x"))
+        XCTAssertFalse(StandLink.sameInstance(server: server, url: "https://verein.example.de@boese.example/stand/x"))
+        XCTAssertFalse(StandLink.sameInstance(server: "https://nutzer@verein.example.de", url: "https://verein.example.de/stand/x"))
+    }
+
+    /// Sicherheitsprüfung 26.11.2026, SEC-04: Der Standmodus lädt nichts von fremden Servern nach.
+    func testStandmodusLaedtNichtsFremdesNach() throws {
+        let text = try XCTUnwrap(StandLink.contentRules(server: server))
+        let rules = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(text.utf8)) as? [[String: Any]])
+        func filter(_ rule: [String: Any]) -> String { (rule["trigger"] as? [String: Any])?["url-filter"] as? String ?? "" }
+        func type(_ rule: [String: Any]) -> String { (rule["action"] as? [String: Any])?["type"] as? String ?? "" }
+        // Zuerst alles sperren, danach nur die Ausnahmen
+        XCTAssertEqual(filter(rules[0]), ".*")
+        XCTAssertEqual(type(rules[0]), "block")
+        let erlaubt = rules.dropFirst()
+        XCTAssertTrue(erlaubt.allSatisfy { type($0) == "ignore-previous-rules" })
+        XCTAssertEqual(
+            erlaubt.map(filter),
+            ["^https://verein\\.example\\.de/", "^https://verein\\.example\\.de:443/", "^data:", "^blob:", "^about:"]
+        )
+        // Die Muster treffen die eigene Instanz, aber keinen Host, der nur so anfängt
+        let eigen = try NSRegularExpression(pattern: filter(rules[1]))
+        func trifft(_ url: String) -> Bool { eigen.firstMatch(in: url, range: NSRange(url.startIndex..., in: url)) != nil }
+        XCTAssertTrue(trifft("https://verein.example.de/static/stand.js"))
+        XCTAssertFalse(trifft("https://verein.example.de.boese.example/skript.js"))
+        XCTAssertFalse(trifft("https://vereinXexample.de/skript.js"))
+        XCTAssertFalse(trifft("https://boese.example/?u=https://verein.example.de/"))
+        XCTAssertFalse(trifft("http://verein.example.de/static/stand.js"))
+        // Mit Port in der Adresse nur dieser Port
+        let mitPort = try XCTUnwrap(StandLink.contentRules(server: "https://verein.example.de:8443"))
+        let portRules = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(mitPort.utf8)) as? [[String: Any]])
+        XCTAssertEqual(portRules.dropFirst().map(filter), ["^https://verein\\.example\\.de:8443/", "^data:", "^blob:", "^about:"])
+        XCTAssertNil(StandLink.contentRules(server: "http://verein.example.de"))
+        XCTAssertNil(StandLink.contentRules(server: "kaputt"))
     }
 
     func testStandzugaengeMerkenBisZumAblauf() throws {

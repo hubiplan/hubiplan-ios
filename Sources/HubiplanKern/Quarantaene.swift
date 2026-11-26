@@ -106,12 +106,30 @@ public enum DraftQuarantine {
             .map { $0.addingTimeInterval(Double(finalDays) * day) }
     }
 
+    /// Ein gerade angemeldetes Konto: Instanz und E-Mail.
+    public typealias Konto = (server: String, email: String)
+
+    /// Gehört die Quarantäne einem der `accounts`? Ohne lesbaren Eigentümer nie.
+    private static func mine(_ files: DraftFiles, _ accounts: [Konto]) -> Bool {
+        guard let who = owner(files), !who.email.isEmpty else { return false }
+        return accounts.contains { !$0.email.isEmpty && same(who, Owner(server: $0.server, email: $0.email, since: who.since)) }
+    }
+
+    /// Alte Vorgänge, die `exportStale` für diese Konten herausgeben würde.
+    public static func exportableStaleCount(_ boxes: [DraftBox], accounts: [Konto], now: Date = Date()) -> Int {
+        boxes.filter { older($0.files, than: staleDays, now: now) && mine($0.files, accounts) }
+            .map { entries($0.files).count }.reduce(0, +)
+    }
+
     /// Alte Vorgänge (älter als `staleDays`) entschlüsselt als JSON, um sie vor dem Löschen zu
-    /// teilen oder zu sichern (Fachfrage FQ24); Aufbau wie Android `exportStale`. nil, wenn sich
-    /// nichts öffnen ließ. Zweites Ergebnis: Zahl der Vorgänge.
-    public static func exportStale(_ boxes: [DraftBox], now: Date = Date()) -> (Data, Int)? {
+    /// teilen oder zu sichern (Fachfrage FQ24); Aufbau wie Android `exportStale`. Nur Vorgänge
+    /// der gerade angemeldeten `accounts` (Sicherheitsprüfung 26.11.2026, SEC-02): Wer das Gerät
+    /// später bekommt oder nur mit einem anderen Konto angemeldet ist, kann fremde Belege nicht
+    /// im Klartext herausholen. nil, wenn sich nichts öffnen ließ. Zweites Ergebnis: Zahl der
+    /// Vorgänge.
+    public static func exportStale(_ boxes: [DraftBox], accounts: [Konto], now: Date = Date()) -> (Data, Int)? {
         var items: [[String: Any]] = []
-        for box in boxes where older(box.files, than: staleDays, now: now) {
+        for box in boxes where older(box.files, than: staleDays, now: now) && mine(box.files, accounts) {
             let who = owner(box.files)
             guard let key = box.key(create: false) else { continue }
             for name in entries(box.files) {

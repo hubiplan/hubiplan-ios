@@ -1,6 +1,7 @@
 import HubiplanKern
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 /// Ein Termin mit allen Angaben (UX-Audit 16.11., IOS-04), wie in der Android-App
 /// (`EventsPane.kt`): Zeit, Ort mit Anfahrt, Beschreibung, Anhänge und die eigene Rückmeldung
@@ -141,10 +142,11 @@ struct TerminDetailView: View {
                         Label(tr("In Karten öffnen"), systemImage: "map")
                     }
                 }
-                if let osm = detail.mapLinks.osm.flatMap(URL.init(string:)), osm.scheme == "https" {
+                // Nur https-Links zu den erwarteten Kartendiensten (SEC-06)
+                if let osm = safeExternalUrl(detail.mapLinks.osm, hosts: Kartenlinks.osm) {
                     Button(tr("Route in OpenStreetMap")) { openURL(osm) }
                 }
-                if let google = detail.mapLinks.google.flatMap(URL.init(string:)), google.scheme == "https" {
+                if let google = safeExternalUrl(detail.mapLinks.google, hosts: Kartenlinks.google) {
                     Button(tr("Route in Google Maps")) { openURL(google) }
                 }
             }
@@ -155,7 +157,7 @@ struct TerminDetailView: View {
     @ViewBuilder
     private func videoraum(_ video: VideoRoom) -> some View {
         Section(tr("Videoraum")) {
-            if let url = URL(string: video.url), url.scheme == "https" {
+            if let url = safeExternalUrl(video.url) {
                 Button {
                     openURL(url)
                 } label: {
@@ -164,7 +166,13 @@ struct TerminDetailView: View {
             }
             if !video.password.isEmpty {
                 Text(tr("Passwort: {password}", ["password": video.password])).textSelection(.enabled)
-                Button(tr("Passwort kopieren")) { UIPasteboard.general.string = video.password }
+                Button(tr("Passwort kopieren")) {
+                    // Nur auf diesem Gerät und nur kurz in der Zwischenablage (SEC-06)
+                    UIPasteboard.general.setItems(
+                        [[UTType.utf8PlainText.identifier: video.password]],
+                        options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(120)]
+                    )
+                }
             }
         }
     }

@@ -28,7 +28,12 @@ public enum Sichtschutz {
         case alles
         /// Nur die Daten dieser Instanz (Hostname); andere Konten nutzen andere Instanzen.
         case instanz(String)
-        /// Ein weiteres Konto nutzt dieselbe Instanz: Dort kann noch Ungesendetes liegen.
+        /// Ein weiteres Konto nutzt dieselbe Instanz: Dort kann noch Ungesendetes liegen. Nur
+        /// die Sitzung (Cookies) dieser Instanz löschen, damit die des abgemeldeten Kontos nicht
+        /// bleibt (Sicherheitsprüfung 26.11.2026, SEC-04); das andere Konto öffnet den
+        /// Standmodus mit seinem Zugang neu.
+        case sitzung(String)
+        /// Adresse unlesbar: nichts gezielt löschbar.
         case nichts
     }
 
@@ -36,7 +41,25 @@ public enum Sichtschutz {
     public static func webDaten(server: String, uebrige: [String]) -> WebDaten {
         if uebrige.isEmpty { return .alles }
         guard let host = URL(string: server)?.host?.lowercased() else { return .nichts }
-        if uebrige.contains(where: { URL(string: $0)?.host?.lowercased() == host }) { return .nichts }
+        if uebrige.contains(where: { URL(string: $0)?.host?.lowercased() == host }) { return .sitzung(host) }
         return .instanz(host)
     }
+}
+
+/// Adresse aus einer Serverantwort, die die App an Safari oder eine andere App gibt
+/// (Sicherheitsprüfung 26.11.2026, SEC-06): nur `https` ohne Benutzerangabe, und wenn `hosts`
+/// gesetzt ist, nur zu diesen Hosts.
+public func safeExternalUrl(_ text: String?, hosts: Set<String>? = nil) -> URL? {
+    guard let text, let parts = URLComponents(string: text), parts.scheme == "https",
+          parts.user == nil, parts.password == nil, let host = parts.host?.lowercased(), !host.isEmpty,
+          !host.contains(where: { $0.isWhitespace || $0 == "\\" || $0 == "@" })
+    else { return nil }
+    if let hosts, !hosts.contains(host) { return nil }
+    return URL(string: text)
+}
+
+/// Kartendienste, zu denen der Server Routenlinks liefert.
+public enum Kartenlinks {
+    public static let osm: Set<String> = ["www.openstreetmap.org", "openstreetmap.org"]
+    public static let google: Set<String> = ["www.google.com", "maps.google.com", "google.com"]
 }

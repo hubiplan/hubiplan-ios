@@ -1,6 +1,8 @@
 {
   "Bitte die App aktualisieren, diese Version wird von HUBIplan nicht mehr unterstützt.": "Please update the app; HUBIplan no longer supports this version.",
   "Unter dieser Adresse läuft kein HUBIplan.": "There is no HUBIplan at this address.",
+  "Alte Vorgänge exportieren": "Export old items",
+  "{anzahl} nicht gesendete Vorgänge liegen seit über 90 Tagen auf diesem Gerät, weil die Verbindung beendet wurde. Sie werden am {datum} gelöscht. Verbindest du dasselbe Konto wieder, kommen sie zurück.": "{anzahl} unsent items have been on this device for over 90 days because the connection ended. They will be deleted on {datum}. If you connect the same account again, they come back.",
   "Nicht gesendete Vorgänge aus HUBIplan. Enthält Namen und Beträge; nach der Übergabe an den Verein bitte löschen.": "Unsent items from HUBIplan. Contains names and amounts; please delete after handing them to the club.",
   "{anzahl} nicht gesendete Vorgänge liegen seit über 90 Tagen auf diesem Gerät, weil die Verbindung beendet wurde. Sie werden am {datum} gelöscht. Vorher exportieren?": "{anzahl} unsent items have been on this device for over 90 days because the connection ended. They will be deleted on {datum}. Export them first?",
   "Exportieren": "Export",
