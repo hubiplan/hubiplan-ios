@@ -17,6 +17,27 @@ struct HauptView: View {
     private var availableTabs: [String] { Zustand.leiste(model.fuenfteReiter, wahl: gewaehlt) }
     @State private var exportURL: URL?
 
+    /// Eigene Teile, damit der Übersetzer `body` in vertretbarer Zeit prüfen kann
+    @ViewBuilder private var alteVorgaengeKnoepfe: some View {
+        // Nur Vorgänge eines verbundenen Kontos, und erst nach Face ID oder Gerätecode (SEC-02)
+        if model.staleExportable {
+            Button(tr("Exportieren")) { exportNachEntsperren() }
+        }
+        Button(tr("Jetzt löschen"), role: .destructive) { model.deleteStaleQuarantine() }
+        Button(tr("Später"), role: .cancel) { model.staleQuarantine = 0 }
+    }
+
+    private func exportNachEntsperren() {
+        Task { @MainActor in
+            let frei: Bool = await model.unlockForExport()
+            if frei { exportURL = model.exportStaleQuarantine() }
+        }
+    }
+
+    private func phaseGewechselt(_ now: ScenePhase) {
+        model.sceneChanged(active: now == .active, background: now == .background)
+    }
+
     var body: some View {
         TabView(selection: $tab) {
             // Reiter wie in der Android-App: Start, Termine, Neues, Ich und ein fünfter je Rolle
@@ -64,14 +85,7 @@ struct HauptView: View {
             tr("Alte Vorgänge"),
             isPresented: Binding(get: { model.staleQuarantine > 0 && exportURL == nil }, set: { if !$0 { model.staleQuarantine = 0 } })
         ) {
-            // Nur Vorgänge eines verbundenen Kontos, und erst nach Face ID oder Gerätecode (SEC-02)
-            if model.staleExportable {
-                Button(tr("Exportieren")) {
-                    Task { if await model.unlockForExport() { exportURL = model.exportStaleQuarantine() } }
-                }
-            }
-            Button(tr("Jetzt löschen"), role: .destructive) { model.deleteStaleQuarantine() }
-            Button(tr("Später"), role: .cancel) { model.staleQuarantine = 0 }
+            alteVorgaengeKnoepfe
         } message: {
             Text(model.staleQuarantineText)
         }
@@ -107,7 +121,7 @@ struct HauptView: View {
             }
         }
         // Verwaltung: nach mehr als einer Minute im Hintergrund neu entsperren
-        .onChange(of: phase) { _, now in model.sceneChanged(active: now == .active, background: now == .background) }
+        .onChange(of: phase) { _, now in phaseGewechselt(now) }
         // Link zum Verbinden kam von außen (hubiplan://…), während schon ein Konto verbunden ist
         .verbindenFrage(aktiv: !model.adding)
         // Kurzer Titel, der Fehlertext steht darunter (IOS-23)
