@@ -225,7 +225,7 @@ final class QuarantaeneTests: XCTestCase {
     func testExportLaesstVorgaengeLiegen() throws {
         // Wie Android: nach dem Export bleiben die Vorgänge bis „Löschen“ oder 120 Tage
         let alt = alteQuarantaene(tage: 91)
-        _ = try XCTUnwrap(DraftQuarantine.exportStale([alt]))
+        _ = try XCTUnwrap(DraftQuarantine.exportStale([alt], accounts: [(server, "e@example.org")]))
         XCTAssertEqual(DraftQuarantine.staleCount([alt]), 2)
         XCTAssertNotNil(DraftQuarantine.owner(alt.files))
     }
