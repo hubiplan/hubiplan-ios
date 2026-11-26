@@ -338,7 +338,18 @@ private struct StandWeb: UIViewRepresentable {
         web.allowsLinkPreview = false
         page.web = web
         if let url = URL(string: session.url), StandLink.sameInstance(server: session.server, url: session.url) {
-            web.load(URLRequest(url: url))
+            // Erst die Regel „nichts von fremden Servern nachladen“ setzen, dann laden (SEC-04).
+            // Lässt sie sich nicht anlegen, lädt die Seite trotzdem: Der Stand soll nicht ausfallen.
+            guard let rules = StandLink.contentRules(server: session.server) else {
+                web.load(URLRequest(url: url))
+                return web
+            }
+            Task { @MainActor in
+                let list = try? await WKContentRuleListStore.default()
+                    .compileContentRuleList(forIdentifier: "standmodus", encodedContentRuleList: rules)
+                if let list { web.configuration.userContentController.add(list) }
+                web.load(URLRequest(url: url))
+            }
         }
         return web
     }

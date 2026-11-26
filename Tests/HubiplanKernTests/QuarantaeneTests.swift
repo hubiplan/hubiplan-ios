@@ -80,14 +80,45 @@ final class QuarantaeneTests: XCTestCase {
         Texte.language = "de"
         let jung = alteQuarantaene(tage: 10, email: "jung@example.org")
         let alt = alteQuarantaene(tage: 91, email: "alt@example.org")
-        let (data, anzahl) = try XCTUnwrap(DraftQuarantine.exportStale([jung, alt]))
+        let konten: [DraftQuarantine.Konto] = [(server, "jung@example.org"), (server, "ALT@example.org")]
+        let (data, anzahl) = try XCTUnwrap(DraftQuarantine.exportStale([jung, alt], accounts: konten))
         XCTAssertEqual(anzahl, 2)
         let doc = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
         let items = try XCTUnwrap(doc["vorgaenge"] as? [[String: Any]])
         XCTAssertEqual(Set(items.compactMap { $0["konto"] as? String }), ["alt@example.org"])
         XCTAssertEqual(Set(items.compactMap { $0["art"] as? String }), ["entwuerfe", "quittungen"])
         XCTAssertTrue((doc["hinweis"] as? String ?? "").contains("bitte löschen"))
-        XCTAssertNil(DraftQuarantine.exportStale([jung]))
+        XCTAssertNil(DraftQuarantine.exportStale([jung], accounts: konten))
+    }
+
+    /// Sicherheitsprüfung 26.11.2026, SEC-02: Export nur für gerade verbundene Konten.
+    func testExportNurFuerVerbundeneKonten() throws {
+        Texte.language = "de"
+        let eigen = alteQuarantaene(tage: 91, email: "kasse@example.org")
+        let fremd = alteQuarantaene(tage: 91, email: "anderer@example.org")
+        let herrenlos = alteQuarantaene(tage: 91, email: "weg@example.org")
+        herrenlos.files.delete(DraftQuarantine.ownerName)
+        ordner(herrenlos).changedAt = Date().addingTimeInterval(-91 * tag)
+        let boxen = [eigen, fremd, herrenlos]
+        let konten: [DraftQuarantine.Konto] = [(server.uppercased().replacingOccurrences(of: "HTTPS", with: "https"), "Kasse@Example.org")]
+
+        XCTAssertEqual(DraftQuarantine.exportableStaleCount(boxen, accounts: konten), 2)
+        let (data, anzahl) = try XCTUnwrap(DraftQuarantine.exportStale(boxen, accounts: konten))
+        XCTAssertEqual(anzahl, 2)
+        let doc = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let items = try XCTUnwrap(doc["vorgaenge"] as? [[String: Any]])
+        XCTAssertEqual(Set(items.compactMap { $0["konto"] as? String }), ["kasse@example.org"])
+
+        // Niemand verbunden, anderes Konto, andere Instanz oder leere E-Mail: nichts
+        let ohne: [[DraftQuarantine.Konto]] = [
+            [], [(server, "dritte@example.org")], [("https://andere.example.de", "kasse@example.org")], [(server, "")],
+        ]
+        for konten in ohne {
+            XCTAssertEqual(DraftQuarantine.exportableStaleCount(boxen, accounts: konten), 0)
+            XCTAssertNil(DraftQuarantine.exportStale(boxen, accounts: konten))
+        }
+        // Die Rückfrage zählt weiter alle alten Vorgänge (Löschen bleibt möglich)
+        XCTAssertEqual(DraftQuarantine.staleCount(boxen), 6)
     }
 
     // konto.json zuerst; ohne lesbares konto.json zählt das Ordnerdatum, nie sofort löschen
@@ -194,7 +225,7 @@ final class QuarantaeneTests: XCTestCase {
     func testExportLaesstVorgaengeLiegen() throws {
         // Wie Android: nach dem Export bleiben die Vorgänge bis „Löschen“ oder 120 Tage
         let alt = alteQuarantaene(tage: 91)
-        _ = try XCTUnwrap(DraftQuarantine.exportStale([alt]))
+        _ = try XCTUnwrap(DraftQuarantine.exportStale([alt], accounts: [(server, "e@example.org")]))
         XCTAssertEqual(DraftQuarantine.staleCount([alt]), 2)
         XCTAssertNotNil(DraftQuarantine.owner(alt.files))
     }

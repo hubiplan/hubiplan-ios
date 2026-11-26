@@ -1,5 +1,6 @@
 import Foundation
 import HubiplanKern
+import LocalAuthentication
 import Network
 import SwiftUI
 import UIKit
@@ -547,6 +548,12 @@ final class AppModel: ObservableObject {
         let date = DraftQuarantine.finalDeletion(Self.quarantineBoxes).map {
             Zeit.datum($0)
         } ?? ""
+        if !staleExportable {
+            return tr(
+                "{anzahl} nicht gesendete Vorgänge liegen seit über 90 Tagen auf diesem Gerät, weil die Verbindung beendet wurde. Sie werden am {datum} gelöscht. Verbindest du dasselbe Konto wieder, kommen sie zurück.",
+                ["anzahl": "\(staleQuarantine)", "datum": date]
+            )
+        }
         return tr(
             "{anzahl} nicht gesendete Vorgänge liegen seit über 90 Tagen auf diesem Gerät, weil die Verbindung beendet wurde. Sie werden am {datum} gelöscht. Vorher exportieren?",
             ["anzahl": "\(staleQuarantine)", "datum": date]
@@ -557,11 +564,27 @@ final class AppModel: ObservableObject {
         staleQuarantine = Demo.active ? 0 : DraftQuarantine.staleCount(Self.quarantineBoxes)
     }
 
+    /// Die gerade verbundenen Konten: Nur ihre alten Vorgänge lassen sich exportieren (SEC-02).
+    private var signedIn: [DraftQuarantine.Konto] { accounts.accounts.map { (server: $0.server, email: $0.email) } }
+
+    /// Lässt sich etwas exportieren? Vorgänge fremder oder nicht mehr verbundener Konten nie.
+    var staleExportable: Bool {
+        !Demo.active && DraftQuarantine.exportableStaleCount(Self.quarantineBoxes, accounts: signedIn) > 0
+    }
+
+    /// Vor dem Export im Klartext: Face ID, Touch ID oder Gerätecode (SEC-02). Ohne Gerätecode
+    /// gibt es keinen Export.
+    func unlockForExport() async -> Bool {
+        let context = LAContext()
+        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: nil) else { return false }
+        return (try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: tr("Alte Vorgänge exportieren"))) ?? false
+    }
+
     /// Alte Vorgänge als Datei zum Teilen. Die Datei ist entschlüsselt: Sie wird gelöscht, wenn
     /// das Teilen geschlossen wird, spätestens beim nächsten Start (`clearExports`). Die
     /// Vorgänge selbst bleiben wie bei Android bis zum Löschen oder nach 120 Tagen.
     func exportStaleQuarantine() -> URL? {
-        guard let export = DraftQuarantine.exportStale(Self.quarantineBoxes) else { return nil }
+        guard let export = DraftQuarantine.exportStale(Self.quarantineBoxes, accounts: signedIn) else { return nil }
         let data = export.0
         Self.clearExports()
         let url = DraftQuarantine.exportURL(in: FileManager.default.temporaryDirectory)
@@ -895,8 +918,11 @@ final class AppModel: ObservableObject {
         return Double(passed.components.seconds)
     }
 
-    /// App im Hintergrund: nach mehr als einer Minute ist die Verwaltung gesperrt.
-    func sceneChanged(active: Bool) {
+    /// App nicht mehr vorn: Geht sie in den Hintergrund (andere App, Startbildschirm), ist die
+    /// Verwaltung sofort gesperrt (SEC-07); liegt nur etwas darüber (Face ID, Teilen), erst nach
+    /// mehr als einer Minute.
+    func sceneChanged(active: Bool, background: Bool = false) {
+        if background, !Demo.active { lockAdminNow() }
         if !active {
             if backgroundSince == nil { backgroundSince = .now }
             return

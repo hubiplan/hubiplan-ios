@@ -121,12 +121,47 @@ public struct StandLink: Equatable, Sendable {
         return StandLink(server: origin, token: path)
     }
 
-    /// Darf die eingebettete Ansicht diese Adresse laden? Nur die eigene Instanz über HTTPS.
+    /// Darf die eingebettete Ansicht diese Adresse laden? Nur die eigene Instanz über HTTPS,
+    /// ohne Benutzerangabe (Sicherheitsprüfung 26.11.2026, SEC-04).
     public static func sameInstance(server: String, url: String) -> Bool {
         guard let a = URLComponents(string: server), let b = URLComponents(string: url),
-              a.scheme == "https", b.scheme == "https", let hostA = a.host, let hostB = b.host, !hostA.isEmpty
+              a.scheme == "https", b.scheme == "https", let hostA = a.host, let hostB = b.host, !hostA.isEmpty,
+              a.user == nil, a.password == nil, b.user == nil, b.password == nil
         else { return false }
         return hostA.lowercased() == hostB.lowercased() && (a.port ?? 443) == (b.port ?? 443)
+    }
+
+    /// Regeln für die eingebettete Ansicht (`WKContentRuleList`): Die Seite im Standmodus lädt
+    /// nichts von fremden Servern nach (Bilder, Skripte, Abrufe), nur von der eigenen Instanz und
+    /// Inhalte ohne Verbindung (`data:`, `blob:`, `about:`). nil: `server` ist keine Adresse der
+    /// Form `https://Host[:Port]` (Sicherheitsprüfung 26.11.2026, SEC-04).
+    public static func contentRules(server: String) -> String? {
+        guard let parts = URLComponents(string: server), parts.scheme == "https", parts.user == nil,
+              let origin = httpsOrigin(parts)
+        else { return nil }
+        // Im Muster sind Punkte und andere Sonderzeichen wörtlich gemeint
+        var pattern = ""
+        for character in origin {
+            if character.isASCII, character.isLetter || character.isNumber || character == "-" || character == ":" || character == "/" {
+                pattern.append(character)
+            } else if character.isASCII {
+                pattern.append("\\")
+                pattern.append(character)
+            } else {
+                return nil
+            }
+        }
+        // Ohne Port in der Adresse gilt 443 auch ausgeschrieben. Je Muster eine Regel: Die Regeln
+        // von WebKit kennen kein „oder“.
+        var allowed = ["^" + pattern + "/"]
+        if parts.port == nil { allowed.append("^" + pattern + ":443/") }
+        allowed += ["^data:", "^blob:", "^about:"]
+        var rules: [[String: Any]] = [["trigger": ["url-filter": ".*"], "action": ["type": "block"]]]
+        for filter in allowed {
+            rules.append(["trigger": ["url-filter": filter], "action": ["type": "ignore-previous-rules"]])
+        }
+        guard let data = try? JSONSerialization.data(withJSONObject: rules, options: [.sortedKeys]) else { return nil }
+        return String(data: data, encoding: .utf8)
     }
 }
 

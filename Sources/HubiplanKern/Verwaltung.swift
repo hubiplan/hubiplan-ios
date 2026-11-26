@@ -559,7 +559,10 @@ public struct AdminAccess: Sendable {
 public enum AdminPause {
     /// Sekunden ohne Bedienung, nach denen neu entsperrt werden muss
     public static let idle = 300.0
-    /// Sekunden im Hintergrund, nach denen gesperrt ist
+    /// Sekunden, die die App nicht vorn liegt (Abfrage von Face ID, Teilen, Mitteilungszentrale),
+    /// nach denen gesperrt ist. Geht sie ganz in den Hintergrund, sperrt die Verwaltung sofort
+    /// (Sicherheitsprüfung 26.11.2026, SEC-07): Kamera und Scanner laufen auf dem iPhone in der
+    /// App, eine Frist für den Wechsel in eine andere App braucht es nicht.
     public static let background = 60.0
 
     public static func locked(sinceUse: Double) -> Bool { sinceUse > idle }

@@ -48,6 +48,12 @@ final class SichtschutzFenster {
             let records = await store.dataRecords(ofTypes: types)
             let own = records.filter { host == $0.displayName || host.hasSuffix("." + $0.displayName) }
             await store.removeData(ofTypes: types, for: own)
+        case .sitzung(let host):
+            // Ein anderes Konto nutzt die Instanz weiter: nur die Sitzung löschen (SEC-04)
+            let cookies: Set<String> = [WKWebsiteDataTypeCookies, WKWebsiteDataTypeSessionStorage]
+            let records = await store.dataRecords(ofTypes: cookies)
+            let own = records.filter { host == $0.displayName || host.hasSuffix("." + $0.displayName) }
+            await store.removeData(ofTypes: cookies, for: own)
         }
     }
 }
