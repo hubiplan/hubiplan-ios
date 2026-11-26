@@ -1020,9 +1020,36 @@ final class AppModel: ObservableObject {
     }
 
     /// Vorschau (`confirm` false) oder Senden; Fehlertext bei Problemen.
+    /// Senden geht nur mit entsperrter Verwaltung (Vorstandsschlüssel), nie mit dem
+    /// Geräteschlüssel allein.
     func sendShort(_ sender: Sender, subject: String, body: String, confirm: Bool) async -> Result<SendResult, ApiError>? {
-        await portalCall { api, _ in
-            try await api.sendShort(sender, subject: subject, body: body, confirm: confirm)
+        checkAdminIdle()
+        guard let session else { return nil }
+        let locked = tr("Die Verwaltung ist gesperrt. Bitte unter „Verwaltung“ entsperren und dann erneut senden.")
+        guard let adminAccess else { return .failure(ApiError(status: 0, code: "admin_locked", message: locked)) }
+        let epoch = self.epoch
+        adminUsed = .now
+        do {
+            let value = try await session.api().sendShort(sender, subject: subject, body: body, confirm: confirm, access: adminAccess)
+            return epoch == self.epoch ? .success(value) : nil
+        } catch let failure as ApiError {
+            guard epoch == self.epoch else { return nil }
+            if failure.mustReconnect {
+                await disconnect(revoked: true)
+                linkError = failure.text
+                return nil
+            }
+            if failure.status == 401 {
+                // Abgelaufen oder im Browser gesperrt: neu freischalten, das Gerät bleibt angemeldet
+                tresor?.clear()
+                lockAdminNow()
+                adminSealed = false
+                await loadAdmin()
+                return .failure(ApiError(status: 401, code: failure.code, message: locked))
+            }
+            return .failure(failure)
+        } catch {
+            return epoch == self.epoch ? .failure(ApiError(status: 0, code: "offline")) : nil
         }
     }
 
