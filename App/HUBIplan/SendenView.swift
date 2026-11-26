@@ -34,6 +34,9 @@ struct SendenView: View {
                 if let error {
                     Section { MeldungText(error, .fehler) }
                 }
+                if !model.adminOpen {
+                    Section { MeldungText(tr("Zum Senden muss die Verwaltung entsperrt sein. Bitte zuerst unter „Verwaltung“ entsperren."), .warnung) }
+                }
                 Section {
                     if senders.senders.count > 1 {
                         Picker(tr("An"), selection: Binding(get: { sender?.key ?? "" }, set: { senderKey = $0 })) {

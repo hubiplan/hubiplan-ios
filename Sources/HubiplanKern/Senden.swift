@@ -78,11 +78,26 @@ extension Api {
         try await expect("GET", "/api/app/v1/send/")
     }
 
-    /// Kurzmitteilung: `confirm` false zählt nur die Empfänger, true sendet.
+    /// Kurzmitteilung: `confirm` false zählt nur die Empfänger, true sendet. Nur mit dem
+    /// Vorstandsschlüssel (`access` aus der entsperrten Verwaltung); der Server lehnt den
+    /// Geräteschlüssel allein ab. Instanzen ohne den neuen Pfad (404) nutzen den früheren Weg;
+    /// eine aktuelle Instanz lehnt ihn ab, dann gilt ihre erste Antwort („Einheit nicht gefunden“).
     /// Prüffehler des Servers (`{"body": ["…"]}`) kommen als Meldung zurück.
-    public func sendShort(_ sender: Sender, subject: String, body: String, confirm: Bool) async throws -> SendResult {
-        let response = try await raw("POST", "/api/app/v1/send/\(sender.type)/\(sender.id)/",
-                                     json: ["subject": subject, "body": body, "confirm": confirm])
+    public func sendShort(_ sender: Sender, subject: String, body: String, confirm: Bool, access: AdminAccess) async throws -> SendResult {
+        let json: [String: Any] = ["subject": subject, "body": body, "confirm": confirm]
+        do {
+            return try await verwaltung(access).sendShort(path: "/api/app/v1/admin/send/\(sender.type)/\(sender.id)/", json: json)
+        } catch let failure as ApiError where failure.status == 404 {
+            do {
+                return try await sendShort(path: "/api/app/v1/send/\(sender.type)/\(sender.id)/", json: json)
+            } catch let old as ApiError where old.status == 401 || old.status == 403 {
+                throw failure
+            }
+        }
+    }
+
+    private func sendShort(path: String, json: [String: Any]) async throws -> SendResult {
+        let response = try await raw("POST", path, json: json)
         guard (200...299).contains(response.status) else {
             let fields = Api.errorFields(response.body)
             let message = fields.message.isEmpty ? Api.firstFieldMessage(response.body) : fields.message
