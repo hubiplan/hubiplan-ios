@@ -11,6 +11,10 @@ struct VerwaltungView: View {
     @State private var unitKey: String?
     /// Termin aus einer Kalenderdatei: statt der Übersicht die erste Einheit mit Terminrecht suchen
     var terminZiel: ((AdminUnit, Bool) -> Void)?
+    /// Reiter der Leiste für Konten ohne Mitgliederbereich; nil: die ganze Verwaltung
+    var reiter: VerwaltungReiter?
+    /// Gewählte Einheit über alle Reiter hinweg (nur mit `reiter`)
+    var einheit: Binding<String?>?
 
     var body: some View {
         Group {
@@ -29,7 +33,7 @@ struct VerwaltungView: View {
                         if let terminZiel {
                             TerminZielSuche(units: overview.allUnits, found: terminZiel)
                         } else {
-                            VerwaltungStart(units: overview.allUnits, until: overview.until, unitKey: $unitKey)
+                            VerwaltungStart(units: overview.allUnits, until: overview.until, unitKey: einheit ?? $unitKey, reiter: reiter)
                         }
                     }
                 }
@@ -47,7 +51,7 @@ struct VerwaltungView: View {
                 }
             }
         }
-        .navigationTitle(tr("Verwaltung"))
+        .navigationTitle(reiter?.titel ?? tr("Verwaltung"))
         .navigationBarTitleDisplayMode(.inline)
         .task {
             // Auch bei offener Ansicht nach fünf Minuten Pause sperren
@@ -306,8 +310,25 @@ private struct VerwaltungStart: View {
     @State private var suche = ""
     /// Unter „Neu“ gewählt: öffnet den Bereich gleich mit dem Formular
     @State private var neu: NeuAktion?
+    /// Reiter der Leiste (Konto ohne Mitgliederbereich); nil: die ganze Startliste
+    var reiter: VerwaltungReiter?
 
     private var unit: AdminUnit { units.first { $0.key == unitKey } ?? units[0] }
+
+    /// „Neu“, „Zu erledigen“ und die Kacheln stehen in den Reitern nur auf „Start“
+    private var istStart: Bool { reiter == nil || reiter?.key == VerwaltungReiter.start }
+
+    /// Reiter mit genau einem Bereich: Er zeigt den Bereich selbst, ohne Liste davor
+    private var einzelBereich: AdminSection? {
+        guard let reiter, reiter.einzeln, let bereich = reiter.bereiche.first, unit.sections.contains(bereich) else { return nil }
+        return bereich
+    }
+
+    /// Bereiche dieser Liste: alle oder nur die des Reiters
+    private var listenBereiche: [AdminSection] {
+        guard let reiter else { return unit.sections }
+        return unit.sections.filter { reiter.bereiche.contains($0) }
+    }
 
     @ViewBuilder
     private func ziel(_ bereich: AdminSection) -> some View {
@@ -330,6 +351,14 @@ private struct VerwaltungStart: View {
     }
 
     var body: some View {
+        if let einzelBereich {
+            ziel(einzelBereich)
+        } else {
+            liste
+        }
+    }
+
+    private var liste: some View {
         List {
             Section {
                 if units.count > 1 {
@@ -350,7 +379,7 @@ private struct VerwaltungStart: View {
             }
             VerwaltungMeldung()
             // Arbeitsplatz (Gestaltung „Frisch mobil“): „Ausweis prüfen“ und „Neu“ ganz oben
-            if unit.canCheckCards || !unit.neuAktionen.isEmpty {
+            if istStart, unit.canCheckCards || !unit.neuAktionen.isEmpty {
                 Section {
                     HStack(spacing: Design.Abstand.klein) {
                         if unit.canCheckCards {
@@ -387,7 +416,7 @@ private struct VerwaltungStart: View {
                     .listRowInsets(EdgeInsets())
                 }
             }
-            if unit.sections.contains(.tasks), suche.isEmpty {
+            if istStart, unit.sections.contains(.tasks), suche.isEmpty {
                 Section {
                     NavigationLink {
                         OffenePunkteView(unit: unit)
@@ -400,7 +429,7 @@ private struct VerwaltungStart: View {
                     }
                 }
             }
-            if !unit.isDepartment, suche.isEmpty {
+            if istStart, !unit.isDepartment, suche.isEmpty {
                 Section {
                     KachelnUebersicht(
                         reloadKey: unit.key,
@@ -417,7 +446,7 @@ private struct VerwaltungStart: View {
                         .foregroundStyle(.secondary)
                 }
             }
-            let bereiche = unit.sections.filter { $0 != .tasks }
+            let bereiche = listenBereiche.filter { $0 != .tasks }
             if suche.isEmpty {
                 // Bereiche in den Hauptmenüpunkten der Einheit wie im Browser
                 ForEach(VerwaltungGruppe.gruppen(bereiche, unit.menuGroups), id: \.key) { eintrag in
@@ -434,7 +463,7 @@ private struct VerwaltungStart: View {
                     }
                 }
             } else {
-                let treffer = VerwaltungGruppe.suche(unit.sections, suche)
+                let treffer = VerwaltungGruppe.suche(listenBereiche, suche)
                 Section {
                     if treffer.isEmpty {
                         Text(tr("Kein Bereich passt zu „{text}“.", ["text": suche.trimmingCharacters(in: .whitespaces)]))

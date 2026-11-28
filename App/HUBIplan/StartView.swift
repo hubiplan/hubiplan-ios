@@ -43,6 +43,22 @@ enum Reiter {
 }
 
 extension AppModel {
+    /// Konto ohne Mitgliederbereich, aber mit etwas zu verwalten: Die Leiste zeigt die Verwaltung.
+    var nurVerwaltung: Bool {
+        VerwaltungReiter.nurVerwaltung(
+            geladen: adminOverview != nil,
+            zugaenge: accesses.count,
+            verwaltet: !(adminOverview?.allUnits.isEmpty ?? true)
+        )
+    }
+
+    /// Reiter der Verwaltung für die Einheit mit diesem Schlüssel (sonst die erste).
+    func verwaltungReiter(einheit: String?) -> [VerwaltungReiter] {
+        guard let units = adminOverview?.allUnits, !units.isEmpty else { return [] }
+        let unit = units.first { $0.key == einheit } ?? units[0]
+        return VerwaltungReiter.reiter(unit.sections, unit.menuGroups)
+    }
+
     /// Bereiche dieses Kontos für den fünften Reiter, in der Reihenfolge der Vorgabe.
     var fuenfteReiter: [String] {
         Zustand.fuenfteReiter(
@@ -137,7 +153,7 @@ struct StartView: View {
                 let naechster = Startseite.naechsterTermin(model.events)
                 Section {
                     if model.accesses.isEmpty && !model.loading && model.error == nil {
-                        Text(tr("Du hast noch keinen Zugang zum Mitgliederbereich. Bitte wende dich an deinen Verein."))
+                        Text(tr("Für dieses Konto gibt es in der App nichts: Es hat weder Zugang zum Mitgliederbereich noch etwas zu verwalten. Bitte wende dich an deinen Verein."))
                             .foregroundStyle(.secondary)
                     } else if let naechster {
                         TerminZeile(event: naechster)
