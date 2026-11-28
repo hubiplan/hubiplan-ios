@@ -122,13 +122,15 @@ public struct PushMessage: Decodable, Equatable, Sendable {
     public var todo: Int?
     public var org: Int?
     public var department: Int?
+    /// Hinweis der Verwaltung (`t = admin`): Einheit, in der etwas unter „Zu erledigen“ wartet
+    public var unit: Int?
     /// Termin: Rundschreiben dazu (bei "circular") bzw. Einladung/Erinnerung (bei "event")
     public var event: Int?
     public var rsvp: Bool
     public var maybe: Bool
 
     enum CodingKeys: String, CodingKey {
-        case v, type = "t", access, id, kind, title, text, from, todo, org, department, event, rsvp, maybe
+        case v, type = "t", access, id, kind, title, text, from, todo, org, department, unit, event, rsvp, maybe
     }
 
     public init(from decoder: Decoder) throws {
@@ -144,6 +146,7 @@ public struct PushMessage: Decodable, Equatable, Sendable {
         todo = try c.decodeIfPresent(Int.self, forKey: .todo)
         org = try c.decodeIfPresent(Int.self, forKey: .org)
         department = try c.decodeIfPresent(Int.self, forKey: .department)
+        unit = try c.decodeIfPresent(Int.self, forKey: .unit)
         event = try c.decodeIfPresent(Int.self, forKey: .event)
         rsvp = try c.decodeIfPresent(Bool.self, forKey: .rsvp) ?? false
         maybe = try c.decodeIfPresent(Bool.self, forKey: .maybe) ?? false

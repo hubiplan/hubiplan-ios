@@ -45,6 +45,10 @@ mit der HUBIplan-Instanz des eigenen Vereins, nie mit einem fremden Dienst.
 - **Reiter wie in der Android-App:** Start, Termine, Neues, Ich und ein fünfter je Rolle
   (Verwaltung, sonst Noten, sonst Aufgaben; `Zustand.fuenfterReiter`, wählbar unter „Mein Konto ›
   Einstellungen“). Was nicht in der Leiste steht, ist auf „Start“ unter „Schnell erreichbar“.
+- **Konten ohne Mitgliederbereich** (Rolle ohne eigene Mitgliedschaft, Einheit nur mit
+  Kassenbuch): Die Leiste zeigt die Verwaltung, nämlich Start, bis zu drei Reiter aus den Rechten
+  und Ich (`VerwaltungReiter`, gleiche Regel wie in der Android-App). Braucht am Server die
+  Funktion `app-nur-verwaltung`.
 - **iPad:** Termine, Neues (Mitteilungen), Aufgaben und Noten zeigen Liste und Detail
   nebeneinander, auch im Hochformat (`ListeDetail` in `Bausteine.swift`, Regel in
   `Zweispaltig`), wie `ListDetail` der Android-App; auf dem iPhone bleibt es beim Nacheinander.

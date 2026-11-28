@@ -16,6 +16,20 @@ struct HauptView: View {
     private var fuenfter: String? { Zustand.fuenfterReiter(model.fuenfteReiter, wahl: gewaehlt) }
     private var availableTabs: [String] { Zustand.leiste(model.fuenfteReiter, wahl: gewaehlt) }
     @State private var exportURL: URL?
+    /// Nur Verwaltung: gewählte Einheit, nach ihr richten sich die Reiter
+    @State private var verwaltungEinheit: String?
+
+    private var verwaltungReiter: [VerwaltungReiter] { model.verwaltungReiter(einheit: verwaltungEinheit) }
+
+    /// Nur Verwaltung: nicht auf einem Reiter bleiben, den es (in dieser Einheit) nicht gibt
+    private func reiterPruefen() {
+        guard model.nurVerwaltung else {
+            if tab.hasPrefix("v:") { tab = "start" }
+            return
+        }
+        let erlaubt = verwaltungReiter.map { "v:\($0.key)" } + ["v:\(VerwaltungReiter.ich)"]
+        if !erlaubt.contains(tab) { tab = "v:\(VerwaltungReiter.start)" }
+    }
 
     /// Eigene Teile, damit der Übersetzer `body` in vertretbarer Zeit prüfen kann
     @ViewBuilder private var alteVorgaengeKnoepfe: some View {
@@ -40,6 +54,23 @@ struct HauptView: View {
 
     var body: some View {
         TabView(selection: $tab) {
+            if model.nurVerwaltung {
+                // Konto ohne Mitgliederbereich: Start, bis zu drei Reiter der Verwaltung, Ich
+                ForEach(verwaltungReiter) { reiter in
+                    NavigationStack { VerwaltungView(reiter: reiter, einheit: $verwaltungEinheit) }
+                        .tabItem {
+                            Label {
+                                Text(reiter.titel)
+                            } icon: {
+                                Image(uiImage: SymbolZeichner.bild(reiter.symbol))
+                            }
+                        }
+                        .tag("v:\(reiter.key)")
+                }
+                NavigationStack { KontoView() }
+                    .tabItem { Reiter.marke("ausweis") }
+                    .tag("v:\(VerwaltungReiter.ich)")
+            } else {
             // Reiter wie in der Android-App: Start, Termine, Neues, Ich und ein fünfter je Rolle
             StartView(tab: $tab, weitere: Zustand.weitereReiter(model.fuenfteReiter, wahl: gewaehlt))
                 .tabItem { Reiter.marke("start") }
@@ -70,14 +101,21 @@ struct HauptView: View {
                     .tabItem { Reiter.marke("aufgaben") }
                     .tag("aufgaben")
             }
+            }
         }
         // Der fünfte Reiter wechselt (Rechte geladen, andere Wahl): nicht auf einem Reiter bleiben, den es nicht mehr gibt
-        .onChange(of: fuenfter) { _, _ in if !availableTabs.contains(tab) { tab = "start" } }
+        .onChange(of: fuenfter) { _, _ in
+            if !model.nurVerwaltung, !availableTabs.contains(tab) { tab = "start" }
+            reiterPruefen()
+        }
+        .onChange(of: model.nurVerwaltung) { _, _ in reiterPruefen() }
+        .onChange(of: verwaltungReiter.map(\.key)) { _, _ in reiterPruefen() }
         .task {
             model.checkStaleQuarantine()
             await model.refresh()
             // Nur, solange niemand schon einen anderen Reiter gewählt hat
-            if !Demo.active, tab == "start" { tab = Zustand.reiter(savedTab, available: availableTabs, fallback: tab) }
+            if !Demo.active, tab == "start", !model.nurVerwaltung { tab = Zustand.reiter(savedTab, available: availableTabs, fallback: tab) }
+            reiterPruefen()
         }
         .onChange(of: tab) { _, new in if !Demo.active { savedTab = new } }
         // Alte Vorgänge aus beendeten Verbindungen (APP-04, FQ24): exportieren oder löschen
@@ -98,7 +136,7 @@ struct HauptView: View {
             ShareLink(item: file.url) { Label(tr("Exportieren"), systemImage: "square.and.arrow.up") }
                 .padding()
         }
-        .onChange(of: model.showEvents) { _, _ in tab = "termine" }
+        .onChange(of: model.showEvents) { _, _ in if !model.nurVerwaltung { tab = "termine" } }
         // Geteilte Kalenderdatei (W4): Einheit mit Terminrecht suchen, dann „Neuer Termin“ vorausgefüllt
         .sheet(isPresented: Binding(get: { model.sharedEvent != nil }, set: { if !$0 { model.sharedEvent = nil } })) {
             if let termin = model.sharedEvent {
@@ -168,7 +206,7 @@ struct TermineView: View {
                     }
                 }
                 if model.accesses.isEmpty && !model.loading && model.error == nil {
-                    Text(tr("Du hast noch keinen Zugang zum Mitgliederbereich. Bitte wende dich an deinen Verein."))
+                    Text(tr("Für dieses Konto gibt es in der App nichts: Es hat weder Zugang zum Mitgliederbereich noch etwas zu verwalten. Bitte wende dich an deinen Verein."))
                         .foregroundStyle(.secondary)
                 } else if model.events.isEmpty && !model.loading && model.error == nil {
                     Text(tr("Keine Termine in den nächsten Monaten.")).foregroundStyle(.secondary)

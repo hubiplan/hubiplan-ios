@@ -33,7 +33,6 @@
  "Verbunden als": "Connected as",
  "Hilfe und Anleitungen im Browser": "Help and guides in the browser",
  "Erneut versuchen": "Try again",
- "Du hast noch keinen Zugang zum Mitgliederbereich. Bitte wende dich an deinen Verein.": "You do not have access to the members' area yet. Please contact your club.",
  "Neues": "News",
  "Noch keine Mitteilungen.": "No messages yet.",
  "Mitgliedsausweis": "Membership card",
@@ -1484,5 +1483,12 @@
  "Gültige Mitgliedschaft": "Valid membership",
  "Mitgliedschaft beginnt später": "Membership starts later",
  "Keine gültige Mitgliedschaft": "No valid membership",
- "Weitere": "More"
+ "Weitere": "More",
+ "Anträge": "Applications",
+ "Versammlung": "Meeting",
+ "Jubiläen": "Anniversaries",
+ "Partner": "Partners",
+ "Nachweise": "Certificates",
+ "Mehr": "More",
+ "Für dieses Konto gibt es in der App nichts: Es hat weder Zugang zum Mitgliederbereich noch etwas zu verwalten. Bitte wende dich an deinen Verein.": "There is nothing in the app for this account: it has neither access to the member area nor anything to manage. Please contact your club."
 }
